@@ -173,6 +173,7 @@
         var cols = el("div", "item-row item-cols");
         cols.appendChild(el("span", "", "Item"));
         cols.appendChild(el("span", "", "Min qty"));
+        cols.appendChild(el("span"));   // keeps the headings over their columns
         card.appendChild(cols);
       }
       p.items.forEach(function (it, ii) {
