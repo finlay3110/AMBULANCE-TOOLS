@@ -311,13 +311,13 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
 
 .pouch-head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
 .pouch-head .pouch-name { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; }
-.item-row { display: grid; grid-template-columns: 1fr 80px auto; gap: 8px; align-items: center; margin-top: 6px; }
+.item-row { display: grid; grid-template-columns: 1fr 80px 120px; gap: 8px; align-items: center; margin-top: 6px; }
 .item-cols span { font-size: 12px; font-weight: 600; color: var(--muted); }
 .add-item { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .add-row { display: flex; gap: 10px; }
 .add-row input { flex: 1; }
 @media (max-width: 700px) {
-  .item-row { grid-template-columns: 1fr 56px auto; gap: 6px; }
+  .item-row { grid-template-columns: 1fr 56px 104px; gap: 6px; }
   .item-row .icon-btn { padding: 7px 9px; }
   .add-item { grid-template-columns: 1fr 56px; }
   .add-item .btn { grid-column: 1 / -1; }
@@ -340,3 +340,4 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
 .notice {
   margin: 14px 0 0; padding: 10px 13px; font-size: 13px; border-radius: 8px;
 }
+.item-row .med-btns { justify-content: flex-end; }
