@@ -1,0 +1,12 @@
+{
+  "name": "bag-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based kit list, checklist and sign in/out log generator for medical bags",
+  "scripts": {
+    "test": "node test/smoke.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}
