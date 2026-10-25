@@ -40,9 +40,16 @@ const assert = require("assert");
   // Editing a min qty in place; a negative or junk value is not stored.
   const minInput = page.locator(".pouch").nth(1).locator(".item-row:not(.item-cols):not(.add-item) input[type=number]").first();
   await minInput.fill("6");
+  // Sealed pouch: number box only shows once ticked.
+  const airway = page.locator(".pouch").first();
+  assert.ok(await airway.locator("input[aria-label='Seal number']").isHidden());
+  await airway.getByLabel("Sealed with a tag").check();
+  await airway.locator("input[aria-label='Seal number']").fill("T12345");
+
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("bag-tracker/v1")));
   assert.strictEqual(stored.pouches[1].items[0].min, 6);
   assert.deepStrictEqual(stored.pouches.map((p) => p.items.length), [3, 2]);
+  assert.deepStrictEqual(stored.pouches.map((p) => [p.sealed, p.seal]), [[true, "T12345"], [false, ""]]);
 
   // Move the trauma pouch up.
   await page.locator(".pouch").nth(1).getByRole("button", { name: "Move pouch up" }).click();
@@ -63,7 +70,7 @@ const assert = require("assert");
   });
   assert.strictEqual(info.n, 3);
   assert.deepStrictEqual(info.sizes, [210, 210, 297]);
-  for (const s of ["BAG KIT LIST", "BAG KIT CHECKLIST", "SIGN IN / SIGN OUT LOG", "TRAUMA POUCH", "OPA size 2", "Crepe bandage 7.5cm"]) {
+  for (const s of ["BAG KIT LIST", "BAG KIT CHECKLIST", "SIGN IN / SIGN OUT LOG", "TRAUMA POUCH", "OPA size 2", "Crepe bandage 7.5cm", "SEAL No. T12345", "Seal no. found"]) {
     assert.ok(info.raw.includes(s), "PDF missing " + s);
   }
 

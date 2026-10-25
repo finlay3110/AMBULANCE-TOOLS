@@ -341,3 +341,8 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
   margin: 14px 0 0; padding: 10px 13px; font-size: 13px; border-radius: 8px;
 }
 .item-row .med-btns { justify-content: flex-end; }
+.seal-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; min-height: 40px; }
+.seal-row input[type=text] { flex: 1; min-width: 0; }
+.check-row { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: none; }
+.check-row input { width: auto; margin: 0; }
+.check-row span { font-size: 13px; font-weight: 600; color: var(--ink-soft); }

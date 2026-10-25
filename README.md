@@ -28,7 +28,9 @@ Open `index.html` in a browser.
 1. **Setup** — company details (and logo), then the bag's name, number, where it
    is kept, seal number and who packed it.
 2. **Pouches** — add each module or pouch, then add its items with a minimum
-   quantity. Items and pouches can be renamed, reordered and removed in place.
+   quantity. Tick "Sealed with a tag" on a pouch that is tagged shut and enter
+   its seal number (or leave it blank to write by hand). Items and pouches can be
+   renamed, reordered and removed in place.
 3. **Generate** — download or preview the PDF, and export the bag to `.json` so it
    can be loaded again (or used as the starting point for another bag).
 

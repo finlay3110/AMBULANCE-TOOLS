@@ -29,6 +29,8 @@
       if (!p || typeof p !== "object") return;
       out.pouches.push({
         name: String(p.name || ""),
+        sealed: p.sealed === true,
+        seal: String(p.seal || ""),
         items: (Array.isArray(p.items) ? p.items : []).filter(Boolean).map(function (it) {
           return { name: String(it.name || ""), min: minOf(it.min) };
         })
@@ -169,6 +171,25 @@
       head.appendChild(btns);
       card.appendChild(head);
 
+      // Sealed with a numbered tag: the number changes each reseal, so it is optional.
+      var sealRow = el("div", "seal-row");
+      var tick = el("label", "check-row");
+      var box = el("input");
+      box.type = "checkbox";
+      box.checked = p.sealed;
+      tick.appendChild(box);
+      tick.appendChild(el("span", "", "Sealed with a tag"));
+      var seal = boundInput(p, "seal", { type: "text", placeholder: "Seal no. (blank to write by hand)", "aria-label": "Seal number" });
+      seal.hidden = !p.sealed;
+      box.addEventListener("change", function () {
+        p.sealed = box.checked;
+        seal.hidden = !p.sealed;
+        save();
+      });
+      sealRow.appendChild(tick);
+      sealRow.appendChild(seal);
+      card.appendChild(sealRow);
+
       if (p.items.length) {
         var cols = el("div", "item-row item-cols");
         cols.appendChild(el("span", "", "Item"));
@@ -215,7 +236,7 @@
     ev.preventDefault();
     var name = $("pouchName").value.trim();
     if (!name) return;
-    bag.pouches.push({ name: name, items: [] });
+    bag.pouches.push({ name: name, sealed: false, seal: "", items: [] });
     $("pouchName").value = "";
     changed();
     var inputs = document.querySelectorAll(".add-item input");

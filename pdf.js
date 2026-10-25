@@ -137,11 +137,17 @@
 
     y = head(y);
     data.pouches.forEach(function (p) {
-      var bar = [{ text: p.name.toUpperCase() + "   (" + p.items.length + " item" + (p.items.length === 1 ? "" : "s") + ")" }];
+      var label = p.name.toUpperCase() + "   (" + p.items.length + " item" + (p.items.length === 1 ? "" : "s") + ")";
+      if (p.sealed) label += "      SEALED \u2014 SEAL No. " + (txt(p.seal) || "______________");
       var barW = [contentW(doc)];
+      var sealH = p.sealed && spec.sealCheck ? 8 : 0;
       var first = p.items[0] ? drawRow(doc, 0, spec.widths, cells(spec.row(p.items[0], 0), spec.aligns), { measure: true }) : 0;
-      if (y + 8 + first > bottom()) y = newPage();
-      y += drawRow(doc, y, barW, bar, { bold: true, fill: BAR_BG, colour: [255, 255, 255], minH: 8 });
+      if (y + 8 + sealH + first > bottom()) y = newPage();
+      y += drawRow(doc, y, barW, [{ text: label }], { bold: true, fill: BAR_BG, colour: [255, 255, 255], minH: 8 });
+      if (sealH) {
+        y += drawRow(doc, y, barW, [{ text: "Seal no. found: ______________     Intact:  Yes  /  No     " +
+          "New seal no.: ______________" }], { fill: SOFT_BG, minH: sealH });
+      }
       p.items.forEach(function (it, i) {
         var c = cells(spec.row(it, i), spec.aligns);
         var h = drawRow(doc, 0, spec.widths, c, { measure: true, minH: spec.minH });
@@ -248,6 +254,7 @@
       header: ["Item", "Min qty", "Found", "OK", "Notes"],
       aligns: ["left", "center", "center", "center", "left"],
       minH: 8,
+      sealCheck: true,
       row: function (it) { return [it.name, String(it.min), "", "", ""]; }
     }) + 6;
     signBlock(doc, y, "CHECK COMPLETED", [{ label: "CHECKED BY" }, { label: "SECOND CHECK (IF REQUIRED)" }]);
