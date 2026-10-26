@@ -179,7 +179,7 @@
       box.checked = p.sealed;
       tick.appendChild(box);
       tick.appendChild(el("span", "", "Sealed with a tag"));
-      var seal = boundInput(p, "seal", { type: "text", placeholder: "Seal no. (blank to write by hand)", "aria-label": "Seal number" });
+      var seal = boundInput(p, "seal", { type: "text", placeholder: "Seal no. (optional)", "aria-label": "Seal number" });
       seal.hidden = !p.sealed;
       box.addEventListener("change", function () {
         p.sealed = box.checked;
