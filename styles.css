@@ -346,3 +346,9 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
 .check-row { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: none; }
 .check-row input { width: auto; margin: 0; }
 .check-row span { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.sheet-list { display: flex; flex-direction: column; gap: 12px; }
+.sheet-list .check-row { align-items: flex-start; }
+.sheet-list .check-row input { margin-top: 2px; }
+.sheet-list small { display: block; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.sheet-list .copies { flex-direction: row; align-items: center; gap: 10px; margin-left: 26px; }
+.sheet-list .copies input { width: 80px; }

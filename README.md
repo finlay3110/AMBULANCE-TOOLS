@@ -9,12 +9,19 @@ A browser-based tool for ambulance and event-medical companies to produce the
 paperwork for an equipment / consumables bag (bandages, airways, dressings…) as
 one A4 PDF:
 
-1. **Kit list** — each module or pouch in the bag, what should be inside it and
+1. **Bag labels** — four cut-out labels for the outside of the bag: bag number,
+   company, seal number and an "if found" notice.
+2. **Kit list** — each module or pouch in the bag, what should be inside it and
    the minimum quantity of each, with a packed-by / checked-by block.
-2. **Kit checklist** — the same list with columns to write the count found, tick
+3. **Kit checklist** — the same list with columns to write the count found, tick
    it off and note anything replaced, plus seal numbers and a signature block.
-3. **Sign in / sign out log** — a landscape sheet recording who took the bag out,
+4. **Sign in / sign out log** — a landscape sheet recording who took the bag out,
    when, where to, and when it came back, with seal numbers both ways.
+
+Pick which sheets to print, and how many checklist copies, on the Generate tab.
+Enter several bag numbers separated by commas to get a full set for each
+identical bag in one PDF. Every page carries the kit list version and the date the
+layout last changed, so an out-of-date printout is easy to spot.
 
 Everything runs locally in the browser — no server, no upload. The PDF is built
 with [jsPDF](https://github.com/parallax/jsPDF), bundled in `vendor/`, so it
@@ -31,7 +38,7 @@ Open `index.html` in a browser.
    quantity. Tick "Sealed with a tag" on a pouch that is tagged shut and enter
    its seal number (or leave it blank to write by hand). Items and pouches can be
    renamed, reordered and removed in place.
-3. **Generate** — download or preview the PDF, and export the bag to `.json` so it
+3. **Generate** — choose the sheets, then download or preview the PDF, and export the bag to `.json` so it
    can be loaded again (or used as the starting point for another bag).
 
 The bag is also kept in this browser's storage, but that can be cleared — export

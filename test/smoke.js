@@ -60,19 +60,50 @@ const assert = require("assert");
   assert.strictEqual(await page.inputValue("#bagNumber"), "RB-03");
   assert.strictEqual(await page.locator(".pouch").count(), 2);
 
-  // PDF: kit list, checklist, landscape log — 3 pages with this little content.
-  const info = await page.evaluate(() => {
-    const doc = window.BagPDF.build(JSON.parse(localStorage.getItem("bag-tracker/v1")));
+  // Changing the pouches dated the layout today.
+  const today = await page.evaluate(() => new Date().toISOString().slice(0, 10));
+  assert.strictEqual(await page.inputValue("#updated"), today);
+  await page.fill("#version", "3");
+
+  // Builds the PDF from what is stored, after `change` edits a copy of it.
+  const pdf = (change) => page.evaluate((src) => {
+    const bag = JSON.parse(localStorage.getItem("bag-tracker/v1"));
+    if (src) new Function("bag", src)(bag);
+    const doc = window.BagPDF.build(bag);
     const n = doc.internal.getNumberOfPages();
     const sizes = [];
     for (let i = 1; i <= n; i++) { doc.setPage(i); sizes.push(Math.round(doc.internal.pageSize.getWidth())); }
     return { n, sizes, raw: doc.output() };
-  });
-  assert.strictEqual(info.n, 3);
-  assert.deepStrictEqual(info.sizes, [210, 210, 297]);
-  for (const s of ["BAG KIT LIST", "BAG KIT CHECKLIST", "SIGN IN / SIGN OUT LOG", "TRAUMA POUCH", "OPA size 2", "Crepe bandage 7.5cm", "SEAL No. T12345", "Seal no. found"]) {
+  }, change || "");
+
+  // Default: labels, kit list, checklist, landscape log.
+  const info = await pdf();
+  assert.deepStrictEqual(info.sizes, [210, 210, 210, 297]);
+  for (const s of ["IF FOUND,", "BAG KIT LIST", "BAG KIT CHECKLIST", "SIGN IN / SIGN OUT LOG", "TRAUMA POUCH", "OPA size 2",
+    "Crepe bandage 7.5cm", "SEAL No. T12345", "Seal no. found", "Kit list v3, updated " + today.split("-").reverse().join("/")]) {
     assert.ok(info.raw.includes(s), "PDF missing " + s);
   }
+
+  // Sheet choice and checklist copies; settings are stored.
+  await page.click(".tab[data-tab=generate]");
+  await page.uncheck("#printLabel");
+  await page.uncheck("#printLog");
+  await page.fill("#printCopies", "3");
+  const picked = await pdf();
+  assert.strictEqual(picked.n, 4, "kit list + 3 checklists");
+  assert.ok(!picked.raw.includes("IF FOUND,") && !picked.raw.includes("SIGN IN / SIGN OUT LOG"));
+  await page.uncheck("#printKit");
+  await page.uncheck("#printCheck");
+  await page.click("#generateBtn");
+  assert.match(await page.textContent("#genError"), /at least one sheet/);
+  for (const id of ["#printLabel", "#printKit", "#printCheck", "#printLog"]) await page.check(id);
+  await page.fill("#printCopies", "1");
+
+  // Several bag numbers: a full set each, and no single bag's seal numbers.
+  const multi = await pdf('bag.bagNumber = "RB-01, RB-02,RB-03"');
+  assert.strictEqual(multi.n, 12);
+  assert.ok(!multi.raw.includes("T12345"), "seal no. must not be copied to every bag");
+  for (const n of ["RB-01", "RB-02", "RB-03"]) assert.ok(multi.raw.includes("Bag " + n + "  "), "footer missing " + n);
 
   // A long bag spills onto more pages without throwing.
   const long = await page.evaluate(() => {

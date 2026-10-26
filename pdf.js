@@ -1,4 +1,4 @@
-/* PDF generation: kit list, kit checklist and sign in/out log. Uses the bundled jsPDF. */
+/* PDF generation: bag labels, kit list, kit checklist and sign in/out log. Uses the bundled jsPDF. */
 (function (global) {
   "use strict";
 
@@ -217,6 +217,7 @@
 
   /* ---------------- 1. Kit list ---------------- */
   function kitList(doc, data) {
+    doc.addPage();
     var y = masthead(doc, data, "BAG KIT LIST");
     y = detailStrip(doc, [
       ["Bag", txt(data.bagName)],
@@ -283,29 +284,130 @@
     while (y + 10 <= pageH(doc) - PAGE.mb) y += drawRow(doc, y, widths, blank, { minH: 10 });
   }
 
-  /* Footers go on last, because "of N" is not known until the end. */
-  function stampFooters(doc, data) {
+  /* ---------------- 0. Bag labels: four to an A4 page, to cut out ---------------- */
+  function labels(doc, data) {
+    doc.addPage();
+    var w = contentW(doc) / 2, h = (pageH(doc) - PAGE.mt - PAGE.mb) / 2;
+    for (var i = 0; i < 4; i++) label(doc, data, PAGE.ml + (i % 2) * w, PAGE.mt + Math.floor(i / 2) * h, w, h);
+  }
+
+  function label(doc, data, x, y, w, h) {
+    var pad = 5, inner = w - pad * 2, cy;
+    doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([2, 1.5], 0);
+    doc.rect(x, y, w, h, "S");
+    doc.setLineDashPattern([], 0);
+
+    // Company band
+    doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+    doc.rect(x + pad, y + pad, inner, 18, "F");
+    var logoW = drawLogo(doc, data, x + pad + 2, y + pad + 2, 24, 14);
+    var tx = x + pad + 3 + (logoW ? logoW + 2 : 0);
+    doc.setTextColor(255, 255, 255);
+    setFont(doc, 10, "bold");
+    doc.text(wrap(doc, data.companyName, x + pad + inner - tx - 2).slice(0, 2), tx, y + pad + 8);
+
+    // Bag number, large
+    cy = y + pad + 30;
+    setFont(doc, 8, "normal");
+    colour(doc, MUTED);
+    doc.text(txt(data.bagNumber) ? "BAG No." : "BAG", x + w / 2, cy, { align: "center" });
+    colour(doc, INK);
+    setFont(doc, txt(data.bagNumber) ? 30 : 16, "bold");
+    doc.text(wrap(doc, bagLabel(data), inner)[0] || "", x + w / 2, cy + 13, { align: "center" });
+    setFont(doc, 11, "normal");
+    doc.text(wrap(doc, txt(data.bagNumber) ? data.bagName : "", inner)[0] || "", x + w / 2, cy + 21, { align: "center" });
+
+    // Seal line
+    cy += 33;
+    setFont(doc, 9, "normal");
+    colour(doc, MUTED);
+    doc.text("Seal no.", x + pad, cy);
+    doc.line(x + pad + 16, cy + 1, x + pad + inner, cy + 1);
+    colour(doc, INK);
+    if (txt(data.sealNumber)) { setFont(doc, 10, "bold"); doc.text(txt(data.sealNumber), x + pad + 18, cy); }
+
+    // If found
+    cy += 8;
+    var lines = [];
+    setFont(doc, 9, "normal");
+    if (txt(data.companyPhone)) lines.push("please call " + txt(data.companyPhone));
+    if (txt(data.companyAddress)) lines = lines.concat(wrap(doc, (lines.length ? "or return to " : "please return to ") +
+      txt(data.companyAddress).replace(/\s*\n\s*/g, ", "), inner - 6).slice(0, 4));
+    if (!lines.length) lines.push("please return to " + txt(data.companyName));
+    var boxH = 10 + linesHeight(lines, 9);
+    doc.setFillColor(253, 243, 221);
+    doc.setDrawColor(236, 211, 150);
+    doc.rect(x + pad, cy, inner, boxH, "FD");
+    setFont(doc, 9, "bold");
+    doc.text("IF FOUND,", x + pad + 3, cy + 5.5);
+    setFont(doc, 9, "normal");
+    doc.text(lines, x + pad + 3, cy + 10);
+
+    // Medical equipment warning, pinned to the bottom of the label
+    setFont(doc, 8, "normal");
+    colour(doc, MUTED);
+    doc.text(wrap(doc, "Medical equipment. Do not open unless authorised.", inner), x + w / 2, y + h - pad - 4,
+      { align: "center" });
+    colour(doc, INK);
+  }
+
+  function versionText(data) {
+    var v = txt(data.version), u = ukDate(data.updated);
+    if (!v && !u) return "";
+    return "Kit list" + (v ? " v" + v : "") + (u ? (v ? ", updated " : " updated ") + u : "");
+  }
+
+  /* Footers go on last, because "of N" is not known until the end. `bagAt` maps a page to its bag. */
+  function stampFooters(doc, bagAt) {
     var total = doc.internal.getNumberOfPages();
     var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
     var made = "Generated " + p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear();
-    var left = "Bag " + bagLabel(data) + "  ·  " + txt(data.companyName);
+    var data;
     for (var i = 1; i <= total; i++) {
+      data = bagAt[i] || data;
       doc.setPage(i);
       var base = pageH(doc) - 7;
       setFont(doc, 8, "normal");
       doc.setTextColor(110, 118, 128);
-      doc.text(left, PAGE.ml, base);
-      doc.text(made, pageW(doc) / 2, base, { align: "center" });
+      doc.text("Bag " + bagLabel(data) + "  ·  " + txt(data.companyName), PAGE.ml, base);
+      doc.text([versionText(data), made].filter(Boolean).join("  ·  "), pageW(doc) / 2, base, { align: "center" });
       doc.text("Page " + i + " of " + total, pageW(doc) - PAGE.mr, base, { align: "right" });
     }
   }
 
+  /* "RB-01, RB-02" -> ["RB-01", "RB-02"]; no number still makes one set. */
+  function bagNumbers(data) {
+    var list = txt(data.bagNumber).split(/[,;\n]+/).map(txt).filter(Boolean);
+    return list.length ? list : [""];
+  }
+
+  /*
+   * One full set of the chosen sheets per bag number. With several bags the seal
+   * numbers belong to no single bag, so they are left blank to write in.
+   */
   function build(data) {
+    var print = data.print || { kitList: true, checklist: true, copies: 1, log: true, label: true };
+    var numbers = bagNumbers(data);
     var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
-    kitList(doc, data);
-    checklist(doc, data);
-    signLog(doc, data);
-    stampFooters(doc, data);
+    var bagAt = {};
+
+    numbers.forEach(function (n) {
+      var bag = Object.assign({}, data, { bagNumber: n });
+      if (numbers.length > 1) {
+        bag.sealNumber = "";
+        bag.pouches = data.pouches.map(function (p) { return Object.assign({}, p, { seal: "" }); });
+      }
+      bagAt[doc.internal.getNumberOfPages()] = bag;   // first page of this bag, before the blank page is removed
+      if (print.label) labels(doc, bag);
+      if (print.kitList) kitList(doc, bag);
+      for (var c = 0; print.checklist && c < (print.copies || 1); c++) checklist(doc, bag);
+      if (print.log) signLog(doc, bag);
+    });
+
+    doc.deletePage(1);
+    stampFooters(doc, bagAt);
     return doc;
   }
 

@@ -4,12 +4,15 @@
 
   var KEY = "bag-tracker/v1";
   var FIELDS = ["companyName", "companyPhone", "companyAddress",
-    "bagName", "bagNumber", "location", "sealNumber", "packedBy", "packedDate"];
+    "bagName", "bagNumber", "location", "sealNumber", "packedBy", "packedDate", "version", "updated"];
+  var PRINT = { printKit: "kitList", printCheck: "checklist", printLog: "log", printLabel: "label" };
   var LOGO_MAX_EDGE = 480;      // px, plenty for print at the size it is drawn
   var LOGO_MAX_BYTES = 400000;  // keep localStorage well inside its quota
   var $ = function (id) { return document.getElementById(id); };
 
-  function blank() { return { pouches: [] }; }
+  function blank() {
+    return { pouches: [], print: { kitList: true, checklist: true, copies: 1, log: true, label: true } };
+  }
   var bag = blank();
 
   /* ---------------- storage ---------------- */
@@ -25,6 +28,11 @@
     if (typeof raw.logo === "string" && raw.logo.indexOf("data:image/") === 0) {
       out.logo = raw.logo; out.logoW = +raw.logoW || 0; out.logoH = +raw.logoH || 0;
     }
+    var pr = raw.print && typeof raw.print === "object" ? raw.print : {};
+    Object.keys(PRINT).forEach(function (id) {
+      if (typeof pr[PRINT[id]] === "boolean") out.print[PRINT[id]] = pr[PRINT[id]];
+    });
+    out.print.copies = copiesOf(pr.copies);
     (Array.isArray(raw.pouches) ? raw.pouches : []).forEach(function (p) {
       if (!p || typeof p !== "object") return;
       out.pouches.push({
@@ -44,6 +52,11 @@
     return isFinite(n) && n >= 0 ? Math.min(n, 9999) : 1;
   }
 
+  function copiesOf(v) {
+    var n = Math.floor(Number(v));
+    return isFinite(n) && n >= 1 ? Math.min(n, 50) : 1;
+  }
+
   function load() {
     try { bag = clean(JSON.parse(localStorage.getItem(KEY))); } catch (e) { bag = blank(); }
   }
@@ -51,12 +64,28 @@
   /* ---------------- setup fields ---------------- */
   function fillSetup() {
     FIELDS.forEach(function (f) { $(f).value = bag[f] || ""; });
+    Object.keys(PRINT).forEach(function (id) { $(id).checked = bag.print[PRINT[id]]; });
+    $("printCopies").value = bag.print.copies;
     showLogo();
   }
 
   FIELDS.forEach(function (f) {
     $(f).addEventListener("input", function () { bag[f] = $(f).value; save(); });
   });
+
+  Object.keys(PRINT).forEach(function (id) {
+    $(id).addEventListener("change", function () { bag.print[PRINT[id]] = $(id).checked; save(); });
+  });
+  $("printCopies").addEventListener("input", function () { bag.print.copies = copiesOf(this.value); save(); });
+  $("printCopies").addEventListener("change", function () { this.value = bag.print.copies; });
+
+  /* Any change to the pouches dates the layout, so printed copies show which version they are. */
+  function layoutChanged() {
+    var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
+    bag.updated = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+    $("updated").value = bag.updated;
+    save();
+  }
 
   function showLogo() {
     $("logoPreview").hidden = !bag.logo;
@@ -135,7 +164,7 @@
     changed();
   }
 
-  function changed() { save(); renderPouches(); }
+  function changed() { layoutChanged(); renderPouches(); }
 
   /* Text inputs update state in place and do not re-render, so typing keeps focus. */
   function boundInput(obj, key, attrs) {
@@ -144,7 +173,7 @@
     input.value = obj[key];
     input.addEventListener("input", function () {
       obj[key] = key === "min" ? minOf(input.value) : input.value;
-      save();
+      layoutChanged();
     });
     if (key === "min") input.addEventListener("change", function () { input.value = obj.min; });
     return input;
@@ -184,7 +213,7 @@
       box.addEventListener("change", function () {
         p.sealed = box.checked;
         seal.hidden = !p.sealed;
-        save();
+        layoutChanged();
       });
       sealRow.appendChild(tick);
       sealRow.appendChild(seal);
@@ -268,6 +297,7 @@
     if (!(bag.companyName || "").trim()) out.push("Enter the company name (Setup).");
     if (!(bag.bagName || "").trim()) out.push("Enter the bag name (Setup).");
     if (!bag.pouches.some(function (p) { return p.items.length; })) out.push("Add at least one item to a pouch.");
+    if (!Object.keys(PRINT).some(function (id) { return bag.print[PRINT[id]]; })) out.push("Tick at least one sheet to print.");
     bag.pouches.forEach(function (p, i) {
       if (!p.name.trim()) out.push("Pouch " + (i + 1) + " has no name.");
       if (p.items.some(function (it) { return !it.name.trim(); })) out.push("“" + p.name + "” has an item with no name.");
