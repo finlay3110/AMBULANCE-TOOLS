@@ -44,6 +44,18 @@ Open `index.html` in a browser.
 The bag is also kept in this browser's storage, but that can be cleared — export
 it to keep it.
 
+## User guide
+
+[Bag-Tracker-User-Guide.pdf](Bag-Tracker-User-Guide.pdf) walks through every tab and sheet,
+with screenshots. It is built from `docs/user-guide.html` and screenshots of the
+live app, so rebuild it after changing the app:
+
+```
+npm run guide
+```
+
+This needs Playwright, and python3 with `pypdfium2` for the sample PDF pages.
+
 ## Tests
 
 ```
