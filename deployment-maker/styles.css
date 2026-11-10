@@ -5,7 +5,6 @@
 .opt-row { display: flex; align-items: center; gap: 12px; min-height: 40px; }
 .opt-row .check-row { width: 110px; }
 .opt-row > input { flex: 1; min-width: 0; }
-.bags { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .staff-row {
   display: grid; grid-template-columns: 2fr 1.5fr 90px 100px 120px;
   gap: 8px; align-items: center; margin-top: 6px;
@@ -19,5 +18,4 @@
 @media (max-width: 700px) {
   .staff-row { grid-template-columns: 1fr 1fr; padding-top: 8px; border-top: 1px dashed var(--line); }
   .staff-cols { display: none; }
-  .bags { grid-template-columns: 1fr; }
 }
