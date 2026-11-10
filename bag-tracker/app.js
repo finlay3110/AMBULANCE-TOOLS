@@ -371,6 +371,42 @@
     reader.readAsText(file);
   });
 
+  /* Company details only, from a Company Profile file, a Drug Bag Tracker
+     export, or another bag. Pouches and bag details are left alone. */
+  function companyMessage(kind, text) {
+    $("companyResult").hidden = false;
+    $("companyResult").className = "notice " + kind;
+    $("companyResult").textContent = text;
+  }
+
+  $("companyImportBtn").addEventListener("click", function () { $("companyFile").click(); });
+  $("companyFile").addEventListener("change", function () {
+    var file = this.files[0];
+    this.value = "";
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onerror = function () { companyMessage("bad", "That file could not be read."); };
+    reader.onload = function () {
+      var parsed;
+      try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
+      if (parsed && typeof parsed === "object" && typeof parsed.companyName !== "string" &&
+          parsed.setup && typeof parsed.setup === "object") parsed = parsed.setup;
+      if (!parsed || typeof parsed !== "object" || typeof parsed.companyName !== "string") {
+        companyMessage("bad", "“" + file.name + "” does not contain company details. Nothing has been changed.");
+        return;
+      }
+      ["companyName", "companyPhone", "companyAddress"].forEach(function (f) {
+        if (typeof parsed[f] === "string") bag[f] = parsed[f];
+      });
+      var c = clean(parsed);
+      if (c.logo) { bag.logo = c.logo; bag.logoW = c.logoW; bag.logoH = c.logoH; }
+      save(); fillSetup();
+      companyMessage("good", "Loaded company details for " + (bag.companyName || "this organisation") +
+        (c.logo ? ", including the logo." : "."));
+    };
+    reader.readAsText(file);
+  });
+
   $("resetAll").addEventListener("click", function () {
     if (!confirm("Clear this bag? Export it first if you want to keep it.")) return;
     bag = blank();
