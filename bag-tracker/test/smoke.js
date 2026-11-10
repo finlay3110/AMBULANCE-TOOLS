@@ -17,8 +17,16 @@ const assert = require("assert");
 
   await page.click(".tab[data-tab=setup]");
   await page.fill("#companyName", "Test Medical Ltd");
+  // CQC: a ticked box needs a number before anything generates.
+  assert.ok(await page.locator("#f-cqcNumber").isHidden());
+  await page.check("#cqcRegistered");
   await page.fill("#bagName", "Primary response bag");
   await page.fill("#bagNumber", "RB-03");
+
+  await page.click("#generateTop");
+  assert.match(await page.textContent("#genError"), /CQC registration number/);
+  await page.click(".tab[data-tab=setup]");
+  await page.fill("#cqcNumber", "1-555000111");
 
   // Two pouches; Enter in the add-item row adds the item.
   await page.click(".tab[data-tab=pouches]");
@@ -80,7 +88,7 @@ const assert = require("assert");
   const info = await pdf();
   assert.deepStrictEqual(info.sizes, [210, 210, 210, 297]);
   for (const s of ["IF FOUND,", "BAG KIT LIST", "BAG KIT CHECKLIST", "SIGN IN / SIGN OUT LOG", "TRAUMA POUCH", "OPA size 2",
-    "Crepe bandage 7.5cm", "SEAL No. T12345", "Seal no. found", "Kit list v3, updated " + today.split("-").reverse().join("/")]) {
+    "Crepe bandage 7.5cm", "SEAL No. T12345", "CQC 1-555000111", "Seal no. found", "Kit list v3, updated " + today.split("-").reverse().join("/")]) {
     assert.ok(info.raw.includes(s), "PDF missing " + s);
   }
 

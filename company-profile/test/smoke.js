@@ -69,6 +69,8 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR
   assert.strictEqual(await bag.inputValue("#companyName"), "Northern Event Medical Ltd");
   assert.strictEqual(await bag.inputValue("#companyPhone"), "01234 567890");
   assert.strictEqual(await bag.inputValue("#companyAddress"), "Unit 4, Example Way\nTownsville");
+  assert.ok(await bag.isChecked("#cqcRegistered"), "CQC registration should come across");
+  assert.strictEqual(await bag.inputValue("#cqcNumber"), "1-234567890");
   assert.strictEqual(await bag.inputValue("#bagName"), "Response bag", "bag details must be kept");
   assert.ok(await bag.locator("#logoPreview").isVisible(), "logo should come across");
   await bag.reload();

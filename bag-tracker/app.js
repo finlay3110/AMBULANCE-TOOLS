@@ -3,7 +3,7 @@
   "use strict";
 
   var KEY = "bag-tracker/v1";
-  var FIELDS = ["companyName", "companyPhone", "companyAddress",
+  var FIELDS = ["companyName", "companyPhone", "companyAddress", "cqcNumber",
     "bagName", "bagNumber", "location", "sealNumber", "packedBy", "packedDate", "version", "updated"];
   var PRINT = { printKit: "kitList", printCheck: "checklist", printLog: "log", printLabel: "label" };
   var LOGO_MAX_EDGE = 480;      // px, plenty for print at the size it is drawn
@@ -25,6 +25,7 @@
     var out = blank();
     if (!raw || typeof raw !== "object") return out;
     FIELDS.forEach(function (f) { if (typeof raw[f] === "string") out[f] = raw[f]; });
+    out.cqcRegistered = raw.cqcRegistered === true;
     if (typeof raw.logo === "string" && raw.logo.indexOf("data:image/") === 0) {
       out.logo = raw.logo; out.logoW = +raw.logoW || 0; out.logoH = +raw.logoH || 0;
     }
@@ -66,11 +67,20 @@
     FIELDS.forEach(function (f) { $(f).value = bag[f] || ""; });
     Object.keys(PRINT).forEach(function (id) { $(id).checked = bag.print[PRINT[id]]; });
     $("printCopies").value = bag.print.copies;
+    $("cqcRegistered").checked = !!bag.cqcRegistered;
+    $("f-cqcNumber").hidden = !bag.cqcRegistered;
     showLogo();
   }
 
   FIELDS.forEach(function (f) {
     $(f).addEventListener("input", function () { bag[f] = $(f).value; save(); });
+  });
+
+  $("cqcRegistered").addEventListener("change", function () {
+    bag.cqcRegistered = this.checked;
+    $("f-cqcNumber").hidden = !this.checked;
+    if (this.checked) $("cqcNumber").focus();
+    save();
   });
 
   Object.keys(PRINT).forEach(function (id) {
@@ -295,6 +305,7 @@
   function problems() {
     var out = [];
     if (!(bag.companyName || "").trim()) out.push("Enter the company name (Setup).");
+    if (bag.cqcRegistered && !(bag.cqcNumber || "").trim()) out.push("Enter the CQC registration number (Setup).");
     if (!(bag.bagName || "").trim()) out.push("Enter the bag name (Setup).");
     if (!bag.pouches.some(function (p) { return p.items.length; })) out.push("Add at least one item to a pouch.");
     if (!Object.keys(PRINT).some(function (id) { return bag.print[PRINT[id]]; })) out.push("Tick at least one sheet to print.");
@@ -395,9 +406,10 @@
         companyMessage("bad", "“" + file.name + "” does not contain company details. Nothing has been changed.");
         return;
       }
-      ["companyName", "companyPhone", "companyAddress"].forEach(function (f) {
+      ["companyName", "companyPhone", "companyAddress", "cqcNumber"].forEach(function (f) {
         if (typeof parsed[f] === "string") bag[f] = parsed[f];
       });
+      bag.cqcRegistered = parsed.cqcRegistered === true;
       var c = clean(parsed);
       if (c.logo) { bag.logo = c.logo; bag.logoW = c.logoW; bag.logoH = c.logoH; }
       save(); fillSetup();
