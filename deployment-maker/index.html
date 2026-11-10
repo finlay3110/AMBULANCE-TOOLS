@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Deployment Maker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../bag-tracker/styles.css">
+<link rel="stylesheet" href="styles.css">
+<script src="../theme.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Deployment Maker</h1>
+      <p>Who is deployed where, with sign-in, break and stand-down times</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="themeBtn" aria-live="polite">Theme: auto</button>
+    <button type="button" class="btn ghost" id="resetAll">Clear all</button>
+    <button type="button" class="btn primary" id="generateTop">Generate PDF</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Event</button>
+  <button class="tab" role="tab" data-tab="units" aria-selected="false">2. Units <span class="pill" id="unitCount">0</span></button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+</nav>
+
+<main>
+  <!-- ============ EVENT ============ -->
+  <section class="panel active" id="panel-setup" role="tabpanel">
+    <div class="card">
+      <h2>Start from a plan</h2>
+      <p class="hint">Open a plan saved for a venue &mdash; its units, callsigns, locations and posts, with
+        the staff left blank &mdash; or a whole deployment you saved earlier.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="openBtn">Open plan or deployment (.json)</button>
+        <input type="file" id="openFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="openResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Company</h2>
+      <p class="hint">Printed at the top of the sheet. Comes from your company profile.</p>
+      <div class="company-summary" id="companySummary"></div>
+      <div class="actions company-actions">
+        <button type="button" class="btn ghost small" id="companyUseBtn" hidden>Use saved company profile</button>
+        <button type="button" class="btn ghost small" id="companyImportBtn">Import company details</button>
+        <a class="btn ghost small" href="../company-profile/index.html">Create or edit your company profile</a>
+        <input type="file" id="companyFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="companyResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Event</h2>
+      <div class="grid">
+        <label class="field">
+          <span>Event name</span>
+          <input type="text" id="eventName" placeholder="e.g. Summer Music Festival">
+        </label>
+        <label class="field">
+          <span>Venue</span>
+          <input type="text" id="venue" placeholder="e.g. Riverside Park">
+        </label>
+        <label class="field">
+          <span>Date</span>
+          <input type="date" id="eventDate">
+        </label>
+        <label class="field">
+          <span>Deployment made by</span>
+          <input type="text" id="madeBy" placeholder="e.g. J. Smith, event lead">
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" data-goto="units">Next: Units &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ UNITS ============ -->
+  <section class="panel" id="panel-units" role="tabpanel">
+    <div class="card">
+      <h2>Units</h2>
+      <p class="hint">Add each unit by its callsign, then the people on it. Leave a name blank to fill it
+        in later, or by hand on the printed sheet.</p>
+      <form class="add-row" id="unitForm">
+        <input type="text" id="unitCallsign" placeholder="Callsign, e.g. Alpha 1" aria-label="New unit callsign">
+        <button type="submit" class="btn primary">Add unit</button>
+      </form>
+    </div>
+
+    <div id="unitList"></div>
+    <p class="empty" id="unitEmpty">No units yet. Add the first one above.</p>
+
+    <!-- Suggestions only: any grade can be typed. Same names as the Drug Bag Tracker's matrix. -->
+    <datalist id="grades">
+      <option value="First responder"></option>
+      <option value="FREC 3"></option>
+      <option value="Emergency care assistant"></option>
+      <option value="FREC 4"></option>
+      <option value="AAP"></option>
+      <option value="EMT"></option>
+      <option value="FREUC 5"></option>
+      <option value="Paramedic"></option>
+      <option value="APP (advanced paramedic)"></option>
+      <option value="Nurse"></option>
+      <option value="Doctor"></option>
+    </datalist>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="setup">&larr; Back</button>
+      <button type="button" class="btn primary" data-goto="generate">Next: Generate &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ GENERATE ============ -->
+  <section class="panel" id="panel-generate" role="tabpanel">
+    <div class="card">
+      <h2>Deployment log</h2>
+      <p class="hint">A landscape A4 PDF listing every unit and person, with boxes for the time each person
+        signed in, started a break and was stood down, and a signature.</p>
+      <p class="notice info" id="blankNote" hidden></p>
+      <p class="error" id="genError" hidden></p>
+      <div class="actions">
+        <button type="button" class="btn primary big" id="generateBtn">Download PDF</button>
+        <button type="button" class="btn ghost" id="previewBtn">Preview in new tab</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Save for later</h2>
+      <p class="hint">Everything stays on this device &mdash; nothing is uploaded. <strong>Save
+        deployment</strong> keeps everything. <strong>Save as plan</strong> is for a venue that uses the
+        same units each time: it keeps the units, callsigns, locations, ambulances and each post&rsquo;s
+        grade, and leaves the names, radios, bags, vehicle registrations and date blank for whoever
+        fills it in next.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="exportBtn">Save deployment (.json)</button>
+        <button type="button" class="btn ghost" id="planBtn">Save as plan (.json)</button>
+      </div>
+      <p class="notice" id="saveResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="units">&larr; Back</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="foot-line"><strong>Provided as is, with no warranty.</strong> This tool formats what
+    you type &mdash; it does not check it. You are responsible for checking every deployment before
+    it is used. <a href="../disclaimer.html">Read the disclaimer</a>.</p>
+</footer>
+
+<script src="../bag-tracker/vendor/jspdf.umd.min.js"></script>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

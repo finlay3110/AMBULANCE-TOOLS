@@ -30,3 +30,6 @@ jobs:
       - name: Company Profile
         if: ${{ !cancelled() }}
         run: node company-profile/test/smoke.js
+      - name: Deployment Maker
+        if: ${{ !cancelled() }}
+        run: node deployment-maker/test/smoke.js
