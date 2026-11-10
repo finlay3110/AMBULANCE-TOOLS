@@ -44,7 +44,14 @@
 
     <div class="card">
       <h2>Company details</h2>
-      <p class="hint">Printed at the top of every sheet.</p>
+      <p class="hint">Printed at the top of every sheet. Made a company profile? Import it
+        to fill these in, logo included.</p>
+      <div class="actions company-actions">
+        <button type="button" class="btn ghost small" id="companyImportBtn">Import company details</button>
+        <a class="btn ghost small" href="../company-profile/index.html">Create a company profile</a>
+        <input type="file" id="companyFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="companyResult" hidden></p>
       <div class="grid">
         <label class="field">
           <span>Company name <b>*</b></span>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Company Profile</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../drug-bag-tracker/styles.css">
+<script>
+  /* Same stored theme as the drug bag tracker, so the pages match. */
+  try {
+    var t = localStorage.getItem("drug-bag-tracker/theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) { /* private browsing: fall back to the system preference */ }
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Company Profile</h1>
+      <p>Your organisation's details, saved once and loaded into every tool</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="resetAll">Clear all</button>
+    <button type="button" class="btn primary" id="saveTop">Save profile</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>How it works</h2>
+    <ol class="hint">
+      <li>Fill in your company details below.</li>
+      <li>Click <strong>Save profile</strong>. A <code>Company-&hellip;.json</code> file downloads.</li>
+      <li>In the Drug Bag Tracker or the Bag Tracker, click <strong>Import company details</strong>
+        and choose that file. Name, contact number, address, CQC registration and logo all come across.</li>
+    </ol>
+    <div class="actions">
+      <button type="button" class="btn ghost small" id="openBtn">Open a saved profile&hellip;</button>
+      <input type="file" id="openFile" accept="application/json,.json" hidden>
+    </div>
+    <p class="notice" id="openResult" hidden></p>
+  </div>
+
+  <div class="card">
+    <h2>Company details</h2>
+    <p class="hint">Printed at the top of everything the tools produce, and in the
+      &ldquo;if found&rdquo; notice on bag labels. Kept on this device until you clear it.</p>
+    <div class="grid">
+      <label class="field">
+        <span>Company name <b>*</b></span>
+        <input type="text" id="companyName" placeholder="e.g. Northern Event Medical Ltd" autocomplete="organization">
+      </label>
+      <label class="field">
+        <span>Contact number</span>
+        <input type="tel" id="companyPhone" placeholder="e.g. 01234 567890" autocomplete="tel">
+      </label>
+      <label class="field span2">
+        <span>Address</span>
+        <textarea id="companyAddress" rows="3" placeholder="Unit 4, Example Way, Townsville, AB1 2CD"></textarea>
+      </label>
+      <div class="field span2">
+        <label class="check-row">
+          <input type="checkbox" id="cqcRegistered">
+          <span>CQC registered</span>
+        </label>
+        <small class="echo">Tick if your organisation is registered with the Care Quality
+          Commission. The Drug Bag Tracker prints the number beside the company name.</small>
+      </div>
+      <label class="field span2" id="f-cqcNumber" hidden>
+        <span>CQC registration number <b>*</b></span>
+        <input type="text" id="cqcNumber" placeholder="e.g. 1-234567890" autocomplete="off">
+      </label>
+      <div class="field span2">
+        <span>Company logo</span>
+        <div class="logo-row">
+          <span class="logo-preview" id="logoPreview" hidden><img id="logoImg" alt=""></span>
+          <button type="button" class="btn ghost small" id="logoBtn">Choose image&hellip;</button>
+          <button type="button" class="btn ghost small" id="logoRemove" hidden>Remove</button>
+          <input type="file" id="logoFile" accept="image/png,image/jpeg" hidden>
+        </div>
+        <small class="echo" id="logoHint">PNG or JPEG, printed at the top of each document.</small>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="saveBtn">Save profile (.json)</button>
+    </div>
+    <p class="notice" id="saveResult" hidden></p>
+  </div>
+
+  <div class="card">
+    <h2>Next: use it in a tool</h2>
+    <div class="actions">
+      <a class="btn ghost" href="../drug-bag-tracker/index.html">Drug Bag Tracker &rarr;</a>
+      <a class="btn ghost" href="../bag-tracker/index.html">Bag Tracker &rarr;</a>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -23,6 +23,7 @@
       "  <div class=\"actions company-actions\">",
       "    <button type=\"button\" class=\"btn ghost small\" id=\"companyExportBtn\">Export company details</button>",
       "    <button type=\"button\" class=\"btn ghost small\" id=\"companyImportBtn\">Import company details</button>",
+      "    <a class=\"btn ghost small\" href=\"../company-profile/index.html\">Create a company profile</a>",
       "    <input type=\"file\" id=\"companyFile\" accept=\"application/json,.json\" hidden>",
       "  </div>",
       "  <p class=\"notice\" id=\"companyResult\" hidden></p>",

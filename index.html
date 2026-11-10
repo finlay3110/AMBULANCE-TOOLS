@@ -20,6 +20,13 @@
   .tools h2 { margin: 0 0 6px; font-size: 18px; }
   .tools p { margin: 0 0 16px; flex: 1; }
   .tools .btn { align-self: flex-start; }
+  .step { display: inline-block; margin: 0 0 10px; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+    background: var(--good-bg); color: var(--good-ink); border: 1px solid var(--good-line); }
+  .start { border: 2px solid var(--accent); margin: 0 0 28px; }
+  .start h2 { margin: 0 0 6px; font-size: 20px; }
+  .start p { margin: 0 0 16px; }
+  .step-head { margin: 0 0 12px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -34,6 +41,16 @@
 </header>
 
 <main>
+  <section class="card start">
+    <span class="step">Step 1 &middot; Start here</span>
+    <h2>Company Profile</h2>
+    <p>Use this first. Enter your company name, contact number, address, CQC registration and
+      logo once, and save them as a file. Then import that file into each tool below, so every
+      document carries the same details without typing them again.</p>
+    <a class="btn primary" href="company-profile/index.html">Create your company profile &rarr;</a>
+  </section>
+
+  <h2 class="step-head"><span class="step">Step 2</span><br>Choose a tool and import your profile</h2>
   <div class="tools">
     <section class="card">
       <h2>Drug Bag Tracker</h2>
