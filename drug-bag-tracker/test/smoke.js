@@ -1077,7 +1077,9 @@ const NOW = new Date(2026, 10, 10);
   const server = await serve();
   const browser = await chromium.launch(
     process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
-  const page = await browser.newPage();
+  // This server holds only the tracker, so the site's offline script (../sw.js)
+  // is not here to register; test/site.js covers it on the whole site.
+  const page = await browser.newPage({ serviceWorkers: "block" });
   // The browser's clock is fixed, so stock typed with real expiry dates (10/2027
   // and the like) is judged the same way whatever day the tests run.
   await page.clock.setFixedTime(NOW);

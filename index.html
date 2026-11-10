@@ -6,6 +6,13 @@
 <meta name="color-scheme" content="light dark">
 <title>Ambulance Tools</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#12212f">
+<script>
+  /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
+</script>
 <link rel="stylesheet" href="drug-bag-tracker/styles.css">
 <script>
   /* Same stored theme as the drug bag tracker, so the home page matches it. */
@@ -27,6 +34,8 @@
   .start h2 { margin: 0 0 6px; font-size: 20px; }
   .start p { margin: 0 0 16px; }
   .step-head { margin: 0 0 12px; font-size: 15px; }
+  .backup { margin-top: 28px; }
+  .backup p { margin: 0 0 4px; }
 </style>
 </head>
 <body>
@@ -69,7 +78,23 @@
       <a class="btn primary" href="deployment-maker/index.html">Open Deployment Maker &rarr;</a>
     </section>
   </div>
-  <p>Everything runs in your browser, and nothing is uploaded. All the tools are provided as is, with no warranty: read the <a href="disclaimer.html">disclaimer</a> before use.</p>
+  <section class="card backup">
+    <h2>Back up everything</h2>
+    <p>Saved work lives only in this browser. Download one file with the saved work of every tool &mdash;
+      company profile, bags, registers, matrices and deployments &mdash; to keep it safe, or to move it to
+      another device or browser. On an iPhone or iPad, the home-screen app keeps its own saved work,
+      separate from Safari: back up in one and restore in the other to move it across.</p>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="backupBtn">Download backup</button>
+      <button type="button" class="btn ghost" id="restoreBtn">Restore from backup&hellip;</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
+    <p class="notice" id="backupResult" hidden></p>
+  </section>
+
+  <p>Everything runs in your browser, and nothing is uploaded. Once opened, the tools work offline,
+    and you can add them to your phone&rsquo;s home screen like an app. All the tools are provided as is, with no warranty: read the <a href="disclaimer.html">disclaimer</a> before use.</p>
 </main>
+<script src="home.js"></script>
 </body>
 </html>
