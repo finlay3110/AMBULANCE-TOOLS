@@ -21,6 +21,7 @@
       "    produces, and in the &ldquo;if found&rdquo; notice on a bag label. Save them once and load",
       "    them into any document &mdash; the logo comes too.</p>",
       "  <div class=\"actions company-actions\">",
+      "    <button type=\"button\" class=\"btn ghost small\" id=\"companyUseBtn\" hidden>Use saved company profile</button>",
       "    <button type=\"button\" class=\"btn ghost small\" id=\"companyExportBtn\">Export company details</button>",
       "    <button type=\"button\" class=\"btn ghost small\" id=\"companyImportBtn\">Import company details</button>",
       "    <a class=\"btn ghost small\" href=\"../company-profile/index.html\">Create a company profile</a>",

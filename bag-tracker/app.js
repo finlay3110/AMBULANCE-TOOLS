@@ -382,13 +382,54 @@
     reader.readAsText(file);
   });
 
-  /* Company details only, from a Company Profile file, a Drug Bag Tracker
-     export, or another bag. Pouches and bag details are left alone. */
+  /* Company details only, from the Company Profile saved on this device, a
+     company file, a Drug Bag Tracker or Deployment Maker export, or another
+     bag. Pouches and bag details are left alone. */
+  var PROFILE_KEY = "company-profile/v1";   // written by the Company Profile app
+
   function companyMessage(kind, text) {
     $("companyResult").hidden = false;
     $("companyResult").className = "notice " + kind;
     $("companyResult").textContent = text;
   }
+
+  function companyIn(parsed) {
+    if (!parsed || typeof parsed !== "object") return null;
+    return [parsed, parsed.company, parsed.setup].filter(function (c) {
+      return c && typeof c === "object" && typeof c.companyName === "string";
+    })[0] || null;
+  }
+
+  function useCompany(src, verb) {
+    ["companyName", "companyPhone", "companyAddress", "cqcNumber"].forEach(function (f) {
+      if (typeof src[f] === "string") bag[f] = src[f];
+    });
+    bag.cqcRegistered = src.cqcRegistered === true;
+    var c = clean(src);
+    if (c.logo) { bag.logo = c.logo; bag.logoW = c.logoW; bag.logoH = c.logoH; }
+    save(); fillSetup();
+    companyMessage("good", verb + " company details for " + (bag.companyName || "this organisation") +
+      (c.logo ? ", including the logo." : "."));
+  }
+
+  function savedProfile() {
+    var p;
+    try { p = companyIn(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
+    return p && p.companyName.trim() ? p : null;
+  }
+
+  function showProfileButton() {
+    var p = savedProfile();
+    $("companyUseBtn").hidden = !p;
+    if (p) $("companyUseBtn").textContent = "Use saved company profile (" + p.companyName.trim() + ")";
+  }
+  // A profile saved in another tab shows up here without a reload.
+  window.addEventListener("storage", showProfileButton);
+
+  $("companyUseBtn").addEventListener("click", function () {
+    var p = savedProfile();
+    if (p) useCompany(p, "Using");
+  });
 
   $("companyImportBtn").addEventListener("click", function () { $("companyFile").click(); });
   $("companyFile").addEventListener("change", function () {
@@ -400,21 +441,12 @@
     reader.onload = function () {
       var parsed;
       try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
-      if (parsed && typeof parsed === "object" && typeof parsed.companyName !== "string" &&
-          parsed.setup && typeof parsed.setup === "object") parsed = parsed.setup;
-      if (!parsed || typeof parsed !== "object" || typeof parsed.companyName !== "string") {
-        companyMessage("bad", "“" + file.name + "” does not contain company details. Nothing has been changed.");
+      var src = companyIn(parsed);
+      if (!src) {
+        companyMessage("bad", "\u201c" + file.name + "\u201d does not contain company details. Nothing has been changed.");
         return;
       }
-      ["companyName", "companyPhone", "companyAddress", "cqcNumber"].forEach(function (f) {
-        if (typeof parsed[f] === "string") bag[f] = parsed[f];
-      });
-      bag.cqcRegistered = parsed.cqcRegistered === true;
-      var c = clean(parsed);
-      if (c.logo) { bag.logo = c.logo; bag.logoW = c.logoW; bag.logoH = c.logoH; }
-      save(); fillSetup();
-      companyMessage("good", "Loaded company details for " + (bag.companyName || "this organisation") +
-        (c.logo ? ", including the logo." : "."));
+      useCompany(src, "Loaded");
     };
     reader.readAsText(file);
   });
@@ -428,4 +460,5 @@
   load();
   fillSetup();
   renderPouches();
+  showProfileButton();
 })();

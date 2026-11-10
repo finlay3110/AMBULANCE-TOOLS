@@ -776,6 +776,7 @@
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     if (parsed.format === "drug-bag-tracker/company") return parsed;
     if (parsed.setup && typeof parsed.setup === "object") return parsed.setup;
+    if (parsed.company && typeof parsed.company === "object") return parsed.company;   // a Deployment Maker file
     if (typeof parsed.companyName === "string") return parsed;
     return null;
   }
@@ -797,26 +798,45 @@
           "Nothing has been changed.");
         return;
       }
-
-      var setup = doc().setup;
-      COMPANY_FIELDS.forEach(function (f) {
-        if (typeof profile[f] === "string") setup[f] = profile[f];
-      });
-      setup.cqcRegistered = !!profile.cqcRegistered;
-      if (typeof profile.logo === "string" && profile.logo) {
-        setup.logo = profile.logo;
-        setup.logoW = profile.logoW || 0;
-        setup.logoH = profile.logoH || 0;
-      }
-      touch();
-      fillSetup();
-      save();
-      renderSummary();
-      companyMessage("good", "Loaded company details for " +
-        (setup.companyName || "this organisation") +
-        (profile.logo ? ", including the logo." : "."));
+      applyCompany(profile, "Loaded");
     };
     reader.readAsText(file);
+  }
+
+  function applyCompany(profile, verb) {
+    readSetup();   // keep anything typed in the form but not yet stored
+    var setup = doc().setup;
+    COMPANY_FIELDS.forEach(function (f) {
+      if (typeof profile[f] === "string") setup[f] = profile[f];
+    });
+    setup.cqcRegistered = !!profile.cqcRegistered;
+    var logo = typeof profile.logo === "string" && profile.logo.indexOf("data:image/") === 0;
+    if (logo) {
+      setup.logo = profile.logo;
+      setup.logoW = profile.logoW || 0;
+      setup.logoH = profile.logoH || 0;
+    }
+    touch();
+    fillSetup();
+    save();
+    renderSummary();
+    companyMessage("good", verb + " company details for " +
+      (setup.companyName || "this organisation") +
+      (logo ? ", including the logo." : "."));
+  }
+
+  /* The profile the Company Profile app keeps on this device, if it has a name. */
+  var PROFILE_KEY = "company-profile/v1";
+  function savedProfile() {
+    var p;
+    try { p = companyFrom(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
+    return p && typeof p.companyName === "string" && p.companyName.trim() ? p : null;
+  }
+
+  function showProfileButton() {
+    var p = savedProfile();
+    $("companyUseBtn").hidden = !p;
+    if (p) $("companyUseBtn").textContent = "Use saved company profile (" + p.companyName.trim() + ")";
   }
 
   /* ---------------- theme ---------------- */
@@ -1869,6 +1889,13 @@
       });
     });
     $("companyExportBtn").addEventListener("click", exportCompany);
+    $("companyUseBtn").addEventListener("click", function () {
+      var p = savedProfile();
+      if (p) applyCompany(p, "Using");
+    });
+    showProfileButton();
+    // A profile saved in another tab shows up here without a reload.
+    window.addEventListener("storage", showProfileButton);
     $("companyImportBtn").addEventListener("click", function () { $("companyFile").click(); });
     $("companyFile").addEventListener("change", function () {
       if (this.files && this.files[0]) importCompany(this.files[0]);
