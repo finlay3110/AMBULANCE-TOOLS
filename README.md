@@ -12,8 +12,10 @@ Everything runs locally in the browser: no server, no upload.
 `index.html` at the root is a home page that puts the Company Profile first,
 then links to the trackers. Each tool links back to it from its top bar.
 
-Each tool is provided as is, with no warranty. Read its own README and
-disclaimer before use.
+All the tools are provided as is, with no warranty. Read the
+[disclaimer](https://finlay3110.github.io/AMBULANCE-TOOLS/disclaimer.html)
+(`disclaimer.html`) before use; the Drug Bag Tracker's
+[DISCLAIMER.md](drug-bag-tracker/DISCLAIMER.md) has its full details and sources.
 
 ## Hosting on GitHub Pages
 

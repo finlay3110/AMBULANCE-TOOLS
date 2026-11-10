@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Disclaimer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="drug-bag-tracker/styles.css">
+<script>
+  /* Same stored theme as the tools, so the pages match. */
+  try {
+    var t = localStorage.getItem("drug-bag-tracker/theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) { /* private browsing: fall back to the system preference */ }
+</script>
+<style>
+  .card h2 { margin-top: 0; }
+  .card p, .card li { line-height: 1.5; }
+  .card ul { padding-left: 20px; margin: 0; }
+  .card li + li { margin-top: 8px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Disclaimer</h1>
+      <p>Applies to every tool on this site</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="index.html">&larr; All tools</a>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>All tools</h2>
+    <ul>
+      <li><strong>Provided &ldquo;as is&rdquo;, without warranty of any kind.</strong> The full terms are in the
+        <a href="https://github.com/finlay3110/AMBULANCE-TOOLS/blob/main/LICENSE">MIT licence</a>.</li>
+      <li>These tools format what you type into printable documents. They do not check that what you
+        typed is correct, and they are not a clinical, pharmaceutical or legal reference.</li>
+      <li><strong>You are responsible for the documents they produce.</strong> Before any document is
+        used, check every entry against the stock, staff and arrangements it describes.</li>
+      <li>They do not replace your organisation&rsquo;s policies, procedures or record-keeping duties.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Your saved work</h2>
+    <ul>
+      <li>Everything is stored in this browser, on this device. Nothing is uploaded.</li>
+      <li>Browser storage is not a backup. Clearing site data, private browsing, or a different device
+        or browser will lose it. Use <strong>Back up everything</strong> on the home page, or each
+        tool&rsquo;s own export, and keep the files somewhere safe. No responsibility is accepted for work
+        lost when browser storage is cleared.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Drug Bag Tracker</h2>
+    <ul>
+      <li>The legal categories it offers (GSL, P, POM, S17, S19, CD), including those filled in by the
+        quick-add list, are <strong>suggestions to save typing, not legal determinations</strong>. They
+        were not verified against primary legislation. Check every category against current legislation
+        and your organisation&rsquo;s medicines policy, patient group directions and standard operating
+        procedures.</li>
+      <li>The controlled drugs register it produces is a convenience format. It does not constitute,
+        replace or discharge any statutory record-keeping duty.</li>
+      <li>The full disclaimer, with the sources used for the legal categories, is in
+        <a href="https://github.com/finlay3110/AMBULANCE-TOOLS/blob/main/drug-bag-tracker/DISCLAIMER.md">the
+        Drug Bag Tracker&rsquo;s DISCLAIMER.md</a>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Bag Tracker and Deployment Maker</h2>
+    <ul>
+      <li>Their kit lists, checklists, sign-in sheets and logs are convenience formats. Check that they
+        meet your organisation&rsquo;s and the event&rsquo;s requirements before relying on them.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Third-party software</h2>
+    <ul>
+      <li>PDFs are made with <a href="https://github.com/parallax/jsPDF">jsPDF</a>, bundled with each tool
+        under the MIT licence.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
