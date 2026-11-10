@@ -11,6 +11,22 @@ const assert = require("assert");
   page.on("dialog", (d) => d.accept());
   await page.goto("file://" + path.join(__dirname, "..", "index.html"));
 
+  // Theme: auto, then light, then dark, and the choice is kept.
+  const eq = (a, b, m) => assert.strictEqual(a, b, m);
+  eq(await page.textContent("#themeBtn"), "Theme: auto");
+  await page.click("#themeBtn");
+  eq(await page.getAttribute("html", "data-theme"), "light");
+  await page.click("#themeBtn");
+  eq(await page.getAttribute("html", "data-theme"), "dark");
+  assert.ok(await page.evaluate(() => {
+    const rgb = getComputedStyle(document.body).backgroundColor.match(/\d+/g).map(Number);
+    return rgb[0] + rgb[1] + rgb[2] < 200;
+  }), "dark should repaint the page");
+  await page.reload();
+  eq(await page.textContent("#themeBtn"), "Theme: dark", "the choice survives a reload");
+  await page.click("#themeBtn");
+  eq(await page.getAttribute("html", "data-theme"), null, "back to auto");
+
   // Generating with nothing filled in is refused with reasons.
   await page.click("#generateTop");
   assert.match(await page.textContent("#genError"), /company name.*bag name.*at least one item/);
