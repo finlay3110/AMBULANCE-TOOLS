@@ -31,10 +31,19 @@ The empty `.nojekyll` file tells Pages to serve the files as they are.
 
 ## Tests
 
-Each tool has its own smoke test, run from that tool's folder with
-`node test/smoke.js`. The Company Profile's test also imports its file into
-both trackers, so it checks the whole flow. For example:
+Each tool has its own smoke test in its `test/` folder. To run them all:
 
 ```bash
-cd drug-bag-tracker && npm test
+npm install
 ```
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm test
+```
+
+GitHub runs the same tests on every push (`.github/workflows/tests.yml`), so
+each pull request shows a green tick or a red cross before it is merged.
