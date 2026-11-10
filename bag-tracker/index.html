@@ -6,7 +6,15 @@
 <meta name="color-scheme" content="light dark">
 <title>Bag Tracker</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#12212f">
+<script>
+  /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("../sw.js").catch(function () {});
+</script>
 <link rel="stylesheet" href="styles.css">
+<script src="../theme.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -19,6 +27,7 @@
   </div>
   <div class="topbar-actions">
     <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="themeBtn" aria-live="polite">Theme: auto</button>
     <button type="button" class="btn ghost" id="resetAll">Clear all</button>
     <button type="button" class="btn primary" id="generateTop">Generate PDF</button>
   </div>
@@ -44,9 +53,10 @@
 
     <div class="card">
       <h2>Company details</h2>
-      <p class="hint">Printed at the top of every sheet. Made a company profile? Import it
-        to fill these in, logo included.</p>
+      <p class="hint">Printed at the top of every sheet. Made a company profile? Use it, or
+        import its file, to fill these in, logo included.</p>
       <div class="actions company-actions">
+        <button type="button" class="btn ghost small" id="companyUseBtn" hidden>Use saved company profile</button>
         <button type="button" class="btn ghost small" id="companyImportBtn">Import company details</button>
         <a class="btn ghost small" href="../company-profile/index.html">Create a company profile</a>
         <input type="file" id="companyFile" accept="application/json,.json" hidden>
@@ -64,6 +74,18 @@
         <label class="field span2">
           <span>Address</span>
           <textarea id="companyAddress" rows="2" placeholder="Unit 4, Example Way, Townsville, AB1 2CD"></textarea>
+        </label>
+        <div class="field span2">
+          <label class="check-row">
+            <input type="checkbox" id="cqcRegistered">
+            <span>CQC registered</span>
+          </label>
+          <small class="echo">Tick if your organisation is registered with the Care Quality
+            Commission. The registration number is printed beside the company name.</small>
+        </div>
+        <label class="field span2" id="f-cqcNumber" hidden>
+          <span>CQC registration number <b>*</b></span>
+          <input type="text" id="cqcNumber" placeholder="e.g. 1-234567890" autocomplete="off">
         </label>
         <div class="field span2">
           <span>Company logo</span>

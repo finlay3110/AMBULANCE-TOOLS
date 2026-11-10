@@ -119,7 +119,7 @@
     <li><span>8. The drug matrix</span></li>
     <li><span>9. Legal categories</span></li>
     <li><span>10. Saving, reusing and backing up</span></li>
-    <li><span>11. Dark mode and phones</span></li>
+    <li><span>11. Dark mode, phones and offline</span></li>
     <li><span>12. Troubleshooting</span></li>
     <li><span>13. Disclaimer, licence and sources</span></li>
   </ul>
@@ -155,12 +155,14 @@
 <div class="page">
   <section>
     <h2>2. Getting started</h2>
-    <p>Open <code>index.html</code> in a browser, or visit the address your organisation hosts it
-      at. There is nothing to install and no account to create.</p>
+    <p>Open the Ambulance Tools home page and choose <b>Drug Bag Tracker</b>, or open
+      <code>drug-bag-tracker/index.html</code> directly. There is nothing to install and no account
+      to create. Start with the <strong>Company Profile</strong> on the home page: enter your company
+      once, and this tool fills its company details in from it.</p>
     <figure>
       <img src="build/shots/topbar.png" alt="The top bar">
-      <figcaption>The top bar. <strong>Drug matrix</strong> opens the other generator; the button
-        there brings you back.</figcaption>
+      <figcaption>The top bar. <strong>Drug matrix</strong> opens the other generator, and the
+        button there brings you back; <strong>All tools</strong> goes to the home page.</figcaption>
     </figure>
     <p>There are two generators, each with its own page, its own saved work and its own top-bar
       button to reach the other. <strong>Drug Bag Tracker</strong> makes the bag and CD paperwork;
@@ -211,10 +213,12 @@
       <figcaption>Company details, with the CQC toggle and the logo.</figcaption>
     </figure>
     <p>Name, contact number and address appear on the label and in the &ldquo;if found&rdquo;
-      notice. These are the same on every bag you ever make, so save them once with
-      <strong>Export company details</strong> and load them into anything new with
-      <strong>Import company details</strong>. The file carries the logo and CQC registration too,
-      and nothing about any particular bag.</p>
+      notice. They are the same on every bag you ever make, so keep them in a <strong>Company
+      Profile</strong> (on the home page) and click <strong>Use saved company profile</strong> to fill
+      them in, logo and CQC registration included. On another device, <strong>Import company
+      details</strong> loads the profile&rsquo;s file instead. <strong>Export company details</strong>
+      saves them from here as the same kind of file, which carries nothing about any particular
+      bag.</p>
     <p><strong>CQC registered</strong> is a toggle, because not every organisation is registered.
       Tick it and a registration number is asked for; that number is then printed beside your
       company name on the label and register front sheet. Leave it off and nothing about CQC
@@ -616,8 +620,9 @@
           <td>A whole bag or register &mdash; details and every medication. Import it to rebuild
               or update that document.</td></tr>
       <tr><td><code>Company-Your-Ltd.json</code></td>
-          <td>Just your organisation: name, contact, address, CQC registration and logo. Load it
-              into anything new.</td></tr>
+          <td>Just your organisation: name, contact, address, CQC registration and logo. Made by
+              the Company Profile or by <strong>Export company details</strong>; load it into
+              anything new.</td></tr>
     </table>
     <p>Importing a whole bag also works as a source of company details, so you can lift them out of
       any old export.</p>
@@ -633,7 +638,9 @@
       <p><strong>Browser storage is not a backup.</strong> Clearing site data, a private window, or
         moving to another computer will lose it, and no responsibility is accepted for work lost
         that way. Export the <code>.json</code> and keep it somewhere durable &mdash; the app tells
-        you when a document has never been exported, or has changed since it was.</p>
+        you when a document has never been exported, or has changed since it was.
+        <strong>Back up everything</strong> on the home page saves every tool&rsquo;s work in one
+        file, and restores it on another device.</p>
     </div>
   </section>
 </div>
@@ -641,7 +648,7 @@
 <!-- ============================ 11 & 12 ============================ -->
 <div class="page">
   <section>
-    <h2>11. Dark mode and phones</h2>
+    <h2>11. Dark mode, phones and offline</h2>
     <div class="two">
       <figure>
         <img src="build/shots/dark.png" alt="Dark mode">
@@ -656,6 +663,11 @@
       in the top bar cycles auto, light and dark if you want to override it; your choice is
       remembered. The generated PDF is always light, because it is meant to be printed.</p>
     <p>The layout collapses to a single column on a phone, so a bag can be prepped from a handset.</p>
+    <p>Once opened with a connection, the tools also work offline, and can be added to a
+      phone&rsquo;s home screen like an app: in Chrome, <strong>Install app</strong>; on an iPhone,
+      <strong>Share</strong> then <strong>Add to Home Screen</strong>. On an iPhone the home-screen app
+      keeps its own saved work, separate from Safari, so use <strong>Back up everything</strong> to
+      move it across.</p>
   </section>
 
   <section>

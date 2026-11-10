@@ -19,6 +19,12 @@
   function wrap(doc, value, width) { return doc.splitTextToSize(txt(value), Math.max(width, 1)); }
   function linesHeight(lines, size) { return lines.length * size * 0.3528 * 1.2; }
 
+  /* Company name, with the CQC registration beside it when there is one. */
+  function companyLine(data) {
+    var name = txt(data.companyName), cqc = txt(data.cqcNumber);
+    return (data.cqcRegistered && cqc) ? name + "  \u00b7  CQC " + cqc : name;
+  }
+
   function bagLabel(data) { return txt(data.bagNumber) || txt(data.bagName); }
 
   /* Logo fitted in a white panel so a dark logo still reads on the dark masthead. */
@@ -49,7 +55,7 @@
     setFont(doc, 15, "bold");
     doc.text(title, x, y + 8.5);
     setFont(doc, 10, "normal");
-    doc.text(wrap(doc, data.companyName, right - x - 60)[0] || "", x, y + 15);
+    doc.text(wrap(doc, companyLine(data), right - x - 60)[0] || "", x, y + 15);
 
     setFont(doc, 9, "normal");
     doc.text(txt(data.bagNumber) ? "BAG No." : "BAG", right, y + 7, { align: "right" });
@@ -306,7 +312,13 @@
     var tx = x + pad + 3 + (logoW ? logoW + 2 : 0);
     doc.setTextColor(255, 255, 255);
     setFont(doc, 10, "bold");
-    doc.text(wrap(doc, data.companyName, x + pad + inner - tx - 2).slice(0, 2), tx, y + pad + 8);
+    var cqc = data.cqcRegistered && txt(data.cqcNumber);
+    // With a CQC number the name keeps one line, and the number gets its own below it.
+    doc.text(wrap(doc, data.companyName, x + pad + inner - tx - 2).slice(0, cqc ? 1 : 2), tx, y + pad + 8);
+    if (cqc) {
+      setFont(doc, 8, "normal");
+      doc.text("CQC " + cqc, tx, y + pad + 13);
+    }
 
     // Bag number, large
     cy = y + pad + 30;

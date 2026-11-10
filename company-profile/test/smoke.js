@@ -58,8 +58,35 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR
   await prof.waitForSelector("#openResult.good");
   assert.strictEqual(await prof.inputValue("#cqcNumber"), "1-234567890");
 
+  /* ---- same device: the tools use the saved profile, no file needed ---- */
+  const same = await prof.context().newPage();
+  same.on("pageerror", (e) => errors.push("same device: " + e.message));
+  same.on("dialog", (d) => d.accept());
+  await same.goto(url("bag-tracker/index.html"));
+  assert.ok(await same.locator("#companyUseBtn").isVisible(), "the Bag Tracker offers the saved profile");
+  assert.match(await same.textContent("#companyUseBtn"), /Northern Event Medical Ltd/);
+  await same.click("#companyUseBtn");
+  assert.strictEqual(await same.inputValue("#companyName"), "Northern Event Medical Ltd");
+  assert.strictEqual(await same.inputValue("#cqcNumber"), "1-234567890");
+  assert.ok(await same.locator("#logoPreview").isVisible());
+
+  await same.goto(url("drug-bag-tracker/index.html"));
+  await same.waitForSelector("body[data-ready='1']");
+  await same.fill("#bagNumber", "DB-07");   // typed, not yet stored: using the profile must keep it
+  await same.click("#companyUseBtn");
+  await same.waitForSelector("#companyResult.good");
+  assert.strictEqual(await same.inputValue("#companyName"), "Northern Event Medical Ltd");
+  assert.ok(await same.isChecked("#cqcRegistered"));
+  assert.strictEqual(await same.inputValue("#bagNumber"), "DB-07", "typed details survive using the profile");
+
+  await same.goto(url("deployment-maker/index.html"));
+  assert.ok((await same.textContent("#companySummary")).includes("Northern Event Medical Ltd"),
+    "the Deployment Maker picks the profile up by itself");
+  await same.close();
+
   /* ---- import into the Bag Tracker ---- */
   const bag = await page("bag-tracker/index.html");
+  assert.ok(await bag.locator("#companyUseBtn").isHidden(), "no saved profile, no button");
   await bag.fill("#bagName", "Response bag");
   await bag.setInputFiles("#companyFile", { name: "junk.json", mimeType: "application/json", buffer: Buffer.from("{\"a\":1}") });
   await bag.waitForSelector("#companyResult.bad");
@@ -69,6 +96,8 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR
   assert.strictEqual(await bag.inputValue("#companyName"), "Northern Event Medical Ltd");
   assert.strictEqual(await bag.inputValue("#companyPhone"), "01234 567890");
   assert.strictEqual(await bag.inputValue("#companyAddress"), "Unit 4, Example Way\nTownsville");
+  assert.ok(await bag.isChecked("#cqcRegistered"), "CQC registration should come across");
+  assert.strictEqual(await bag.inputValue("#cqcNumber"), "1-234567890");
   assert.strictEqual(await bag.inputValue("#bagName"), "Response bag", "bag details must be kept");
   assert.ok(await bag.locator("#logoPreview").isVisible(), "logo should come across");
   await bag.reload();

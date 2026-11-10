@@ -6,6 +6,13 @@
 <meta name="color-scheme" content="light dark">
 <title>Company Profile</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#12212f">
+<script>
+  /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("../sw.js").catch(function () {});
+</script>
 <link rel="stylesheet" href="../drug-bag-tracker/styles.css">
 <script>
   /* Same stored theme as the drug bag tracker, so the pages match. */
@@ -36,9 +43,11 @@
     <h2>How it works</h2>
     <ol class="hint">
       <li>Fill in your company details below.</li>
-      <li>Click <strong>Save profile</strong>. A <code>Company-&hellip;.json</code> file downloads.</li>
-      <li>In the Drug Bag Tracker or the Bag Tracker, click <strong>Import company details</strong>
-        and choose that file. Name, contact number, address, CQC registration and logo all come across.</li>
+      <li>On this device, that is all: the trackers offer <strong>Use saved company profile</strong>,
+        and the Deployment Maker uses it by itself.</li>
+      <li>For another device or a colleague, click <strong>Save profile</strong> to download a
+        <code>Company-&hellip;.json</code> file, then click <strong>Import company details</strong> in a
+        tool and choose it. Name, contact number, address, CQC registration and logo all come across.</li>
     </ol>
     <div class="actions">
       <button type="button" class="btn ghost small" id="openBtn">Open a saved profile&hellip;</button>
@@ -70,7 +79,7 @@
           <span>CQC registered</span>
         </label>
         <small class="echo">Tick if your organisation is registered with the Care Quality
-          Commission. The Drug Bag Tracker prints the number beside the company name.</small>
+          Commission. Both trackers print the number beside the company name.</small>
       </div>
       <label class="field span2" id="f-cqcNumber" hidden>
         <span>CQC registration number <b>*</b></span>

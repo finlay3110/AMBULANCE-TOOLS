@@ -62,18 +62,30 @@ function testExpiry() {
   eq("expired the next day", E.status(july, new Date(2025, 7, 1)), "expired");
   eq("flags the 90 day window", E.status(july, new Date(2025, 5, 1)), "soon");
   eq("quiet when far off", E.status(E.parse("12/2030"), new Date(2025, 5, 1)), "ok");
-  // Judged against a service window rather than today.
+  // Judged against a service window rather than today. A fixed "now" keeps
+  // these true whatever day the tests run.
+  const now = new Date(2025, 5, 1);
   const until = "2027-03-01";
   eq("in date now but not when the bag returns",
-    E.serviceStatus(E.parse("01/2027"), until), "in-service");
-  eq("lasts beyond the window", E.serviceStatus(E.parse("06/2027"), until), "ok");
+    E.serviceStatus(E.parse("01/2027"), until, now), "in-service");
+  eq("lasts beyond the window", E.serviceStatus(E.parse("06/2027"), until, now), "ok");
   eq("already expired stays expired",
-    E.serviceStatus(E.parse("01/2020"), until), "expired");
-  eq("no window falls back to today", E.serviceStatus(E.parse("01/2027"), ""), "ok");
+    E.serviceStatus(E.parse("01/2020"), until, now), "expired");
+  eq("no window falls back to the plain status", E.serviceStatus(E.parse("01/2027"), "", now), "ok");
+  // These always judge against today, so their dates are set from today.
+  const ahead = (months) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    return String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  };
+  const yearOn = new Date();
+  yearOn.setFullYear(yearOn.getFullYear() + 1);
+  eq("with no date given it judges against today", E.serviceStatus(E.parse(ahead(24)), ""), "ok");
   eq("lists what runs out in service",
-    E.expiringInService([{ expiry: "01/2027" }, { expiry: "06/2027" }], until).length, 1);
+    E.expiringInService([{ expiry: ahead(6) }, { expiry: ahead(18) }], yearOn).length, 1);
   eq("and nothing without a window",
-    E.expiringInService([{ expiry: "01/2027" }], "").length, 0);
+    E.expiringInService([{ expiry: ahead(6) }], "").length, 0);
 
   eq("earliest wins", E.format(E.earliest([
     { expiry: "12/2027" }, { expiry: "01/2026" }, { expiry: "06/2026" }
@@ -670,7 +682,7 @@ async function testApp(page) {
   await page.click('.med:first-child .icon-btn:nth-child(3)');
   eq("copy prefills the name", await page.inputValue("#mName"), "Paracetamol");
   eq("copy clears the batch", await page.inputValue("#mBatch"), "");
-  const nextMonth = new Date();
+  const nextMonth = new Date(NOW);
   nextMonth.setDate(1);
   nextMonth.setMonth(nextMonth.getMonth() + 1);
   const soonExpiry = String(nextMonth.getMonth() + 1).padStart(2, "0") +
@@ -789,7 +801,7 @@ async function testApp(page) {
   // An in service date moves the expiry question from "is it in date?" to
   // "will it still be in date when the bag comes back?".
   await page.click('[data-tab="setup"]');
-  const farOff = new Date();
+  const farOff = new Date(NOW);
   farOff.setFullYear(farOff.getFullYear() + 1);
   await page.fill("#inServiceUntil", farOff.toISOString().slice(0, 10));
   await page.click('[data-tab="meds"]');
@@ -1055,6 +1067,9 @@ function serve() {
   });
 }
 
+// The day the browser checks run on; see setFixedTime below.
+const NOW = new Date(2026, 10, 10);
+
 (async () => {
   testExpiry();
   testCatalogue();
@@ -1062,7 +1077,12 @@ function serve() {
   const server = await serve();
   const browser = await chromium.launch(
     process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
-  const page = await browser.newPage();
+  // This server holds only the tracker, so the site's offline script (../sw.js)
+  // is not here to register; test/site.js covers it on the whole site.
+  const page = await browser.newPage({ serviceWorkers: "block" });
+  // The browser's clock is fixed, so stock typed with real expiry dates (10/2027
+  // and the like) is judged the same way whatever day the tests run.
+  await page.clock.setFixedTime(NOW);
   await page.goto("http://localhost:" + PORT + "/index.html");
 
   try {

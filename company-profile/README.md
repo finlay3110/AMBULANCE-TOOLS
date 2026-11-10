@@ -7,14 +7,18 @@ other tools import:
 - CQC registration (and number)
 - logo (PNG or JPEG, scaled down to fit browser storage)
 
-Click **Save profile** to download `Company-<name>.json`. In the Drug Bag
-Tracker or the Bag Tracker, click **Import company details** and choose that
-file. **Open a saved profile** loads a file back in to edit it.
+The profile is kept in this browser, and the other tools read it from there:
+the Drug Bag Tracker and Bag Tracker offer **Use saved company profile**, and
+the Deployment Maker uses it by itself.
+
+For another device or a colleague, click **Save profile** to download
+`Company-<name>.json`, then click **Import company details** in a tool and
+choose that file. **Open a saved profile** loads a file back in to edit it.
 
 The file uses the Drug Bag Tracker's existing company format
 (`"format": "drug-bag-tracker/company"`), so older company files and exports
-from either tracker can be opened here too. The Bag Tracker has no CQC
-field, so it takes everything except the CQC registration.
+from either tracker can be opened here too. Both trackers take everything,
+CQC registration included.
 
 Everything stays in the browser on this device. Nothing is uploaded.
 

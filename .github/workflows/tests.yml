@@ -1,0 +1,38 @@
+name: Tests
+
+# Runs on every push, so a pull request from a branch of this repository shows
+# the result on its page. shortcut: pull requests from forks are not tested;
+# add a pull_request trigger if other people start sending them.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      # Each tool's tests are their own step, and all run even if one fails.
+      - name: Drug Bag Tracker
+        run: node drug-bag-tracker/test/smoke.js
+      - name: Bag Tracker
+        if: ${{ !cancelled() }}
+        run: node bag-tracker/test/smoke.js
+      - name: Company Profile
+        if: ${{ !cancelled() }}
+        run: node company-profile/test/smoke.js
+      - name: Deployment Maker
+        if: ${{ !cancelled() }}
+        run: node deployment-maker/test/smoke.js
+      - name: Site (home page, backup, offline)
+        if: ${{ !cancelled() }}
+        run: node test/site.js
