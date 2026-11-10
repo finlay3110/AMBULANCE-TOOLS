@@ -34,8 +34,13 @@ The PDF is built with [jsPDF](https://github.com/parallax/jsPDF), bundled in
 The app is plain static files with relative paths, so it runs straight from
 this repository. In the repository's **Settings → Pages**, set *Source* to
 **Deploy from a branch**, branch **main**, folder **/ (root)**. The tool is
-then at `https://finlay3110.github.io/ambulance-tools/`. The empty
+then at `https://finlay3110.github.io/AMBULANCE-TOOLS/`. The empty
 `.nojekyll` file tells Pages to serve the files as they are.
+
+The repository also holds a second tool, the **Bag Tracker** (kit list,
+checklist and sign in/out log for a medical bag), in `bag-tracker/`. It is
+at `https://finlay3110.github.io/AMBULANCE-TOOLS/bag-tracker/`, and each tool
+links to the other from its top bar. See [bag-tracker/README.md](bag-tracker/README.md).
 
 ## Using it
 

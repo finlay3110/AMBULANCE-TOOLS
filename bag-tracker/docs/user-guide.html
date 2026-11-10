@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bag Tracker — user guide</title>
+<style>
+  @page { size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: #16202c; background: #fff;
+    font: 10.5pt/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1, h2, h3 { line-height: 1.25; }
+  h2 {
+    font-size: 17pt; margin: 0 0 4mm; padding-bottom: 2mm;
+    border-bottom: 2px solid #0b6b3a; color: #0b6b3a;
+  }
+  h3 { font-size: 12pt; margin: 6mm 0 2mm; }
+  h4 { font-size: 10.5pt; margin: 4mm 0 1mm; }
+  p, ul, ol { margin: 0 0 3mm; }
+  ul, ol { padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  a { color: #0b6b3a; }
+  code { background: #eef2f6; padding: 0 1mm; border-radius: 2px; font-size: 9.5pt; }
+
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  section { page-break-inside: auto; }
+  h2, h3, h4 { page-break-after: avoid; }
+  figure { page-break-inside: avoid; margin: 3mm 0 5mm; }
+  /* Capped so a tall screenshot never outgrows the page it belongs on. */
+  figure img {
+    max-width: 100%; max-height: 168mm; width: auto; height: auto;
+    border: 1px solid #ccd4dc; border-radius: 3px; display: block; margin: 0 auto;
+  }
+  figure img.plain { border: 0; }
+  figcaption { font-size: 8.5pt; color: #5d6b7a; margin-top: 1.5mm; }
+  .two { display: flex; gap: 4mm; }
+  .two figure { flex: 1; margin-top: 0; }
+  .narrow { max-width: 62%; margin-left: auto; margin-right: auto; }
+  /* Landscape figures: shorter so a pair still shares a page with its text. */
+  .compact img { max-height: 104mm; }
+  /* Tall portrait cards: capped so text still shares the page with them. */
+  .tall img { max-height: 132mm; }
+  /* Sample PDF pages: small enough for two sheets, with their text, on one page. */
+  .sheet img { max-height: 98mm; }
+  .sheet.wide img { max-height: 82mm; }
+
+  /* cover */
+  /* Flows from the top: centring it clipped the content when it grew. */
+  .cover { padding-top: 4mm; }
+  .cover .mark {
+    width: 22mm; height: 22mm; border-radius: 5mm; background: #0b6b3a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30pt; font-weight: 700; margin-bottom: 8mm;
+  }
+  .cover h1 { font-size: 30pt; margin: 0 0 2mm; letter-spacing: -0.3pt; }
+  .cover .sub { font-size: 13pt; color: #5d6b7a; margin: 0 0 10mm; }
+  .cover dl { display: grid; grid-template-columns: 32mm 1fr; gap: 1.5mm 4mm; font-size: 10pt; margin: 0; }
+  .cover dt { color: #5d6b7a; }
+  .cover dd { margin: 0; font-weight: 600; }
+
+  .callout {
+    border: 1px solid #ecd396; background: #fdf3dd; color: #6f4a00;
+    border-radius: 3px; padding: 3.5mm 4mm; margin: 4mm 0;
+  }
+  .callout.stop { border-color: #f3c3c0; background: #fdeceb; color: #8f2a22; }
+  .callout.info { border-color: #cfd8e2; background: #f2f5f8; color: #2f4055; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout, table, .steps li { page-break-inside: avoid; }
+  .callout strong { color: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.5pt; }
+  th, td { border: 1px solid #ccd4dc; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f2f5f8; }
+
+  .steps { counter-reset: step; padding: 0; list-style: none; }
+  .steps li { counter-increment: step; position: relative; padding-left: 8mm; margin-bottom: 2.5mm; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0.3mm;
+    width: 5.5mm; height: 5.5mm; border-radius: 50%; background: #0b6b3a; color: #fff;
+    font-size: 8pt; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .toc { list-style: none; padding: 0; }
+  .toc li { border-bottom: 1px dotted #ccd4dc; padding: 1.8mm 0; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<div class="page cover">
+  <div class="mark">+</div>
+  <h1>Bag Tracker</h1>
+  <p class="sub">Kit lists, checklists, sign in/out logs and labels for medical equipment bags</p>
+  <dl>
+    <dt>Guide for</dt><dd>Anyone setting up, packing or checking an equipment / consumables bag</dd>
+    <dt>Made by</dt><dd>Finlay Russell &mdash; finlay3110@gmail.com</dd>
+    <dt>Licence</dt><dd>MIT &mdash; provided as is, with no warranty</dd>
+  </dl>
+
+  <div class="callout stop" style="margin-top:10mm">
+    <p><strong>Before you use anything this produces.</strong> This tool formats what you type. It
+    does not check it. You are responsible for making sure each kit list matches what your service
+    has decided belongs in the bag, and that the bag actually holds it.</p>
+  </div>
+
+  <ul class="toc" style="margin-top:9mm">
+    <li>1. What it does</li>
+    <li>2. Getting started</li>
+    <li>3. Setup</li>
+    <li>4. Pouches and items</li>
+    <li>5. Generating the paperwork</li>
+    <li>6. What the PDF contains</li>
+    <li>7. Several identical bags</li>
+    <li>8. Keeping the kit list up to date</li>
+    <li>9. Saving, reusing and backing up</li>
+    <li>10. Phones and tablets</li>
+    <li>11. Troubleshooting</li>
+    <li>12. Disclaimer and licence</li>
+  </ul>
+</div>
+
+<!-- ============================ 1 & 2 ============================ -->
+<div class="page">
+  <section>
+    <h2>1. What it does</h2>
+    <p>Bag Tracker turns a list of what should be in a medical bag into printable A4 paperwork. It is
+      for equipment and consumables &mdash; airways, dressings, bandages, shears &mdash; not
+      medicines.</p>
+    <p>You describe the bag once, pouch by pouch, with a minimum quantity for each item. The tool
+      then produces one PDF that can contain:</p>
+    <ul>
+      <li><strong>Bag labels</strong> &mdash; four cut-out labels for the outside of the bag, with
+        the bag number and an &ldquo;if found&rdquo; notice.</li>
+      <li><strong>A kit list</strong> &mdash; every pouch and what belongs in it, signed off by
+        whoever packed and checked the bag.</li>
+      <li><strong>A kit checklist</strong> &mdash; the same list with boxes to count and tick each
+        item at a kit check, including seal numbers for sealed pouches.</li>
+      <li><strong>A sign in / sign out log</strong> &mdash; who took the bag, when, where to, and
+        when it came back.</li>
+    </ul>
+    <div class="callout info">
+      <p><strong>Everything stays on your device.</strong> There is no account, no server and no
+        upload. The page and the PDF library run entirely in your browser, so it works offline.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Getting started</h2>
+    <p>Open <code>index.html</code> in any up-to-date browser &mdash; double-click it, or open the
+      address where your organisation hosts it.</p>
+    <figure>
+      <img src="build/shots/topbar.png" alt="The top bar">
+      <figcaption>The top bar. <b>Generate PDF</b> works from any tab; <b>Clear all</b> empties
+        the tool so you can start a different bag.</figcaption>
+    </figure>
+    <p>The work is split into three tabs, done in order:</p>
+    <ol class="steps">
+      <li><strong>Setup</strong> &mdash; your company and the bag.</li>
+      <li><strong>Pouches</strong> &mdash; what is in the bag, and how many of each.</li>
+      <li><strong>Generate</strong> &mdash; choose the sheets and download the PDF.</li>
+    </ol>
+    <p>Everything you type is saved in the browser as you go, so you can close the page and come
+      back. Browser storage can be cleared, though &mdash; see section 9 for keeping a proper copy.</p>
+  </section>
+</div>
+
+<!-- ============================ 3 ============================ -->
+<div class="page">
+  <section>
+    <h2>3. Setup</h2>
+    <h3>Start from a saved file</h3>
+    <p>If you have exported a bag before, <b>Import (.json)</b> at the top of Setup loads it,
+      including its pouches. This is the quickest way to set up a bag with the same layout as
+      another.</p>
+
+    <h3>Company details</h3>
+    <figure class="tall">
+      <img src="build/shots/company-card.png" alt="Company details">
+    </figure>
+    <ul>
+      <li><strong>Company name</strong> (required) &mdash; printed at the top of every sheet.</li>
+      <li><strong>Contact number</strong> and <strong>address</strong> &mdash; used in the
+        &ldquo;if found&rdquo; notice on the bag labels, and the number appears on the kit list.</li>
+      <li><strong>Company logo</strong> &mdash; a PNG or JPEG, printed in the dark band at the top of
+        each sheet and on each label. Large images are shrunk automatically.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Bag details</h3>
+    <figure class="tall">
+      <img src="build/shots/bag-details.png" alt="Bag details">
+    </figure>
+    <table>
+      <tr><th style="width:34mm">Field</th><th>What it is for</th></tr>
+      <tr><td>Bag name <b>*</b></td><td>What the bag is, e.g. &ldquo;Primary response bag&rdquo;.
+        Required.</td></tr>
+      <tr><td>Bag number(s)</td><td>The number on the bag, e.g. RB-03. Printed large on every sheet
+        and label. Enter several, separated by commas, to make paperwork for several identical bags
+        at once (section 7).</td></tr>
+      <tr><td>Normally kept at</td><td>Where the bag lives, e.g. a vehicle or the stores.</td></tr>
+      <tr><td>Seal number</td><td>The number of the tag sealing the whole bag, if it is sealed.
+        Leave blank to write it by hand.</td></tr>
+      <tr><td>Packed by / date</td><td>Printed in the sign-off box on the kit list. Leave blank to
+        write by hand.</td></tr>
+      <tr><td>Kit list version</td><td>Your own version number for this layout, e.g. 3.</td></tr>
+      <tr><td>Last updated</td><td>Set to today automatically whenever you change the pouches. You
+        can change it by hand.</td></tr>
+    </table>
+    <p>The version and date are printed at the foot of every page &mdash; see section 8.</p>
+  </section>
+</div>
+
+<!-- ============================ 4 ============================ -->
+<div class="page">
+  <section>
+    <h2>4. Pouches and items</h2>
+    <p>A bag is made of <strong>pouches</strong> (or modules), and each pouch holds
+      <strong>items</strong>. Items kept loose in the bag can go in a pouch called something like
+      &ldquo;Main compartment&rdquo;.</p>
+
+    <h3>Adding a pouch</h3>
+    <figure>
+      <img src="build/shots/add-pouch.png" alt="Adding a pouch">
+    </figure>
+    <p>Type the pouch name and press <b>Add pouch</b> (or Enter). The new pouch appears below,
+      ready for its items.</p>
+
+    <h3>Adding items</h3>
+    <figure class="tall">
+      <img src="build/shots/pouch-card.png" alt="A pouch with its items">
+      <figcaption>A sealed pouch with six items. The row at the bottom adds the next item.</figcaption>
+    </figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <ol class="steps">
+      <li>In the row at the bottom of the pouch, type the item, e.g. &ldquo;OPA size 2&rdquo;.</li>
+      <li>Set the <strong>minimum quantity</strong> &mdash; the fewest that must be in the pouch for
+        it to be ready for use.</li>
+      <li>Press <b>Add</b> or Enter. The cursor goes back to the name box for the next item.</li>
+    </ol>
+    <p>Put sizes in the item name (&ldquo;NPA 6.0&rdquo;, &ldquo;Gloves (pairs, M)&rdquo;) so each
+      size is counted separately at a check.</p>
+
+    <h3>Changing things</h3>
+    <ul>
+      <li><strong>Rename</strong> a pouch or item, or change a minimum, by typing straight into its
+        box. Changes save as you type.</li>
+      <li><strong>&uarr; / &darr;</strong> move an item within its pouch, or a pouch within the bag.
+        The paperwork follows the same order, so put things in the order a crew would find them.</li>
+      <li><strong>&times;</strong> removes an item. <b>Remove</b> removes a pouch &mdash; you are
+        asked first if it still has items.</li>
+    </ul>
+
+    <h3>Sealed pouches</h3>
+    <p>Some pouches are closed with a numbered tag. Tick <b>Sealed with a tag</b> on that pouch and
+      enter the seal number. If the number changes every time the pouch is resealed, leave it blank
+      and it is written in by hand.</p>
+    <p>On the paperwork, a sealed pouch is marked <em>SEALED &mdash; SEAL No.</em> on its heading,
+      and the checklist adds a row for the seal number found, whether it was intact, and the new
+      seal number.</p>
+  </section>
+</div>
+
+<!-- ============================ 5 ============================ -->
+<div class="page">
+  <section>
+    <h2>5. Generating the paperwork</h2>
+    <figure class="tall">
+      <img src="build/shots/generate.png" alt="The generate tab">
+    </figure>
+    <ol class="steps">
+      <li>Tick the sheets you want. Your choice is remembered with the bag.</li>
+      <li>Set <strong>Checklist copies</strong> to print several blank checklists at once &mdash;
+        useful for a month of daily checks.</li>
+      <li>Press <b>Download PDF</b>, or <b>Preview in new tab</b> to look first.</li>
+    </ol>
+    <p>If something needed is missing, the tool says what instead of making the PDF:</p>
+    <figure>
+      <img src="build/shots/generate-error.png" alt="A missing-details message">
+    </figure>
+    <p>It needs a company name, a bag name, at least one item, a name on every pouch and item, and
+      at least one sheet ticked.</p>
+  </section>
+</div>
+
+<!-- ============================ 6 ============================ -->
+<div class="page">
+  <section>
+    <h2>6. What the PDF contains</h2>
+    <p>The sheets come in this order. Every page has the bag number, company, kit list version and
+      page number at the foot, so a page that goes astray can be put back.</p>
+    <h3>Bag labels</h3>
+    <div class="two">
+      <figure class="sheet"><img src="build/shots/pdf-labels.png" alt="Bag labels"></figure>
+      <div style="flex:1">
+        <p>Four identical labels on one page, with dashed lines to cut along. Each shows the company
+          and logo, the bag number and name, the seal number, an <em>If found</em> box with your
+          phone number and address, and &ldquo;Medical equipment. Do not open unless
+          authorised.&rdquo;</p>
+        <p>Laminate one into the bag&rsquo;s label window and keep the spares.</p>
+      </div>
+    </div>
+    <h3>Kit list</h3>
+    <div class="two">
+      <figure class="sheet"><img src="build/shots/pdf-kit-list.png" alt="Kit list"></figure>
+      <div style="flex:1">
+        <p>The definitive list of what belongs in the bag: a strip of bag details, then each pouch as
+          a dark heading followed by its numbered items and minimum quantities.</p>
+        <p>The <em>Bag packed</em> box at the bottom is signed by whoever packed the bag and whoever
+          checked it.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Kit checklist</h3>
+    <div class="two">
+      <figure class="sheet"><img src="build/shots/pdf-checklist.png" alt="Kit checklist"></figure>
+      <div style="flex:1">
+        <p>Used at each kit check. Write the date and seal numbers at the top, then for every item
+          write how many were <em>found</em>, tick <em>OK</em> when it meets the minimum, and note
+          anything replaced, short or out of date.</p>
+        <p>Sealed pouches have an extra row for the seal found, whether it was intact, and the new
+          seal fitted.</p>
+        <p>Sign the <em>Check completed</em> box at the end. A second signature is there if your
+          procedure needs one.</p>
+      </div>
+    </div>
+    <h3>Sign in / sign out log</h3>
+    <figure class="sheet wide">
+      <img src="build/shots/pdf-log.png" alt="Sign in / sign out log">
+    </figure>
+    <p>A landscape sheet that lives with the bag. Before the bag leaves, fill in the
+      <em>Signed out</em> half: date, time, name, signature, the event or vehicle, and the seal
+      number. When it comes back, fill in the <em>Signed in</em> half. If the seal is broken or the
+      number has changed, check the bag against the kit checklist.</p>
+  </section>
+</div>
+
+<!-- ============================ 7, 8, 9 ============================ -->
+<div class="page">
+  <section>
+    <h2>7. Several identical bags</h2>
+    <p>If you run several bags with the same layout, you do not need to set each one up. In
+      <b>Bag number(s)</b> on Setup, list them separated by commas:</p>
+    <p style="text-align:center"><code>RB-01, RB-02, RB-03</code></p>
+    <p>The PDF then holds a full set of the ticked sheets for RB-01, then RB-02, then RB-03, each
+      with its own bag number on every page and label.</p>
+    <div class="callout">
+      <p><strong>Seal numbers are left blank</strong> when there is more than one bag, because each
+        bag has its own seals. Write them in by hand.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>8. Keeping the kit list up to date</h2>
+    <p>When a kit list changes, old printed checklists can linger in bags and vehicles. To make an
+      out-of-date copy easy to spot, every page carries a line such as:</p>
+    <p style="text-align:center"><code>Kit list v3, updated 04/11/2026</code></p>
+    <ul>
+      <li>The <strong>date</strong> moves to today by itself whenever you add, remove, rename or
+        reorder anything in the pouches.</li>
+      <li>The <strong>version</strong> is yours to set. Raise it when you issue a new layout, and
+        tell crews which version is current.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>9. Saving, reusing and backing up</h2>
+    <p>The bag is saved in this browser as you type, but browser storage is not a backup: clearing
+      browsing data, a private window or a different computer will lose it.</p>
+    <ul>
+      <li><b>Export (.json)</b> on the Generate tab saves the whole bag &mdash; details, logo,
+        pouches and sheet choices &mdash; to a file. Keep it somewhere durable, such as a shared
+        drive.</li>
+      <li><b>Import (.json)</b> loads a saved bag, replacing what is on screen. Export first if you
+        want to keep the current one.</li>
+      <li>To set up a new bag based on an existing one, import it and change the name and number.</li>
+    </ul>
+  </section>
+</div>
+
+<!-- ============================ 10, 11, 12 ============================ -->
+<div class="page">
+  <section>
+    <h2>10. Phones and tablets</h2>
+    <div class="two">
+      <figure class="narrow"><img src="build/shots/phone.png" alt="The pouches tab on a phone"></figure>
+      <div style="flex:1">
+        <p>The tool works on a phone or tablet. The layout narrows to fit, and the dark theme follows
+          your device&rsquo;s setting.</p>
+        <p>Setting up a large bag is easier on a computer, but a phone is fine for a quick change
+          and for downloading the PDF to print.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>11. Troubleshooting</h2>
+    <table>
+      <tr><th style="width:62mm">Problem</th><th>What to do</th></tr>
+      <tr><td>My bag has gone.</td><td>Browser storage was cleared, or you are in a different browser
+        or a private window. Import your last exported .json.</td></tr>
+      <tr><td>&ldquo;Not a bag exported from this tool&rdquo;</td><td>The file is not a Bag Tracker
+        export &mdash; for example a drug bag file from the drug bag tracker.</td></tr>
+      <tr><td>The PDF did not download.</td><td>Read the red message on the Generate tab. Some
+        browsers also ask before saving a download.</td></tr>
+      <tr><td>The logo will not load.</td><td>Use a PNG or JPEG. A very large or complex image may be
+        too big to store &mdash; try a smaller copy.</td></tr>
+      <tr><td>A long item name is cut off on screen.</td><td>Only the box is too narrow. The full
+        name is kept and printed in full on the paperwork.</td></tr>
+      <tr><td>The seal number is missing from the paperwork.</td><td>Check <b>Sealed with a tag</b>
+        is ticked on that pouch, and that there is only one bag number.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>12. Disclaimer and licence</h2>
+    <p>Bag Tracker is a document generator. It is not a clinical or equipment standard and does not
+      tell you what a bag should contain. Your organisation decides that. Check every kit list
+      before it is used.</p>
+    <p>Everything is stored in your browser and nothing is uploaded. No responsibility is accepted
+      for work lost to browser storage being cleared &mdash; export your bags.</p>
+    <p>MIT licence. Copyright &copy; 2026 Finlay Russell. The software is provided &ldquo;as
+      is&rdquo;, without warranty of any kind. PDF generation uses jsPDF, bundled under the MIT
+      licence.</p>
+  </section>
+</div>
+
+</body>
+</html>

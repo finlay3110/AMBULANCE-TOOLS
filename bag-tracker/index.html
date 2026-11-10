@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Bag Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Bag Tracker</h1>
+      <p>Kit list, checklist and sign in/out log for a medical bag</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="../index.html">&larr; Drug bag tracker</a>
+    <button type="button" class="btn ghost" id="resetAll">Clear all</button>
+    <button type="button" class="btn primary" id="generateTop">Generate PDF</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Setup</button>
+  <button class="tab" role="tab" data-tab="pouches" aria-selected="false">2. Pouches <span class="pill" id="pouchCount">0</span></button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+</nav>
+
+<main>
+  <!-- ============ SETUP ============ -->
+  <section class="panel active" id="panel-setup" role="tabpanel">
+    <div class="card">
+      <h2>Start from a saved file</h2>
+      <p class="hint">Load a bag you exported earlier &mdash; the quickest way to set up another
+        bag of the same layout.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="importSetupBtn">Import (.json)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Company details</h2>
+      <p class="hint">Printed at the top of every sheet.</p>
+      <div class="grid">
+        <label class="field">
+          <span>Company name <b>*</b></span>
+          <input type="text" id="companyName" placeholder="e.g. Northern Event Medical Ltd" autocomplete="organization">
+        </label>
+        <label class="field">
+          <span>Contact number</span>
+          <input type="tel" id="companyPhone" placeholder="e.g. 01234 567890" autocomplete="tel">
+        </label>
+        <label class="field span2">
+          <span>Address</span>
+          <textarea id="companyAddress" rows="2" placeholder="Unit 4, Example Way, Townsville, AB1 2CD"></textarea>
+        </label>
+        <div class="field span2">
+          <span>Company logo</span>
+          <div class="logo-row">
+            <span class="logo-preview" id="logoPreview" hidden><img id="logoImg" alt=""></span>
+            <button type="button" class="btn ghost small" id="logoBtn">Choose image&hellip;</button>
+            <button type="button" class="btn ghost small" id="logoRemove" hidden>Remove</button>
+            <input type="file" id="logoFile" accept="image/png,image/jpeg" hidden>
+          </div>
+          <small class="echo" id="logoHint">PNG or JPEG, printed at the top of each sheet.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Bag details</h2>
+      <div class="grid">
+        <label class="field">
+          <span>Bag name <b>*</b></span>
+          <input type="text" id="bagName" placeholder="e.g. Primary response bag">
+        </label>
+        <label class="field">
+          <span>Bag number(s)</span>
+          <input type="text" id="bagNumber" placeholder="e.g. RB-03">
+          <small class="echo">For several identical bags, separate the numbers with commas
+            (RB-01, RB-02, RB-03) to get a full set of paperwork for each in one PDF.</small>
+        </label>
+        <label class="field">
+          <span>Normally kept at</span>
+          <input type="text" id="location" placeholder="e.g. Vehicle 2 / Station stores">
+        </label>
+        <label class="field">
+          <span>Seal number</span>
+          <input type="text" id="sealNumber" placeholder="Optional">
+        </label>
+        <label class="field">
+          <span>Packed by</span>
+          <input type="text" id="packedBy" placeholder="Leave blank to write by hand">
+        </label>
+        <label class="field">
+          <span>Packed date</span>
+          <input type="date" id="packedDate">
+        </label>
+        <label class="field">
+          <span>Kit list version</span>
+          <input type="text" id="version" placeholder="e.g. 3">
+        </label>
+        <label class="field">
+          <span>Last updated</span>
+          <input type="date" id="updated">
+          <small class="echo">Set to today whenever you change the pouches.</small>
+        </label>
+      </div>
+      <p class="hint" style="margin:14px 0 0">The version and date are printed on every page, so crews
+        can tell when a printed checklist is out of date.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" data-goto="pouches">Next: Pouches &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ POUCHES ============ -->
+  <section class="panel" id="panel-pouches" role="tabpanel">
+    <div class="card">
+      <h2>Modules and pouches</h2>
+      <p class="hint">Add each module or pouch in the bag, then list what should be inside it and
+        the minimum quantity of each. Items left loose in the bag can go in a pouch called
+        &ldquo;Main compartment&rdquo;.</p>
+      <form class="add-row" id="pouchForm">
+        <input type="text" id="pouchName" placeholder="e.g. Airway pouch" aria-label="Pouch name">
+        <button type="submit" class="btn primary">Add pouch</button>
+      </form>
+    </div>
+
+    <div id="pouchList"></div>
+    <p class="empty" id="pouchEmpty">No pouches yet. Add the first one above.</p>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="setup">&larr; Back</button>
+      <button type="button" class="btn primary" data-goto="generate">Next: Generate &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ GENERATE ============ -->
+  <section class="panel" id="panel-generate" role="tabpanel">
+    <div class="card">
+      <h2>Generate paperwork</h2>
+      <p class="hint">One A4 PDF with the sheets ticked below, for each bag number.</p>
+      <div class="sheet-list">
+        <label class="check-row"><input type="checkbox" id="printLabel"><span>Bag labels
+          <small>Four cut-out labels for the outside of the bag, with an &ldquo;if found&rdquo; notice.</small></span></label>
+        <label class="check-row"><input type="checkbox" id="printKit"><span>Kit list
+          <small>Every pouch and what should be in it, with minimum quantities.</small></span></label>
+        <label class="check-row"><input type="checkbox" id="printCheck"><span>Kit checklist
+          <small>The same list with boxes to count and tick each item at a check.</small></span></label>
+        <label class="field copies">
+          <span>Checklist copies</span>
+          <input type="number" id="printCopies" min="1" max="50" step="1">
+        </label>
+        <label class="check-row"><input type="checkbox" id="printLog"><span>Sign in / sign out log
+          <small>Who took the bag, when, and when it came back.</small></span></label>
+      </div>
+      <p class="error" id="genError" hidden></p>
+      <div class="actions">
+        <button type="button" class="btn primary big" id="generateBtn">Download PDF</button>
+        <button type="button" class="btn ghost" id="previewBtn">Preview in new tab</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Save / load bag</h2>
+      <p class="hint">Everything stays on this device &mdash; nothing is uploaded. Browser storage
+        can be cleared, so export the bag to keep it.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="exportBtn">Export (.json)</button>
+        <button type="button" class="btn ghost" id="importBtn">Import (.json)</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="importResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="pouches">&larr; Back</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="foot-line"><strong>Provided as is, with no warranty.</strong> This tool formats what
+    you type &mdash; it does not check it. You are responsible for verifying the contents of
+    every bag.</p>
+  <p class="foot-credit">
+    Made by Finlay Russell &mdash; <a href="mailto:finlay3110@gmail.com">finlay3110@gmail.com</a><br>
+    <a href="Bag-Tracker-User-Guide.pdf" target="_blank" rel="noopener">User guide (PDF)</a> &middot;
+    MIT licence &middot; Runs entirely in your browser &middot; PDF by jsPDF
+  </p>
+</footer>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
