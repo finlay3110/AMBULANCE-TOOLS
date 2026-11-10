@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Drug Bag Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<script>
+  /* Applied before first paint so a chosen dark theme does not flash light.
+     app.js owns the toggle; this only restores what was stored. */
+  try {
+    var t = localStorage.getItem("drug-bag-tracker/theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) { /* private browsing: fall back to the system preference */ }
+</script>
+</head>
+<body data-modes="bag cd" data-page="stock">
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Drug Bag Tracker</h1>
+      <p>Drug bag and controlled drugs paperwork</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="matrix.html" id="matrixLink">Drug matrix &rarr;</a>
+    <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="themeBtn" aria-live="polite">Theme: auto</button>
+    <button type="button" class="btn ghost" id="resetAll">Clear all</button>
+    <button type="button" class="btn primary" id="generateTop">Generate PDF</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Setup</button>
+  <button class="tab" role="tab" data-tab="meds" aria-selected="false"><span id="tabMedsLabel">2. Medications</span> <span class="pill" id="medCount">0</span></button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+</nav>
+
+<main>
+  <!-- ============ SETUP ============ -->
+  <section class="panel active" id="panel-setup" role="tabpanel">
+    <div class="card">
+      <h2>Document type</h2>
+      <p class="hint">Controlled drugs are held in the CD safe, not in a drug bag, so they are
+        recorded on a completely separate document. Pick one &mdash; each keeps its own details
+        and its own list, so you can prepare both without them mixing.</p>
+      <div class="modes">
+        <label class="mode">
+          <input type="radio" name="docMode" value="bag" checked>
+          <span>
+            <b>Drug bag</b>
+            <small>Sealed bag or pouch. Produces the bag label plus a usage log per medication.</small>
+          </span>
+        </label>
+        <label class="mode">
+          <input type="radio" name="docMode" value="cd">
+          <span>
+            <b>Controlled drugs (CD safe)</b>
+            <small>Stock held in the safe. Produces a register with running balances, plus a
+              sign-out sheet for drugs taken into a personal pouch.</small>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Start from a saved file</h2>
+      <p class="hint">Load a bag or register you exported earlier. This is the quickest way to
+        prepare a repeat bag &mdash; import it, then update the batch numbers and expiry dates.
+        The document type comes from the file.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="importSetupBtn">Import (.json)</button>
+      </div>
+      <p class="notice" id="importResult" hidden></p>
+    </div>
+
+    <div data-part="company"></div>
+
+    <div class="card">
+      <h2 id="detailsTitle">Bag details</h2>
+      <div class="grid">
+        <label class="field" id="f-bagNumber">
+          <span>Drug bag number <b>*</b></span>
+          <input type="text" id="bagNumber" placeholder="e.g. DB-014">
+        </label>
+        <label class="field" id="f-preppedBy">
+          <span>Prepped by <b>*</b></span>
+          <input type="text" id="preppedBy" placeholder="Name of person who prepped the bag">
+        </label>
+        <label class="field" id="f-preppedDate">
+          <span>Prepped date</span>
+          <input type="date" id="preppedDate">
+        </label>
+        <label class="field" id="f-inServiceUntil">
+          <span>In service until</span>
+          <input type="date" id="inServiceUntil">
+          <small class="echo" id="inServiceHint">Optional. Expiry is then checked up to this date,
+            so anything running out while the bag is away is flagged.</small>
+        </label>
+        <label class="field" id="f-sealNumber">
+          <span>Seal number</span>
+          <input type="text" id="sealNumber" placeholder="Optional">
+        </label>
+        <label class="field span2" id="f-safeLocation" hidden>
+          <span>Safe location</span>
+          <input type="text" id="safeLocation" placeholder="e.g. Secure room, Station 4">
+        </label>
+        <label class="field span2" id="f-checkedBy">
+          <span>Checked by</span>
+          <input type="text" id="checkedBy" placeholder="Second person for the two-person check (optional)">
+          <small class="echo" id="checkedByHint">The label page carries a prepared-by / checked-by signature block. Leave blank to sign it by hand.</small>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Drug matrix (optional)</h2>
+      <p class="hint">A formulary exported from the <a href="matrix.html">drug matrix
+        generator</a> can be attached here. Its table is then printed at the end of this
+        document, so the bag's paperwork also shows which clinical grades may give what.
+        It is a copy: editing the matrix later means attaching it again.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="formularyBtn">Attach a formulary (.json)</button>
+        <button type="button" class="btn ghost" id="formularyRemove" hidden>Remove</button>
+        <input type="file" id="formularyFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="formularyResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" data-goto="meds">Next: Medications &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ MEDICATIONS ============ -->
+  <section class="panel" id="panel-meds" role="tabpanel">
+    <div data-part="quickadd"></div>
+
+    <div data-part="medform"></div>
+
+    <div data-part="medlist"></div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="setup">&larr; Back</button>
+      <button type="button" class="btn primary" data-goto="generate">Next: Generate &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ GENERATE ============ -->
+  <section class="panel" id="panel-generate" role="tabpanel">
+    <div data-part="generate"></div>
+
+    <div data-part="saveload"></div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="meds">&larr; Back</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot" data-part="footer"></footer>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="expiry.js"></script>
+<script src="medicines.js"></script>
+<script src="pdf.js"></script>
+<script src="parts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
