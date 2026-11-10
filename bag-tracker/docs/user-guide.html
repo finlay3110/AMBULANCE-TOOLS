@@ -114,7 +114,7 @@
     <li>7. Several identical bags</li>
     <li>8. Keeping the kit list up to date</li>
     <li>9. Saving, reusing and backing up</li>
-    <li>10. Phones and tablets</li>
+    <li>10. Phones, tablets and offline</li>
     <li>11. Troubleshooting</li>
     <li>12. Disclaimer and licence</li>
   </ul>
@@ -147,12 +147,15 @@
 
   <section>
     <h2>2. Getting started</h2>
-    <p>Open <code>index.html</code> in any up-to-date browser &mdash; double-click it, or open the
-      address where your organisation hosts it.</p>
+    <p>Open the Ambulance Tools home page in any up-to-date browser and choose <b>Bag Tracker</b>,
+      or open <code>bag-tracker/index.html</code> directly. Start with the <strong>Company
+      Profile</strong> on the home page: enter your company once, and this tool fills its company
+      details in from it.</p>
     <figure>
       <img src="build/shots/topbar.png" alt="The top bar">
-      <figcaption>The top bar. <b>Generate PDF</b> works from any tab; <b>Clear all</b> empties
-        the tool so you can start a different bag.</figcaption>
+      <figcaption>The top bar. <b>All tools</b> goes back to the home page; <b>Theme</b> switches
+        between automatic, light and dark; <b>Generate PDF</b> works from any tab; <b>Clear all</b>
+        empties the tool so you can start a different bag.</figcaption>
     </figure>
     <p>The work is split into three tabs, done in order:</p>
     <ol class="steps">
@@ -178,10 +181,17 @@
     <figure class="tall">
       <img src="build/shots/company-card.png" alt="Company details">
     </figure>
+    <p>If you have made a Company Profile, <b>Use saved company profile</b> fills all of this in,
+      logo and CQC registration included. On another device, <b>Import company details</b> loads the
+      profile&rsquo;s file instead; a Drug Bag Tracker or Deployment Maker file works too.
+      <b>Create a company profile</b> opens the Company Profile.</p>
     <ul>
       <li><strong>Company name</strong> (required) &mdash; printed at the top of every sheet.</li>
       <li><strong>Contact number</strong> and <strong>address</strong> &mdash; used in the
         &ldquo;if found&rdquo; notice on the bag labels, and the number appears on the kit list.</li>
+      <li><strong>CQC registered</strong> &mdash; tick it if your organisation is registered with
+        the Care Quality Commission, and enter the registration number. It is printed beside the
+        company name on every sheet and each label. Left unticked, nothing about CQC appears.</li>
       <li><strong>Company logo</strong> &mdash; a PNG or JPEG, printed in the dark band at the top of
         each sheet and on each label. Large images are shrunk automatically.</li>
     </ul>
@@ -385,6 +395,8 @@
       <li><b>Import (.json)</b> loads a saved bag, replacing what is on screen. Export first if you
         want to keep the current one.</li>
       <li>To set up a new bag based on an existing one, import it and change the name and number.</li>
+      <li><b>Back up everything</b> on the Ambulance Tools home page saves the work of every tool,
+        this one included, in one file, and restores it on another device.</li>
     </ul>
   </section>
 </div>
@@ -392,12 +404,16 @@
 <!-- ============================ 10, 11, 12 ============================ -->
 <div class="page">
   <section>
-    <h2>10. Phones and tablets</h2>
+    <h2>10. Phones, tablets and offline</h2>
     <div class="two">
       <figure class="narrow"><img src="build/shots/phone.png" alt="The pouches tab on a phone"></figure>
       <div style="flex:1">
-        <p>The tool works on a phone or tablet. The layout narrows to fit, and the dark theme follows
-          your device&rsquo;s setting.</p>
+        <p>The tool works on a phone or tablet. The layout narrows to fit, and the theme follows
+          your device&rsquo;s light or dark setting unless you choose one with <b>Theme</b>.</p>
+        <p>Once opened with a connection, it also works offline, and can be added to a phone&rsquo;s
+          home screen like an app: in Chrome, <b>Install app</b>; on an iPhone, <b>Share</b> then
+          <b>Add to Home Screen</b>. On an iPhone the home-screen app keeps its own saved work,
+          separate from Safari, so use <b>Back up everything</b> to move it across.</p>
         <p>Setting up a large bag is easier on a computer, but a phone is fine for a quick change
           and for downloading the PDF to print.</p>
       </div>

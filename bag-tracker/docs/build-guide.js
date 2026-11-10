@@ -54,9 +54,12 @@ async function capture(browser) {
   await page.reload();
 
   // ---- setup ----
-  await page.fill("#companyName", "Northern Event Medical Ltd");
-  await page.fill("#companyPhone", "01234 567890");
-  await page.fill("#companyAddress", "Unit 4, Example Way\nTownsville, AB1 2CD");
+  // Company details from a saved Company Profile, the way most people will fill them in.
+  await page.evaluate(() => localStorage.setItem("company-profile/v1", JSON.stringify({
+    companyName: "Northern Event Medical Ltd", companyPhone: "01234 567890",
+    companyAddress: "Unit 4, Example Way\nTownsville, AB1 2CD", cqcRegistered: true, cqcNumber: "1-234567890" })));
+  await page.reload();
+  await page.click("#companyUseBtn");
   await page.setInputFiles("#logoFile", sampleLogo());
   await page.waitForFunction(() => !document.getElementById("logoPreview").hidden);
   await page.fill("#bagName", "Primary response bag");
