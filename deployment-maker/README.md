@@ -21,17 +21,23 @@ people in and out on the day.
 
 A landscape A4 deployment log. The top shows the company (with CQC number and
 logo), date, event, venue, who made the deployment, the number of units and
-staff, and the contact number. Then each unit has a header row (its callsign
-in a dark box, marked AMBULANCE or ROAMING, then a white box for each detail it
-has: vehicle registration, location, kit bag, drug bag) and one row per person
-with boxes for
-the time they **signed in**, **started a break** and were **stood down**, and
-a **signature**. Long deployments run over several pages, with the column
-headings repeated.
+staff, and the contact number.
 
-Anything left blank (a name, a registration, a location, a bag number) prints
-as an empty box, big enough to fill in with a pen on the day. A unit with its
-bag ticks off has no bag boxes at all.
+Each unit is its own block, with space between blocks:
+
+- a dark band with its callsign, tagged **AMBULANCE** or **ROAMING**;
+- a light strip with its location, vehicle registration, kit bag and drug bag,
+  always in the same places and lined up with the columns below;
+- one row per person: name (with a green **MANAGER** badge where it applies),
+  clinical grade and radio, then boxes for the time they **signed in**,
+  **started a break** and were **stood down**, and a **signature**.
+
+A unit that runs onto a new page repeats its band, marked **CONTINUED**, with
+its column headings.
+
+Anything left blank (the date, a name, a registration, a location, a bag
+number) prints as an empty box, big enough to fill in with a pen on the day. A
+unit with its bag ticks off has no bag boxes at all.
 
 ## Plans for venues
 
