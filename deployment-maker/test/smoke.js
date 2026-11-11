@@ -20,7 +20,8 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   // Builds the PDF from what is stored, as the page would.
   const pdf = () => page.evaluate(() => {
     const doc = window.DeploymentPDF.build(JSON.parse(localStorage.getItem("deployment-maker/v1")));
-    return { pages: doc.internal.getNumberOfPages(), raw: doc.output() };
+    return { pages: doc.internal.getNumberOfPages(), raw: doc.output(),
+      perPage: doc.internal.pages.slice(1).map((pg) => pg.join("\n")) };
   });
   const saveJson = async (button) => {
     const [dl] = await Promise.all([page.waitForEvent("download"), page.click(button)]);
@@ -107,8 +108,8 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   for (const s of ["DEPLOYMENT LOG", "Northern Event Medical Ltd", "CQC 1-234567890", "18/07/2026",
     "Summer Music Festival", "Riverside Park", "J. Smith", "2 / 4", "01234 567890", "ALPHA 1",
     "AMBULANCE", "VEHICLE REG", "AB12 CDE", "LOCATION", "Main stage", "KB-01", "DB-02", "FOOT 1", "ROAMING",
-    "Sam Patel", "Paramedic", "R4", "Yes", "Jo Bloggs", "Ali Khan", "FREC 4", "First responder",
-    "Signed in", "Break started", "Stood down", "Signature"]) {
+    "Sam Patel", "Paramedic", "R4", "MANAGER", "Jo Bloggs", "Ali Khan", "FREC 4", "First responder",
+    "SIGNED IN", "BREAK STARTED", "STOOD DOWN", "SIGNATURE"]) {
     assert.ok(sheet.raw.includes(s), "PDF missing " + s);
   }
   // A box per bag a unit has: kit bags on both units, a drug bag only on the ambulance.
@@ -166,6 +167,7 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(count(blankSheet.raw, "KIT BAG"), 2);
   assert.ok(!blankSheet.raw.includes("KB-01"), "a plan prints no bag numbers");
   assert.ok(!blankSheet.raw.includes("Sam Patel"), "a plan prints no names");
+  assert.ok(!blankSheet.raw.includes("______"), "a blank date is a box to write in too, not a line");
 
   // The full deployment opens back in over the plan (opening is on the first tab).
   await page.click(".tab[data-tab=setup]");
@@ -225,7 +227,9 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await page.textContent("#unitCount"), "14");
   const big = await pdf();
   assert.ok(big.pages >= 3, "a big deployment should run over pages, got " + big.pages);
-  eq(big.raw.split("Break started").length - 1, big.pages, "column headings on every page");
+  big.perPage.forEach((text, i) => assert.ok(text.includes("(BREAK STARTED)"), "column headings on page " + (i + 1)));
+  // Each unit has its own headings.
+  assert.ok(big.raw.split("(BREAK STARTED)").length - 1 >= 14, "column headings with every unit");
   assert.ok(big.raw.includes("Person 11-4"));
 
   assert.deepStrictEqual(errors, []);

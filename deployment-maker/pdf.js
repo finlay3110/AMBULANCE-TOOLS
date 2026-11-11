@@ -7,16 +7,19 @@
   var PAGE = { ml: 12, mr: 12, mt: 12, mb: 16 };   // mm
   var INK = [22, 32, 44];
   var LINE = [130, 140, 150];
-  var HEAD_BG = [210, 214, 219];
   var BAR_BG = [18, 33, 47];
   var SOFT_BG = [242, 244, 246];
   var MUTED = [95, 105, 118];
-  var ROW_H = 9;     // tall enough to write a time or sign in
-  var UNIT_H = 13;   // a unit's header: a blank box leaves about 9 mm to write in
+  var GRID = [208, 213, 220];     // light lines inside a unit, so the writing stands out
+  var TAG_BG = [62, 82, 102];     // AMBULANCE / ROAMING tags on the dark band
+  var GREEN = [11, 107, 58];      // the tools' accent: the MANAGER badge
+  var BAND_H = 8, STRIP_H = 13, COLHEAD_H = 5.5, ROW_H = 9, GAP = 5;   // mm
 
-  // Widths total 273 mm, the content width of landscape A4.
-  var COLS = [["Name", 52], ["Clinical grade", 36], ["Manager", 18], ["Radio", 20],
-    ["Signed in", 24], ["Break started", 26], ["Stood down", 24], ["Signature", 73]];
+  // A row per person. Widths total 273 mm, the content width of landscape A4.
+  var COLS = [["Name", 62], ["Clinical grade", 40], ["Radio", 20], ["Signed in", 26],
+    ["Break started", 28], ["Stood down", 26], ["Signature", 71]];
+  // Each unit detail always sits in the same place, lined up with the columns below: [x, width].
+  var SLOTS = { location: [0, 102], reg: [102, 46], kitBag: [148, 54], drugBag: [202, 71] };
 
   function txt(v) { return v === undefined || v === null ? "" : String(v).trim(); }
   function pageW(doc) { return doc.internal.pageSize.getWidth(); }
@@ -69,8 +72,13 @@
     doc.text(wrap(doc, companyLine(c), right - x - 70)[0] || "", x, y + 15);
     setFont(doc, 9, "normal");
     doc.text("DATE", right, y + 7, { align: "right" });
-    setFont(doc, 14, "bold");
-    doc.text(ukDate(data.eventDate) || "___ / ___ / ______", right, y + 15.5, { align: "right" });
+    if (ukDate(data.eventDate)) {
+      setFont(doc, 14, "bold");
+      doc.text(ukDate(data.eventDate), right, y + 15.5, { align: "right" });
+    } else {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(right - 42, y + 8.5, 42, 9, 1, 1, "F");
+    }
     colour(doc, INK);
     return y + 20;
   }
@@ -100,35 +108,6 @@
     return y + h;
   }
 
-  /* One table row; every cell shares the tallest cell's height. Returns that height. */
-  function drawRow(doc, y, widths, cells, opts) {
-    opts = opts || {};
-    var padX = 1.8, padY = 1.6, size = opts.size || 9;
-    var wrapped = cells.map(function (c, i) {
-      setFont(doc, size, c.bold || opts.bold ? "bold" : "normal");
-      return wrap(doc, c.text, widths[i] - padX * 2);
-    });
-    var h = opts.minH || 7;
-    wrapped.forEach(function (lines) { h = Math.max(h, linesHeight(lines, size) + padY * 2); });
-    if (opts.measure) return h;
-
-    var cx = PAGE.ml;
-    wrapped.forEach(function (lines, i) {
-      var c = cells[i], w = widths[i], fill = c.fill || opts.fill;
-      if (fill) { doc.setFillColor(fill[0], fill[1], fill[2]); doc.rect(cx, y, w, h, "F"); }
-      doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
-      doc.setLineWidth(0.2);
-      doc.rect(cx, y, w, h, "S");
-      colour(doc, c.colour || opts.colour || INK);
-      setFont(doc, size, c.bold || opts.bold ? "bold" : "normal");
-      var tx = c.align === "center" ? cx + w / 2 : cx + padX;
-      doc.text(lines, tx, y + padY + size * 0.3528 * 0.95, { align: c.align || "left" });
-      cx += w;
-    });
-    colour(doc, INK);
-    return h;
-  }
-
   function note(doc, y, text) {
     setFont(doc, 8.5, "normal");
     colour(doc, MUTED);
@@ -138,60 +117,109 @@
     return y + 3 + linesHeight(lines, 8.5) + 2;
   }
 
-  /*
-   * The row over each unit: its callsign in a dark cell, then a white labelled
-   * box for each detail it has. A detail left blank is an empty box, big enough
-   * to write in with a pen on the day.
-   */
-  function unitHead(doc, y, u, continued, measure) {
-    var full = contentW(doc), first = COLS[0][1], details = [];
-    if (u.ambulance) details.push(["Vehicle reg", txt(u.reg).toUpperCase()]);
-    if (!u.roaming) details.push(["Location", txt(u.location)]);
-    if (u.hasKitBag) details.push(["Kit bag", txt(u.kitBag)]);
-    if (u.hasDrugBag) details.push(["Drug bag", txt(u.drugBag)]);
-    var callW = details.length ? first : full, cellW = (full - first) / (details.length || 1);
-    var tags = [u.ambulance ? "AMBULANCE" : "", u.roaming ? "ROAMING" : ""].filter(Boolean).join("  \u00b7  ");
-
-    setFont(doc, 10, "bold");
-    var name = wrap(doc, txt(u.callsign).toUpperCase() + (continued ? " (continued)" : ""), callW - 5).slice(0, 2);
-    setFont(doc, 9, "bold");
-    var values = details.map(function (d) { return wrap(doc, d[1], cellW - 4).slice(0, 2); });
-    var h = Math.max(UNIT_H, name.length * 4.2 + (tags ? 7 : 4));
-    values.forEach(function (v) { h = Math.max(h, 8 + v.length * 3.8); });
-    if (measure) return h;
-
-    doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
-    doc.rect(PAGE.ml, y, callW, h, "F");
-    doc.setTextColor(255, 255, 255);
-    setFont(doc, 10, "bold");
-    doc.text(name, PAGE.ml + 2.5, y + 5.5);
-    if (tags) {
-      setFont(doc, 7, "bold");
-      doc.text(tags, PAGE.ml + 2.5, y + h - 2.6);
+  /* Text centred in a cell. Two smaller lines beat cutting a long value short. */
+  function cellText(doc, text, x, y, w, h, size, style) {
+    setFont(doc, size, style);
+    var lines = wrap(doc, text, w);
+    if (lines.length > 1) {
+      size -= 1.5;
+      setFont(doc, size, style);
+      lines = wrap(doc, text, w).slice(0, 2);
     }
-    details.forEach(function (d, i) {
-      var x = PAGE.ml + first + cellW * i;
-      doc.setFillColor(255, 255, 255);
-      doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
-      doc.setLineWidth(0.3);
-      doc.rect(x, y, cellW, h, "FD");
-      setFont(doc, 6.5, "normal");
+    var lh = size * 0.3528 * 1.15;   // jsPDF's own line spacing for an array of lines
+    doc.text(lines, x, y + h / 2 - (lines.length * lh) / 2 + lh * 0.78);
+  }
+
+  function setLine(doc, c, w) { doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(w); }
+
+  /* Dark band: the callsign, with small tags for an ambulance or a roaming unit. */
+  function band(doc, y, u, continued) {
+    doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+    doc.rect(PAGE.ml, y, contentW(doc), BAND_H, "F");
+    var title = txt(u.callsign).toUpperCase();
+    setFont(doc, 10.5, "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, PAGE.ml + 3, y + 5.6);
+    var x = PAGE.ml + 3 + doc.getTextWidth(title) + 3;
+    [u.ambulance && "AMBULANCE", u.roaming && "ROAMING", continued && "CONTINUED"].filter(Boolean).forEach(function (t) {
+      setFont(doc, 6.5, "bold");
+      var w = doc.getTextWidth(t) + 4;
+      doc.setFillColor(TAG_BG[0], TAG_BG[1], TAG_BG[2]);
+      doc.roundedRect(x, y + 2, w, 4, 1, 1, "F");
+      doc.text(t, x + 2, y + 4.9);
+      x += w + 2;
+    });
+    colour(doc, INK);
+    return y + BAND_H;
+  }
+
+  /* Light strip under the band: the unit's details, each in its fixed place. A detail
+     left blank is a white box, big enough to write in with a pen on the day. */
+  function strip(doc, y, u) {
+    doc.setFillColor(SOFT_BG[0], SOFT_BG[1], SOFT_BG[2]);
+    doc.rect(PAGE.ml, y, contentW(doc), STRIP_H, "F");
+    [["location", "Location", u.roaming ? "Roaming" : txt(u.location), true],
+     ["reg", "Vehicle reg", txt(u.reg).toUpperCase(), u.ambulance],
+     ["kitBag", "Kit bag", txt(u.kitBag), u.hasKitBag],
+     ["drugBag", "Drug bag", txt(u.drugBag), u.hasDrugBag]].forEach(function (d) {
+      if (!d[3]) return;
+      var x = PAGE.ml + SLOTS[d[0]][0] + 3, w = SLOTS[d[0]][1] - 6;
+      setFont(doc, 6.5, "bold");
       colour(doc, MUTED);
-      doc.text(d[0].toUpperCase(), x + 2, y + 3.3);
-      if (values[i].length) {
-        setFont(doc, 9, "bold");
+      doc.text(d[1].toUpperCase(), x, y + 3.6);
+      if (d[2]) {
         colour(doc, INK);
-        doc.text(values[i], x + 2, y + 7.6);
+        cellText(doc, d[2], x, y + 4.2, w, STRIP_H - 4.6, 10, "bold");
+      } else {
+        doc.setFillColor(255, 255, 255);
+        setLine(doc, LINE, 0.25);
+        doc.roundedRect(x, y + 4.6, w, STRIP_H - 5.8, 1, 1, "FD");
       }
     });
     colour(doc, INK);
-    return h;
+    return y + STRIP_H;
   }
 
-  function personCells(p) {
-    return [p.name, p.grade, p.manager ? "Yes" : "", p.radio, "", "", "", ""].map(function (t, i) {
-      return { text: txt(t), bold: i === 0, align: i === 2 ? "center" : "left" };
+  function colHead(doc, y) {
+    var x = PAGE.ml;
+    setFont(doc, 6.5, "bold");
+    colour(doc, MUTED);
+    COLS.forEach(function (c) { doc.text(c[0].toUpperCase(), x + 2, y + 3.9); x += c[1]; });
+    setLine(doc, LINE, 0.3);
+    doc.line(PAGE.ml, y + COLHEAD_H, PAGE.ml + contentW(doc), y + COLHEAD_H);
+    colour(doc, INK);
+    return y + COLHEAD_H;
+  }
+
+  /* One person: name (with a MANAGER badge), grade and radio, then boxes to write in. */
+  function personRow(doc, y, p) {
+    var x = PAGE.ml, right = PAGE.ml + contentW(doc);
+    setLine(doc, GRID, 0.2);
+    doc.line(PAGE.ml, y + ROW_H, right, y + ROW_H);
+    doc.line(PAGE.ml, y, PAGE.ml, y + ROW_H);
+    doc.line(right, y, right, y + ROW_H);
+    COLS.forEach(function (c, i) {
+      if (i > 0) doc.line(x, y, x, y + ROW_H);
+      x += c[1];
     });
+
+    var badgeW = 0;
+    if (p.manager) {
+      // At the right of the name box, clear of a name written in by hand.
+      setFont(doc, 6, "bold");
+      badgeW = doc.getTextWidth("MANAGER") + 3.4;
+      var bx = PAGE.ml + COLS[0][1] - 2 - badgeW;
+      doc.setFillColor(GREEN[0], GREEN[1], GREEN[2]);
+      doc.roundedRect(bx, y + ROW_H / 2 - 2, badgeW, 4, 1, 1, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("MANAGER", bx + 1.7, y + ROW_H / 2 + 0.95);
+      badgeW += 2;
+    }
+    colour(doc, INK);
+    cellText(doc, txt(p.name), PAGE.ml + 2, y, COLS[0][1] - 4 - badgeW, ROW_H, 9.5, "bold");
+    cellText(doc, txt(p.grade), PAGE.ml + COLS[0][1] + 2, y, COLS[1][1] - 4, ROW_H, 9, "normal");
+    cellText(doc, txt(p.radio), PAGE.ml + COLS[0][1] + COLS[1][1] + 2, y, COLS[2][1] - 4, ROW_H, 9, "normal");
+    return y + ROW_H;
   }
 
   function eventBits(data) {
@@ -218,20 +246,16 @@
 
   function build(data) {
     var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-    var widths = COLS.map(function (c) { return c[1]; });
     var bottom = pageH(doc) - PAGE.mb;
     var staff = data.units.reduce(function (n, u) { return n + u.staff.length; }, 0);
 
-    function head(y) {
-      return y + drawRow(doc, y, widths, COLS.map(function (c) { return { text: c[0] }; }),
-        { bold: true, fill: HEAD_BG, size: 8.5 });
-    }
     function newPage() {
       doc.addPage("a4", "landscape");
-      setFont(doc, 10, "bold");
+      setFont(doc, 9, "bold");
+      colour(doc, MUTED);
+      doc.text(["Deployment log (continued)", eventBits(data)].filter(Boolean).join("  \u2014  "), PAGE.ml, PAGE.mt + 3);
       colour(doc, INK);
-      doc.text(["Deployment log (continued)", eventBits(data)].filter(Boolean).join("  —  "), PAGE.ml, PAGE.mt + 4);
-      return head(PAGE.mt + 7);
+      return PAGE.mt + 7;
     }
 
     var y = masthead(doc, data);
@@ -241,26 +265,20 @@
       ["Deployment made by", txt(data.madeBy) || null],
       ["Units / staff", data.units.length + " / " + staff],
       ["Contact", txt((data.company || {}).companyPhone) || null]
-    ], y) + 3;
+    ], y) + 2;
     y = note(doc, y, "Record the time each person signs in, starts a break and is stood down, and have them sign. " +
       "Anything left blank is for filling in by hand.");
-    y = head(y);
 
-    data.units.forEach(function (u) {
+    data.units.forEach(function (u, i) {
       // A unit with nobody on it yet still gets rows to write names in.
       var rows = u.staff.length ? u.staff : [{}, {}];
-      var headH = unitHead(doc, 0, u, false, true);
-      var firstH = drawRow(doc, 0, widths, personCells(rows[0]), { measure: true, minH: ROW_H });
-      if (y + headH + firstH > bottom) y = newPage();   // never a unit header alone at the foot of a page
-      y += unitHead(doc, y, u, false);
+      if (i > 0) y += GAP;
+      // The band, details and headings never sit alone at the foot of a page.
+      if (y + BAND_H + STRIP_H + COLHEAD_H + ROW_H > bottom) y = newPage();
+      y = colHead(doc, strip(doc, band(doc, y, u), u));
       rows.forEach(function (p) {
-        var c = personCells(p);
-        var h = drawRow(doc, 0, widths, c, { measure: true, minH: ROW_H });
-        if (y + h > bottom) {
-          y = newPage();
-          y += unitHead(doc, y, u, true);
-        }
-        y += drawRow(doc, y, widths, c, { minH: ROW_H });
+        if (y + ROW_H > bottom) y = colHead(doc, band(doc, newPage(), u, true));
+        y = personRow(doc, y, p);
       });
     });
 
