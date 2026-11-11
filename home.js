@@ -25,6 +25,39 @@
     }).join(", ");
   }
 
+  /* When the last backup was made here. Not itself backed up: it is about this browser. */
+  var LAST_KEY = "ambulance-tools/last-backup";
+  var REMIND_DAYS = 30;
+
+  function hasWork() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) if (toolOf(localStorage.key(i))) return true;
+    } catch (e) { /* storage unreadable: nothing to remind about */ }
+    return false;
+  }
+
+  /* A nudge when there is work that has never been backed up, or not for a month. */
+  function showBackupStatus() {
+    var box = $("backupStatus"), last = null;
+    try { last = Date.parse(localStorage.getItem(LAST_KEY)); } catch (e) { last = NaN; }
+    if (!hasWork()) { box.hidden = true; return; }
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var day = new Date(last); day.setHours(0, 0, 0, 0);
+    var days = isNaN(last) ? -1 : Math.round((today - day) / 86400000);
+    box.hidden = false;
+    if (days < 0) {
+      box.className = "notice warn";
+      box.textContent = "You have not backed up yet. Your work is only in this browser, so download a backup " +
+        "to keep it safe.";
+    } else if (days >= REMIND_DAYS) {
+      box.className = "notice warn";
+      box.textContent = "Your last backup was " + days + " days ago. Download a new one to keep recent work safe.";
+    } else {
+      box.className = "notice good";
+      box.textContent = "Last backed up " + (days === 0 ? "today" : days === 1 ? "yesterday" : days + " days ago") + ".";
+    }
+  }
+
   function message(kind, text) {
     $("backupResult").className = "notice " + kind;
     $("backupResult").textContent = text;
@@ -59,6 +92,8 @@
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
     message("good", "Saved " + name + " with the work from: " + toolNames(keys) + ". Keep it somewhere safe.");
+    try { localStorage.setItem(LAST_KEY, d.toISOString()); } catch (e) { /* the reminder just stays */ }
+    showBackupStatus();
   });
 
   $("restoreBtn").addEventListener("click", function () { $("restoreFile").click(); });
@@ -88,7 +123,10 @@
         return;
       }
       message("good", "Restored: " + toolNames(keys) + ". Open a tool to carry on from the backup.");
+      showBackupStatus();
     };
     reader.readAsText(file);
   });
+
+  showBackupStatus();
 })();
