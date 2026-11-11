@@ -396,6 +396,10 @@
   }
 
   $("exportBtn").addEventListener("click", function () {
+    if (!dep.units.length) {
+      message("saveResult", "bad", "Add the units first: there is nothing to save yet.");
+      return;
+    }
     var name = "Deployment-" + fileBase() + ".json";
     downloadJson(Object.assign({ format: FORMAT, version: 1 }, dep), name);
     message("saveResult", "good", "Saved as " + name + ".");

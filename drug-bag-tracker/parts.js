@@ -209,6 +209,7 @@
       "    <button type=\"button\" class=\"btn ghost\" id=\"importBtn\">Import (.json)</button>",
       "    <input type=\"file\" id=\"importFile\" accept=\"application/json,.json\" hidden>",
       "  </div>",
+      "  <p class=\"notice\" id=\"exportResult\" hidden></p>",
       "</div>"
     ].join("\n"),
 

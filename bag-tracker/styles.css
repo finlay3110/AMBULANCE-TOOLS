@@ -353,3 +353,6 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
 .sheet-list .copies { flex-direction: row; align-items: center; gap: 10px; margin-left: 26px; }
 .sheet-list .copies input { width: 80px; }
 .company-actions { margin: 0 0 16px; }
+
+/* A starred field left empty when printing or saving was tried. It clears once filled in. */
+input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--danger); background: var(--danger-bg); }

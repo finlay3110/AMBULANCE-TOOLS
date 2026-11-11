@@ -73,7 +73,11 @@
   }
 
   FIELDS.forEach(function (f) {
-    $(f).addEventListener("input", function () { bag[f] = $(f).value; save(); });
+    $(f).addEventListener("input", function () {
+      bag[f] = $(f).value;
+      save();
+      if ($(f).value.trim()) $(f).removeAttribute("aria-invalid");
+    });
   });
 
   $("cqcRegistered").addEventListener("change", function () {
@@ -302,11 +306,21 @@
   });
 
   /* ---------------- generate ---------------- */
-  function problems() {
+  /* The starred fields, needed before the bag is printed or saved to a file.
+     Any left empty turn red until they are filled in. */
+  function missingRequired() {
     var out = [];
-    if (!(bag.companyName || "").trim()) out.push("Enter the company name (Setup).");
-    if (bag.cqcRegistered && !(bag.cqcNumber || "").trim()) out.push("Enter the CQC registration number (Setup).");
-    if (!(bag.bagName || "").trim()) out.push("Enter the bag name (Setup).");
+    [["companyName", "the company name"], ["cqcNumber", "the CQC registration number", !bag.cqcRegistered],
+     ["bagName", "the bag name"]].forEach(function (f) {
+      var empty = !f[2] && !(bag[f[0]] || "").trim();
+      if (empty) { out.push(f[1]); $(f[0]).setAttribute("aria-invalid", "true"); }
+      else $(f[0]).removeAttribute("aria-invalid");
+    });
+    return out;
+  }
+
+  function problems() {
+    var out = missingRequired().map(function (m) { return "Enter " + m + " (Setup)."; });
     if (!bag.pouches.some(function (p) { return p.items.length; })) out.push("Add at least one item to a pouch.");
     if (!Object.keys(PRINT).some(function (id) { return bag.print[PRINT[id]]; })) out.push("Tick at least one sheet to print.");
     bag.pouches.forEach(function (p, i) {
@@ -342,6 +356,13 @@
 
   /* ---------------- export / import ---------------- */
   $("exportBtn").addEventListener("click", function () {
+    var missing = missingRequired();
+    if (missing.length) {
+      importMessage("bad", "Fill in the starred fields before saving the bag to a file: " + missing.join(", ") +
+        " (Setup). Your work so far is still kept in this browser.");
+      return;
+    }
+    $("importResult").hidden = true;
     var blob = new Blob([JSON.stringify(bag, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = el("a");

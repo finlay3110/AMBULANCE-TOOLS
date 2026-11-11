@@ -569,3 +569,6 @@ body.matrix-mode { }
   .grade-btns .icon-btn { flex: 1; }
   .fill-modes { gap: 10px; }
 }
+
+/* A starred field left empty when printing or saving was tried. It clears once filled in. */
+input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--danger); background: var(--danger-bg); }
