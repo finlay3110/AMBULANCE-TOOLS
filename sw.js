@@ -3,7 +3,7 @@
    is used and saved, so a new version shows as soon as it is published. */
 "use strict";
 
-var CACHE = "ambulance-tools-v3";
+var CACHE = "ambulance-tools-v4";
 // Everything the tools load. test/site.js checks this list against the repository.
 var FILES = [
   "index.html", "home.js", "theme.js", "disclaimer.html", "manifest.webmanifest",
@@ -17,7 +17,7 @@ var FILES = [
   "deployment-maker/index.html", "deployment-maker/styles.css", "deployment-maker/app.js",
   "deployment-maker/pdf.js",
   "vehicle-check/index.html", "vehicle-check/styles.css", "vehicle-check/app.js", "vehicle-check/pdf.js",
-  "vendor/qrcode.js"
+  "vendor/qrcode.js", "shared.js"
 ];
 var WAIT_MS = 3000;   // how long a slow network gets before the saved copy is used
 

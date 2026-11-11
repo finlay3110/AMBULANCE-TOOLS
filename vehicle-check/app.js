@@ -270,47 +270,6 @@
   }
 
   /* ---------------- crew sign-off ---------------- */
-  /* A box to sign in with a finger or the mouse. `done` gets the signature as a PNG when a stroke ends. */
-  function signaturePad(done) {
-    var c = el("canvas", "sig-pad");
-    c.width = 840;
-    c.height = 240;
-    c.setAttribute("aria-label", "Signature: sign here with a finger or the mouse");
-    var g = c.getContext("2d"), drawing = false, last = null;
-    g.lineWidth = 4;
-    g.lineCap = g.lineJoin = "round";
-    g.strokeStyle = "#16202c";
-    function at(e) {
-      var r = c.getBoundingClientRect();
-      return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height };
-    }
-    c.addEventListener("pointerdown", function (e) {
-      drawing = true;
-      last = at(e);
-      c.setPointerCapture(e.pointerId);
-      g.beginPath();
-      g.arc(last.x, last.y, 1, 0, Math.PI * 2);
-      g.stroke();
-    });
-    c.addEventListener("pointermove", function (e) {
-      if (!drawing) return;
-      var p = at(e);
-      g.beginPath();
-      g.moveTo(last.x, last.y);
-      g.lineTo(p.x, p.y);
-      g.stroke();
-      last = p;
-    });
-    function end() {
-      if (!drawing) return;
-      drawing = false;
-      done({ src: c.toDataURL("image/png"), w: c.width, h: c.height });
-    }
-    c.addEventListener("pointerup", end);
-    c.addEventListener("pointercancel", end);
-    return c;
-  }
-
   function renderCrew() {
     var list = $("crewList");
     list.innerHTML = "";
@@ -341,7 +300,7 @@
       } else {
         var when = el("span", "sig-done");
         // Each stroke updates the stored signature, so a signature can take several strokes.
-        area.appendChild(signaturePad(function (sig) {
+        area.appendChild(Shared.signaturePad(function (sig) {
           m.sig = sig;
           if (!m.signedAt) m.signedAt = nowTime();
           save();
@@ -623,44 +582,17 @@
    * the browser never sends to the website. Compressed where the browser can,
    * to keep the code small enough to scan from a sticker.
    */
-  function b64url(bytes) {
-    var s = "";
-    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-  function unb64url(text) {
-    var s = atob(text.replace(/-/g, "+").replace(/_/g, "/"));
-    var out = new Uint8Array(s.length);
-    for (var i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-    return out;
-  }
-  function pipe(bytes, stream) {
-    return new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()
-      .then(function (b) { return new Uint8Array(b); });
-  }
-
   function vehicleLink() {
     var payload = {
       callsign: chk.callsign.trim(), reg: chk.reg.trim(), makeModel: chk.makeModel.trim(),
       sections: chk.sections.map(function (s) { return [s.name, s.items.map(function (i) { return i.name; })]; })
     };
-    var bytes = new TextEncoder().encode(JSON.stringify(payload));
-    var base = location.href.split("#")[0];
-    if (typeof CompressionStream === "undefined") return Promise.resolve(base + "#v=j" + b64url(bytes));
-    return pipe(bytes, new CompressionStream("deflate-raw")).then(function (z) { return base + "#v=z" + b64url(z); });
+    return Shared.link(payload);
   }
   window.VehicleCheckLink = vehicleLink;   // for the tests
 
   function readLink(hash) {
-    var m = /^#v=([jz])([A-Za-z0-9_-]+)$/.exec(hash);
-    if (!m) return Promise.resolve(null);
-    var bytes;
-    try { bytes = unb64url(m[2]); } catch (e) { return Promise.resolve(null); }
-    var raw = m[1] === "z" && typeof DecompressionStream !== "undefined"
-      ? pipe(bytes, new DecompressionStream("deflate-raw")) : Promise.resolve(m[1] === "j" ? bytes : null);
-    return raw.then(function (b) {
-      if (!b) return null;
-      var p = JSON.parse(new TextDecoder().decode(b));
+    return Shared.readLink(hash).then(function (p) {
       if (!isObj(p) || !Array.isArray(p.sections)) return null;
       return {
         callsign: str(p.callsign), reg: str(p.reg), makeModel: str(p.makeModel),
@@ -670,7 +602,7 @@
           }) };
         })
       };
-    }).catch(function () { return null; });
+    });
   }
 
   function hasResults() {

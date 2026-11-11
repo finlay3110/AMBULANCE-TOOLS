@@ -390,26 +390,6 @@
     });
   }
 
-  /* A QR code as filled squares, `size` mm across, dark runs merged into one rectangle. */
-  function drawQr(doc, text, x, y, size) {
-    var qr = global.qrcode(0, "M");
-    qr.addData(text);
-    qr.make();
-    var n = qr.getModuleCount(), quiet = 4, m = size / (n + quiet * 2);
-    doc.setFillColor(255, 255, 255);
-    doc.rect(x, y, size, size, "F");
-    doc.setFillColor(0, 0, 0);
-    for (var r = 0; r < n; r++) {
-      for (var c = 0; c < n; c++) {
-        if (!qr.isDark(r, c)) continue;
-        var run = 1;
-        while (c + run < n && qr.isDark(r, c + run)) run++;
-        doc.rect(x + (quiet + c) * m, y + (quiet + r) * m, run * m, m, "F");
-        c += run - 1;
-      }
-    }
-  }
-
   /* Six stickers to cut out and keep in the vehicle. */
   function stickers(data, url) {
     var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
@@ -432,7 +412,7 @@
       setFont(doc, 10, "normal");
       doc.text(txt(data.callsign) ? txt(data.reg).toUpperCase() : txt(data.makeModel), x + w / 2, y + 26.5, { align: "center" });
       var size = Math.min(w - 30, h - 46);
-      drawQr(doc, url, x + (w - size) / 2, y + 29, size);
+      global.Shared.drawQr(doc, url, x + (w - size) / 2, y + 29, size);
       setFont(doc, 8, "normal");
       colour(doc, MUTED);
       doc.text(wrap(doc, "Scan with your phone camera to start this vehicle\u2019s check.", w - 12),
