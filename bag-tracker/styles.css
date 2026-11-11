@@ -356,3 +356,36 @@ a.btn { display: inline-block; text-decoration: none; line-height: normal; }
 
 /* A starred field left empty when printing or saving was tried. It clears once filled in. */
 input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--danger); background: var(--danger-bg); }
+
+/* The on-screen bag check. */
+.check-summary { margin: 0 0 12px; font-weight: 600; }
+.count-row { display: grid; grid-template-columns: minmax(0, 1fr) 80px 52px 72px; gap: 8px; align-items: center;
+  padding: 8px 0; border-top: 1px solid var(--line); }
+.count-row:first-of-type { border-top: 0; }
+.count-row .min { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+.count-row input[type=number] { text-align: center; }
+.count-row .note { grid-column: 1 / -1; }
+.count-state { justify-self: start; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.count-state.ok { background: var(--good-bg); color: var(--good-ink); }
+.count-state.short { background: var(--danger-bg); color: var(--danger); }
+.seal-check { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; margin-bottom: 8px; }
+.intact { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.intact button { appearance: none; border: 0; background: var(--card); color: var(--ink-soft); padding: 9px 12px;
+  font: inherit; font-weight: 600; cursor: pointer; }
+.intact button + button { border-left: 1px solid var(--line); }
+.intact button[aria-pressed="true"].yes { background: var(--good-bg); color: var(--good-ink); }
+.intact button[aria-pressed="true"].no { background: var(--danger-bg); color: var(--danger); }
+.sig-area { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.sig-pad { width: 100%; max-width: 420px; height: 120px; border: 1px dashed var(--line); border-radius: 8px;
+  background: #fff; touch-action: none; cursor: crosshair; }
+.sig-done { font-size: 12px; color: var(--good-ink); font-weight: 600; }
+@media (max-width: 700px) {
+  .count-row { grid-template-columns: minmax(0, 1fr) 70px 48px; }
+  .count-state { grid-column: 1 / -1; }
+  .seal-check { grid-template-columns: 1fr; }
+}
+/* Four tabs on a phone: tighter, and the row scrolls rather than cutting the last one off. */
+@media (max-width: 700px) {
+  .tabs { padding: 0 8px; overflow-x: auto; }
+  .tab { padding: 12px 10px; white-space: nowrap; }
+}

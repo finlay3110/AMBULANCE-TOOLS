@@ -37,6 +37,7 @@
   <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Setup</button>
   <button class="tab" role="tab" data-tab="pouches" aria-selected="false">2. Pouches <span class="pill" id="pouchCount">0</span></button>
   <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+  <button class="tab" role="tab" data-tab="check" aria-selected="false">4. Check bag</button>
 </nav>
 
 <main>
@@ -197,6 +198,17 @@
     </div>
 
     <div class="card">
+      <h2>QR stickers for this bag</h2>
+      <p class="hint">Stick one on the bag. Scanning it with a phone camera opens this tool with the bag&rsquo;s
+        pouches and kit list loaded, ready to check. One sheet of six per bag number. Make new stickers if
+        you change the pouches.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="stickerBtn">Download QR stickers (PDF)</button>
+      </div>
+      <p class="notice" id="stickerResult" hidden></p>
+    </div>
+
+    <div class="card">
       <h2>Save / load bag</h2>
       <p class="hint">Everything stays on this device &mdash; nothing is uploaded. Browser storage
         can be cleared, so export the bag to keep it.</p>
@@ -212,6 +224,42 @@
       <button type="button" class="btn ghost" data-goto="pouches">&larr; Back</button>
     </div>
   </section>
+
+  <!-- ============ CHECK ============ -->
+  <section class="panel" id="panel-check" role="tabpanel">
+    <p class="notice good" id="scanResult" hidden></p>
+    <div class="card">
+      <h2>Check this bag</h2>
+      <p class="hint">Count each item: type the number found, or tap <strong>&check;</strong> when all are there.
+        Anything under its minimum shows as short. Then sign below and download the completed checklist.</p>
+      <p class="check-summary" id="checkSummary"></p>
+      <div class="grid">
+        <label class="field"><span>Checked by</span><input type="text" id="checkBy" placeholder="Your name"></label>
+        <label class="field"><span>Clinical grade</span><input type="text" id="checkGrade" list="grades" placeholder="e.g. Paramedic"></label>
+        <label class="field"><span>Bag seal found</span><input type="text" id="bagSealFound" placeholder="Seal number on the bag"></label>
+        <label class="field"><span>New bag seal</span><input type="text" id="bagNewSeal" placeholder="If resealed"></label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="allThere">Mark the rest all there</button>
+      </div>
+    </div>
+    <div id="checkList"></div>
+    <div class="card">
+      <h2>Sign and download</h2>
+      <p class="hint">Sign with a finger or the mouse; the time is recorded.</p>
+      <div class="sig-area" id="checkSig"></div>
+      <div class="actions">
+        <button type="button" class="btn primary big" id="checkPdfBtn">Download check (PDF)</button>
+        <button type="button" class="btn ghost" id="newCheckBtn">New check</button>
+      </div>
+    </div>
+    <datalist id="grades">
+      <option value="First responder"></option><option value="FREC 3"></option>
+      <option value="Emergency care assistant"></option><option value="FREC 4"></option><option value="AAP"></option>
+      <option value="EMT"></option><option value="FREUC 5"></option><option value="Paramedic"></option>
+      <option value="APP (advanced paramedic)"></option><option value="Nurse"></option><option value="Doctor"></option>
+    </datalist>
+  </section>
 </main>
 
 <footer class="foot">
@@ -226,6 +274,8 @@
 </footer>
 
 <script src="vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/qrcode.js"></script>
+<script src="../shared.js"></script>
 <script src="pdf.js"></script>
 <script src="app.js"></script>
 </body>

@@ -119,8 +119,11 @@
     return h;
   }
 
+  /* Strings become plain cells; an object is a cell with its own style (bold, colour). */
   function cells(texts, aligns) {
-    return texts.map(function (t, i) { return { text: t, align: (aligns || [])[i] }; });
+    return texts.map(function (t, i) {
+      return typeof t === "object" ? Object.assign({ align: (aligns || [])[i] }, t) : { text: t, align: (aligns || [])[i] };
+    });
   }
 
   /*
@@ -147,15 +150,15 @@
       if (p.sealed) label += "      SEALED \u2014 SEAL No. " + (txt(p.seal) || "______________");
       var barW = [contentW(doc)];
       var sealH = p.sealed && spec.sealCheck ? 8 : 0;
-      var first = p.items[0] ? drawRow(doc, 0, spec.widths, cells(spec.row(p.items[0], 0), spec.aligns), { measure: true }) : 0;
+      var first = p.items[0] ? drawRow(doc, 0, spec.widths, cells(spec.row(p.items[0], 0, p), spec.aligns), { measure: true }) : 0;
       if (y + 8 + sealH + first > bottom()) y = newPage();
       y += drawRow(doc, y, barW, [{ text: label }], { bold: true, fill: BAR_BG, colour: [255, 255, 255], minH: 8 });
       if (sealH) {
-        y += drawRow(doc, y, barW, [{ text: "Seal no. found: ______________     Intact:  Yes  /  No     " +
-          "New seal no.: ______________" }], { fill: SOFT_BG, minH: sealH });
+        y += drawRow(doc, y, barW, [{ text: spec.sealText ? spec.sealText(p) : "Seal no. found: ______________     " +
+          "Intact:  Yes  /  No     New seal no.: ______________" }], { fill: SOFT_BG, minH: sealH });
       }
       p.items.forEach(function (it, i) {
-        var c = cells(spec.row(it, i), spec.aligns);
+        var c = cells(spec.row(it, i, p), spec.aligns);
         var h = drawRow(doc, 0, spec.widths, c, { measure: true, minH: spec.minH });
         if (y + h > bottom()) y = newPage();
         y += drawRow(doc, y, spec.widths, c, { minH: spec.minH });
@@ -184,6 +187,11 @@
       setFont(doc, 7.5, "bold");
       colour(doc, MUTED);
       doc.text(col.label, cx + 3, y + 12);
+      if (col.sig) {
+        // A signature made on screen, sat on its line.
+        var sh = 7, sw = Math.min(colW - 26, col.sig.w * sh / col.sig.h);
+        try { doc.addImage(col.sig.src, "PNG", cx + 21, y + 23 - sh + 1, sw, sh); } catch (e) { /* never stop the PDF */ }
+      }
       [["Name", col.name, 17.5], ["Signature", "", 23], ["Date", col.date, 28.5]].forEach(function (r) {
         setFont(doc, 8, "normal");
         colour(doc, MUTED);
@@ -245,26 +253,47 @@
   }
 
   /* ---------------- 2. Kit checklist ---------------- */
-  function checklist(doc, data) {
+  /* The key a check's result is kept under: the pouch and item names. */
+  function resultKey(p, it) { return p.name + " / " + it.name; }
+
+  /* With `check`, a check done on screen fills it in; without, it is a blank sheet to fill by hand. */
+  function checklist(doc, data, check) {
+    var c = check || null;
     doc.addPage();
     var y = masthead(doc, data, "BAG KIT CHECKLIST");
     y = detailStrip(doc, [
       ["Bag", txt(data.bagName)],
-      ["Date of check", null],
-      ["Seal no. found", null],
-      ["New seal no.", null]
+      ["Date of check", c ? [ukDate(c.date), txt(c.time)].filter(Boolean).join(" ") || null : null],
+      ["Seal no. found", c && txt(c.bagSealFound) || null],
+      ["New seal no.", c && txt(c.bagNewSeal) || null]
     ], y) + 3;
     y = note(doc, y, "Count each item and write the number found. Tick when it meets the minimum; note anything " +
       "replaced, short or out of date.");
     y = pouchTable(doc, data, "Kit checklist", y, {
-      widths: [84, 18, 20, 14, 50],
+      widths: [80, 18, 20, 18, 50],   // the OK column fits "SHORT"
       header: ["Item", "Min qty", "Found", "OK", "Notes"],
       aligns: ["left", "center", "center", "center", "left"],
       minH: 8,
       sealCheck: true,
-      row: function (it) { return [it.name, String(it.min), "", "", ""]; }
+      sealText: c ? function (p) {
+        var s = (c.seals || {})[p.name] || {};
+        return "Seal no. found: " + (txt(s.found) || "______________") + "     Intact:  " +
+          (s.intact === "yes" ? "Yes" : s.intact === "no" ? "NO" : "Yes  /  No") + "     New seal no.: " +
+          (txt(s.newSeal) || "______________");
+      } : null,
+      row: function (it, i, p) {
+        var r = c && (c.results || {})[resultKey(p, it)];
+        if (!r || txt(r.found) === "") return [it.name, String(it.min), "", "", r ? txt(r.note) : ""];
+        var short = Number(r.found) < it.min;
+        return [it.name, String(it.min), txt(r.found),
+          short ? { text: "SHORT", bold: true, colour: [180, 35, 24] } : { text: "OK", bold: true, colour: [11, 107, 58] },
+          txt(r.note)];
+      }
     }) + 6;
-    signBlock(doc, y, "CHECK COMPLETED", [{ label: "CHECKED BY" }, { label: "SECOND CHECK (IF REQUIRED)" }]);
+    signBlock(doc, y, "CHECK COMPLETED", [
+      c ? { label: "CHECKED BY", name: [txt(c.by), txt(c.grade)].filter(Boolean).join(", "), date: ukDate(c.date), sig: c.sig }
+        : { label: "CHECKED BY" },
+      { label: "SECOND CHECK (IF REQUIRED)" }]);
   }
 
   /* ---------------- 3. Sign in / sign out log ---------------- */
@@ -423,5 +452,50 @@
     return doc;
   }
 
-  global.BagPDF = { build: build };
+  /* A check done on screen, as the filled-in kit checklist. */
+  function buildCheck(data) {
+    var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
+    checklist(doc, data, data.check);
+    doc.deletePage(1);
+    stampFooters(doc, { 1: data });
+    return doc;
+  }
+
+  /* Six stickers per bag number, to cut out and keep on the bag. `links` is [{ number, url }]. */
+  function stickers(data, links) {
+    var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
+    var w = contentW(doc) / 2, h = (pageH(doc) - PAGE.mt - PAGE.mb) / 3;
+    links.forEach(function (l, page) {
+      if (page) doc.addPage();
+      for (var i = 0; i < 6; i++) {
+        var x = PAGE.ml + (i % 2) * w, y = PAGE.mt + Math.floor(i / 2) * h;
+        doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([2, 1.5], 0);
+        doc.rect(x, y, w, h, "S");
+        doc.setLineDashPattern([], 0);
+        doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+        doc.rect(x + 4, y + 4, w - 8, 9, "F");
+        setFont(doc, 9, "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("BAG CHECK", x + w / 2, y + 9.8, { align: "center" });
+        colour(doc, INK);
+        setFont(doc, 15, "bold");
+        doc.text(wrap(doc, txt(l.number) || txt(data.bagName), w - 10)[0] || "", x + w / 2, y + 21, { align: "center" });
+        setFont(doc, 10, "normal");
+        doc.text(wrap(doc, txt(l.number) ? txt(data.bagName) : "", w - 10)[0] || "", x + w / 2, y + 26.5, { align: "center" });
+        var size = Math.min(w - 30, h - 46);
+        global.Shared.drawQr(doc, l.url, x + (w - size) / 2, y + 29, size);
+        setFont(doc, 8, "normal");
+        colour(doc, MUTED);
+        doc.text(wrap(doc, "Scan with your phone camera to check this bag.", w - 12), x + w / 2, y + 34 + size,
+          { align: "center" });
+        if (txt(data.companyName)) doc.text(wrap(doc, data.companyName, w - 12)[0], x + w / 2, y + h - 4, { align: "center" });
+        colour(doc, INK);
+      }
+    });
+    return doc;
+  }
+
+  global.BagPDF = { build: build, buildCheck: buildCheck, stickers: stickers, resultKey: resultKey };
 })(window);
