@@ -505,8 +505,8 @@
         // The QR keeps its full size (a whole kit list makes it dense); pen lines sit beside it.
         var size = Math.min(w - 50, h - 46), fx = x + 6 + size + 4, fw = x + w - 5 - fx;
         global.Shared.drawQr(doc, l.url, x + 6, y + 29, size);
-        ["Printed (date)", "Printed by", "First expiry"].forEach(function (label, k) {
-          var ly = y + 33 + k * (size - 4) / 3;
+        ["Printed (date)", "Printed by"].forEach(function (label, k) {
+          var ly = y + 33 + k * (size - 4) / 2.5;
           setFont(doc, 7.5, "bold");
           colour(doc, MUTED);
           doc.text(label.toUpperCase(), fx, ly);
