@@ -4,7 +4,7 @@
   "private": true,
   "description": "Browser-based paperwork tools for ambulance and event-medical teams",
   "scripts": {
-    "test": "node drug-bag-tracker/test/smoke.js && node bag-tracker/test/smoke.js && node company-profile/test/smoke.js && node deployment-maker/test/smoke.js && node test/site.js"
+    "test": "node drug-bag-tracker/test/smoke.js && node bag-tracker/test/smoke.js && node company-profile/test/smoke.js && node deployment-maker/test/smoke.js && node vehicle-check/test/smoke.js && node test/site.js"
   },
   "devDependencies": {
     "playwright": "1.63.0"

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Vehicle Check</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#12212f">
+<script>
+  /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("../sw.js").catch(function () {});
+</script>
+<link rel="stylesheet" href="../bag-tracker/styles.css">
+<link rel="stylesheet" href="styles.css">
+<script src="../theme.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Vehicle Check</h1>
+      <p>Daily ambulance check, with defects and a signed sheet</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="themeBtn" aria-live="polite">Theme: auto</button>
+    <button type="button" class="btn ghost" id="newCheck">New check</button>
+    <button type="button" class="btn primary" id="generateTop">Generate PDF</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="vehicle" aria-selected="true">1. Vehicle</button>
+  <button class="tab" role="tab" data-tab="checks" aria-selected="false">2. Checks <span class="pill" id="defectCount">0</span></button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+</nav>
+
+<main>
+  <!-- ============ VEHICLE ============ -->
+  <section class="panel active" id="panel-vehicle" role="tabpanel">
+    <p class="notice good" id="scanResult" hidden></p>
+    <div class="card">
+      <h2>Company</h2>
+      <p class="hint">Printed at the top of the check sheet. Comes from your company profile.</p>
+      <div class="company-summary" id="companySummary"></div>
+      <div class="actions company-actions">
+        <button type="button" class="btn ghost small" id="companyUseBtn" hidden>Use saved company profile</button>
+        <button type="button" class="btn ghost small" id="companyImportBtn">Import company details</button>
+        <a class="btn ghost small" href="../company-profile/index.html">Create or edit your company profile</a>
+        <input type="file" id="companyFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="companyResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle</h2>
+      <p class="hint">Anything left blank prints as a box to fill in by hand.</p>
+      <div class="grid">
+        <label class="field"><span>Callsign</span><input type="text" id="callsign" placeholder="e.g. Alpha 1"></label>
+        <label class="field"><span>Registration</span><input type="text" id="reg" placeholder="e.g. AB12 CDE"></label>
+        <label class="field"><span>Make and model</span><input type="text" id="makeModel" placeholder="e.g. Mercedes Sprinter"></label>
+        <label class="field"><span>Mileage</span><input type="text" id="mileage" inputmode="numeric" placeholder="e.g. 84213"></label>
+        <label class="field"><span>Fuel level</span>
+          <select id="fuel">
+            <option value="">Not recorded</option>
+            <option>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Reserve</option>
+          </select>
+        </label>
+        <label class="field"><span>Checked by</span><input type="text" id="checkedBy" placeholder="e.g. J. Smith"></label>
+        <label class="field"><span>Date</span><input type="date" id="date"></label>
+        <label class="field"><span>Time</span><input type="time" id="time"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle photos</h2>
+      <p class="hint">A photo of each side and inside, to show the vehicle&rsquo;s condition at the check. On a
+        phone, <strong>Take photo</strong> opens the camera. Photos print on the last page of the check sheet.</p>
+      <div class="photo-grid" id="photoGrid"></div>
+      <p class="notice" id="photoResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>QR sticker for this vehicle</h2>
+      <p class="hint">Print and stick inside the vehicle. Scanning it with a phone camera opens this tool with
+        the vehicle and your checklist filled in, ready for the day&rsquo;s check. Make new stickers if you
+        change the checklist.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="stickerBtn">Download QR stickers (PDF)</button>
+      </div>
+      <p class="notice" id="stickerResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Start from a saved check</h2>
+      <p class="hint">Open a vehicle check saved earlier, with its vehicle and checklist.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="openBtn">Open a saved check (.json)</button>
+        <input type="file" id="openFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="openResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" data-goto="checks">Next: Checks &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ CHECKS ============ -->
+  <section class="panel" id="panel-checks" role="tabpanel">
+    <div class="card">
+      <h2>Checks</h2>
+      <p class="hint">Mark each item <strong>OK</strong>, <strong>Defect</strong> or <strong>N/A</strong>. A defect
+        asks for a note. Every service&rsquo;s list differs: <strong>Edit checklist</strong> adds and removes
+        items, and your list is kept for next time.</p>
+      <p class="check-summary" id="checkSummary"></p>
+      <p class="notice" id="photoNote" hidden></p>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="allOk">Mark the rest OK</button>
+        <button type="button" class="btn ghost small" id="editToggle" aria-pressed="false">Edit checklist</button>
+        <button type="button" class="btn ghost small" id="resetList" hidden>Back to the standard checklist</button>
+      </div>
+    </div>
+    <div id="sectionList"></div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="vehicle">&larr; Back</button>
+      <button type="button" class="btn primary" data-goto="generate">Next: Generate &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ GENERATE ============ -->
+  <section class="panel" id="panel-generate" role="tabpanel">
+    <div class="card">
+      <h2>Crew</h2>
+      <p class="hint">Everyone on the vehicle adds their name and clinical grade and signs to confirm the check
+        (VDI) is done. Sign with a finger or the mouse; the time is recorded. Anyone not signed here gets a
+        row to sign by hand on the sheet.</p>
+      <div id="crewList"></div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="addCrew">+ Add crew member</button>
+      </div>
+    </div>
+    <datalist id="grades">
+      <option value="First responder"></option><option value="FREC 3"></option>
+      <option value="Emergency care assistant"></option><option value="FREC 4"></option><option value="AAP"></option>
+      <option value="EMT"></option><option value="FREUC 5"></option><option value="Paramedic"></option>
+      <option value="APP (advanced paramedic)"></option><option value="Nurse"></option><option value="Doctor"></option>
+    </datalist>
+
+    <div class="card">
+      <h2>Check sheet</h2>
+      <p class="hint">An A4 PDF of the vehicle, every check, the defects and a signed sign-off. Unchecked
+        items print as empty boxes, so a blank sheet works for checks done on paper.</p>
+      <p class="notice info" id="genSummary" hidden></p>
+      <div class="field">
+        <span>Fit for service?</span>
+        <div class="fit-row">
+          <label class="check-row"><input type="radio" name="fit" value="yes" id="fitYes"><span>Yes</span></label>
+          <label class="check-row"><input type="radio" name="fit" value="no" id="fitNo"><span>No</span></label>
+          <label class="check-row"><input type="radio" name="fit" value="" id="fitBlank"><span>Decide on paper</span></label>
+        </div>
+      </div>
+      <label class="field reported">
+        <span>Defects reported to</span>
+        <input type="text" id="reportedTo" placeholder="e.g. Fleet manager, 14:20">
+      </label>
+      <p class="error" id="genError" hidden></p>
+      <div class="actions">
+        <button type="button" class="btn primary big" id="generateBtn">Download PDF</button>
+        <button type="button" class="btn ghost" id="previewBtn">Preview in new tab</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Save for later</h2>
+      <p class="hint">Everything stays on this device &mdash; nothing is uploaded. Save the check to a file to
+        keep it, or use <strong>Back up everything</strong> on the home page.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="exportBtn">Save check (.json)</button>
+      </div>
+      <p class="notice" id="saveResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="checks">&larr; Back</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="foot-line"><strong>Provided as is, with no warranty.</strong> This tool formats what
+    you type &mdash; it does not check the vehicle. Follow your organisation&rsquo;s vehicle and defect
+    reporting procedures. <a href="../disclaimer.html">Read the disclaimer</a>.</p>
+</footer>
+
+<script src="../bag-tracker/vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/qrcode.js"></script>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

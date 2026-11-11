@@ -88,7 +88,8 @@ function checkIcons() {
   await home.goto(site.url);
   const links = await home.locator("main a.btn").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   assert.deepStrictEqual(links, ["company-profile/index.html", "drug-bag-tracker/index.html",
-    "bag-tracker/index.html", "deployment-maker/index.html"], "the company profile comes first, then the tools");
+    "bag-tracker/index.html", "deployment-maker/index.html", "vehicle-check/index.html"],
+    "the company profile comes first, then the tools");
   eq(await home.locator("a[href='disclaimer.html']").count(), 1, "the home page links the disclaimer");
   await home.click("a[href='disclaimer.html']");
   eq(await home.textContent("h1"), "Disclaimer");
@@ -161,6 +162,7 @@ function checkIcons() {
   for (const [page, title] of [["", "Ambulance Tools"], ["company-profile/index.html", "Company Profile"],
     ["drug-bag-tracker/index.html", "Drug Bag Tracker"], ["drug-bag-tracker/matrix.html", "Drug Matrix"],
     ["bag-tracker/", "Bag Tracker"], ["deployment-maker/index.html", "Deployment Maker"],
+    ["vehicle-check/index.html", "Vehicle Check"],
     ["disclaimer.html", "Disclaimer"]]) {
     await off.goto(site.url + page);
     assert.ok((await off.title()).length > 0 && (await off.textContent("h1")).includes(title.split(" ")[0]),

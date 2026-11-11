@@ -1,0 +1,57 @@
+/* Additions to the Bag Tracker's styles: the checklist. */
+.check-summary { margin: 0; font-weight: 600; }
+.check-row-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center;
+  padding: 9px 0; border-top: 1px solid var(--line);
+}
+.check-row-item:first-of-type { border-top: 0; }
+.item-name { font-weight: 600; }
+.item-name input { font-weight: 600; }
+.status { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.status button {
+  appearance: none; border: 0; background: var(--card); color: var(--ink-soft);
+  padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; min-width: 64px;
+}
+.status button + button { border-left: 1px solid var(--line); }
+.status button[aria-pressed="true"].ok { background: var(--good-bg); color: var(--good-ink); }
+.status button[aria-pressed="true"].defect { background: var(--danger-bg); color: var(--danger); }
+.status button[aria-pressed="true"].na { background: var(--soft-2); color: var(--ink); }
+.item-note { grid-column: 1 / -1; }
+.item-note.needed { border-color: var(--danger); }
+.add-check { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.add-check input { flex: 1; }
+.fit-row { display: flex; gap: 18px; flex-wrap: wrap; }
+.reported { margin-top: 14px; }
+
+@media (max-width: 700px) {
+  .check-row-item { grid-template-columns: 1fr; }
+  .status { width: 100%; }
+  .status button { flex: 1; }
+}
+
+/* Photos: the six vehicle views, and those on a defect. */
+.photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.photo-tile { border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.photo-tile > span { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.photo-box {
+  aspect-ratio: 4 / 3; border-radius: 6px; background: var(--soft-2); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px;
+}
+.photo-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-tile .med-btns { flex-wrap: wrap; }
+.defect-photos { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.defect-photos .thumb { position: relative; width: 84px; height: 63px; border-radius: 6px; overflow: hidden; }
+.defect-photos .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.defect-photos .thumb button { position: absolute; top: 2px; right: 2px; padding: 0 6px; min-height: 0; }
+@media (max-width: 700px) { .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Crew sign-off. */
+.crew-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; padding: 12px 0;
+  border-top: 1px solid var(--line); }
+.crew-row:first-child { border-top: 0; }
+.sig-area { grid-column: 1 / -1; display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.sig-pad {
+  width: 100%; max-width: 420px; height: 120px; border: 1px dashed var(--line); border-radius: 8px;
+  background: #fff; touch-action: none; cursor: crosshair;   /* white in both themes: it prints on paper */
+}
+.sig-done { font-size: 12px; color: var(--good-ink); font-weight: 600; }

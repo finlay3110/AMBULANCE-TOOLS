@@ -8,6 +8,7 @@ Everything runs locally in the browser: no server, no upload.
 | [Company Profile](company-profile/README.md) — **start here** | `company-profile/` | A company file (name, contact, address, CQC registration, logo) that both trackers import |
 | [Drug Bag Tracker](drug-bag-tracker/README.md) | `drug-bag-tracker/` | Drug bag label and usage log, controlled drugs register, drug matrix |
 | [Bag Tracker](bag-tracker/README.md) | `bag-tracker/` | Kit list, checklist and sign in/out log for a medical bag |
+| [Vehicle Check](vehicle-check/README.md) | `vehicle-check/` | Daily ambulance vehicle check: OK / defect / N/A on an editable checklist, defects, fit for service, signed check sheet |
 | [Deployment Maker](deployment-maker/README.md) | `deployment-maker/` | A deployment log: units, callsigns, staff, grades, radios and bags, with sign-in, break and stand-down times; reusable venue plans |
 
 `index.html` at the root is a home page that puts the Company Profile first,
@@ -30,6 +31,7 @@ The site is plain static files with relative paths. In the repository's
 - https://finlay3110.github.io/AMBULANCE-TOOLS/drug-bag-tracker/
 - https://finlay3110.github.io/AMBULANCE-TOOLS/bag-tracker/
 - https://finlay3110.github.io/AMBULANCE-TOOLS/deployment-maker/
+- https://finlay3110.github.io/AMBULANCE-TOOLS/vehicle-check/
 
 The empty `.nojekyll` file tells Pages to serve the files as they are.
 
