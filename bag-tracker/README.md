@@ -47,7 +47,7 @@ it to keep it.
 ## Checking a bag on a phone, with QR stickers
 
 **Download QR stickers** on the Generate tab prints six stickers per bag number.
-Beside each code are lines to write the date printed and who printed it.
+Beside each code are boxes to write the date printed and who printed it.
 Scanning one with a phone camera opens this tool with that bag's pouches and
 kit list loaded, on the **Check bag** tab (or carries on with today's check on
 that phone). The bag travels in the link after the `#`, so nothing is uploaded.
