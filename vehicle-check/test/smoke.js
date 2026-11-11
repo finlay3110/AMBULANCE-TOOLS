@@ -73,7 +73,49 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await row("Spill kit").count(), 0);
   await mark("Spare wheel and jack", "OK");
 
+  // Photos: the vehicle's six views, and up to three on a defect, each shrunk to a JPEG.
+  const picture = Buffer.from((await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 1600; c.height = 1200;
+    const g = c.getContext("2d");
+    g.fillStyle = "#3a6ea5"; g.fillRect(0, 0, 1600, 1200);
+    g.fillStyle = "#fff"; g.fillRect(400, 300, 800, 600);
+    return c.toDataURL("image/png");
+  })).split(",")[1], "base64");
+  const asFile = (name) => ({ name, mimeType: "image/png", buffer: picture });
+  await page.click(".tab[data-tab=vehicle]");
+  await page.setInputFiles("input[aria-label='Photo: Front']", asFile("front.png"));
+  await page.waitForSelector("img[alt='Front of the vehicle']");
+  await page.setInputFiles("input[aria-label='Photo: Patient compartment']", asFile("saloon.png"));
+  await page.waitForSelector("img[alt='Patient compartment of the vehicle']");
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("vehicle-check/v1")));
+  assert.ok(stored.photos.front.src.startsWith("data:image/jpeg"), "photos are stored as JPEG");
+  assert.ok(Math.max(stored.photos.front.w, stored.photos.front.h) <= 1000, "and shrunk");
+  await page.click(".tab[data-tab=checks]");
+  await page.setInputFiles("input[aria-label='Photo of the defect: Tyres and wheels']", asFile("tyre.png"));
+  await page.waitForSelector("img[alt='Photo of the defect: Tyres and wheels']");
+  eq(await row("Horn").locator(".defect-photos").count(), 0, "only a defect asks for photos");
+
+  // Crew: each signs on screen; the time is recorded.
   await page.click(".tab[data-tab=generate]");
+  await page.click("#addCrew");
+  const crew = page.locator(".crew-row").nth(0);
+  await crew.getByLabel("Name").fill("Sam Patel");
+  await crew.getByLabel("Clinical grade").fill("Paramedic");
+  await page.clock.setFixedTime(new Date("2027-07-17T07:50:00"));
+  const pad = await crew.locator("canvas.sig-pad").boundingBox();
+  await page.mouse.move(pad.x + 20, pad.y + 60);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(pad.x + 20 + i * 20, pad.y + 60 + (i % 2 ? -25 : 25));
+  await page.mouse.up();
+  await page.click("#addCrew");
+  await page.locator(".crew-row").nth(1).getByLabel("Name").fill("Jo Bloggs");
+  await page.locator(".crew-row").nth(1).getByLabel("Clinical grade").fill("EMT");
+  const signed = await page.evaluate(() => JSON.parse(localStorage.getItem("vehicle-check/v1")).crew);
+  assert.ok(signed[0].sig && signed[0].sig.src.startsWith("data:image/png"), "the signature is kept");
+  eq(signed[0].signedAt, "07:50");
+  eq(signed[1].sig, null, "not signed yet");
+
   await page.check("#fitYes");
   await page.fill("#reportedTo", "Fleet manager, 07:55");
   const sheet = await pdf();
@@ -83,6 +125,12 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
     assert.ok(sheet.raw.includes(s), "sheet missing " + s);
   }
   assert.ok(!sheet.raw.includes("(Spill kit)"), "a removed check is not printed");
+  for (const s of ["CREW", "Sam Patel", "Paramedic", "07:50", "Jo Bloggs", "VEHICLE CHECK PHOTOS", "FRONT",
+    "PATIENT COMPARTMENT", "DEFECT: Tyres and wheels"]) {
+    assert.ok(sheet.raw.includes(s), "sheet missing " + s);
+  }
+  // The test's photos are one picture, which the PDF stores once; then the signature.
+  assert.ok(sheet.raw.split("/Subtype /Image").length - 1 >= 2, "photos and the signature are in the PDF");
   const [dlPdf] = await Promise.all([page.waitForEvent("download"), page.click("#generateBtn")]);
   eq(dlPdf.suggestedFilename(), "Vehicle-check-ab12-cde-2027-07-17.pdf");
 
@@ -99,6 +147,9 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   assert.ok(await row("Spare wheel and jack").isVisible(), "the edited checklist is kept");
   eq(await pressed("Horn", "OK"), "false");
   eq(await page.textContent("#defectCount"), "0");
+  eq(await page.locator(".defect-photos img").count(), 0, "photos are cleared for the new check");
+  await page.click(".tab[data-tab=generate]");
+  eq(await page.locator(".crew-row").count(), 0, "and the crew");
 
   // The saved check opens back in; a file from elsewhere changes nothing.
   await page.click(".tab[data-tab=vehicle]");
@@ -111,6 +162,31 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await page.inputValue("#checkedBy"), "J. Smith", "it survives a reload");
   await page.click(".tab[data-tab=checks]");
   eq(await pressed("Tyres and wheels", "Defect"), "true");
+
+  // A QR sticker: the link opens the tool on another phone with this vehicle and checklist, ready to check.
+  await page.click(".tab[data-tab=vehicle]");
+  const [stickers] = await Promise.all([page.waitForEvent("download"), page.click("#stickerBtn")]);
+  eq(stickers.suggestedFilename(), "QR-stickers-ab12-cde.pdf");
+  const link = await page.evaluate(() => window.VehicleCheckLink());
+  assert.ok(/#v=[jz][A-Za-z0-9_-]+$/.test(link), "the vehicle travels after the #");
+  const phone = await (await browser.newContext()).newPage();
+  phone.on("pageerror", (e) => errors.push("phone: " + e.message));
+  phone.on("dialog", (d) => d.accept());
+  await phone.goto(link);
+  await phone.waitForSelector("#scanResult:not([hidden])");
+  assert.match(await phone.textContent("#scanResult"), /Ready to check ab12 cde/);
+  eq(await phone.inputValue("#reg"), "ab12 cde");
+  eq(await phone.inputValue("#callsign"), "Alpha 1");
+  eq(new URL(phone.url()).hash, "", "the vehicle is taken out of the address");
+  await phone.click(".tab[data-tab=checks]");
+  assert.ok(await phone.locator(".check-row-item", { hasText: "Spare wheel and jack" }).isVisible(), "with your checklist");
+  await phone.locator(".check-row-item", { hasText: "Horn" }).getByRole("button", { name: "OK", exact: true }).click();
+  // Scanning again the same day carries on with the check in progress.
+  await phone.goto(link);
+  await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Carrying on with today"));
+  await phone.click(".tab[data-tab=checks]");
+  eq(await phone.locator(".check-row-item", { hasText: "Horn" }).getByRole("button", { name: "OK", exact: true })
+    .getAttribute("aria-pressed"), "true");
 
   assert.deepStrictEqual(errors, []);
   await browser.close();

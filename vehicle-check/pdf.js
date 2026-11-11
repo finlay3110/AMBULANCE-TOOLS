@@ -288,6 +288,42 @@
       }
     });
     colour(doc, INK);
+    y += h + 5;
+
+    // Crew: everyone on the vehicle, signed in the app or by hand.
+    var crew = (data.crew || []).length ? data.crew : [{}, {}];
+    var crewCols = [["Name", 62], ["Clinical grade", 46], ["Signed at", 24], ["Signature", 54]], rowH = 14;
+    y = room(y, 7 + rowH * crew.length);
+    doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+    doc.rect(PAGE.ml, y, contentW(doc), 7, "F");
+    setFont(doc, 8, "bold");
+    doc.setTextColor(255, 255, 255);
+    var cx = PAGE.ml;
+    crewCols.forEach(function (c, i) {
+      doc.text(i ? c[0].toUpperCase() : "CREW  \u2014  " + c[0].toUpperCase(), cx + 2, y + 4.8);
+      cx += c[1];
+    });
+    y += 7;
+    crew.forEach(function (m) {
+      if (y + rowH > bottom) { doc.addPage(); y = PAGE.mt; }
+      var x = PAGE.ml;
+      setLine(doc, GRID, 0.2);
+      doc.rect(PAGE.ml, y, contentW(doc), rowH, "S");
+      crewCols.forEach(function (c, i) { if (i) doc.line(x, y, x, y + rowH); x += c[1]; });
+      colour(doc, INK);
+      cellText(doc, txt(m.name), PAGE.ml + 2, y, crewCols[0][1] - 4, rowH, 9.5, "bold");
+      cellText(doc, txt(m.grade), PAGE.ml + 64, y, crewCols[1][1] - 4, rowH, 9, "normal");
+      cellText(doc, txt(m.signedAt), PAGE.ml + 110, y, crewCols[2][1] - 4, rowH, 9, "normal");
+      if (m.sig) {
+        var sw = crewCols[3][1] - 4, sh = rowH - 2, k = Math.min(sw / m.sig.w, sh / m.sig.h);
+        try {
+          doc.addImage(m.sig.src, "PNG", PAGE.ml + 134 + (sw - m.sig.w * k) / 2, y + 1, m.sig.w * k, m.sig.h * k);
+        } catch (e) { /* an unreadable signature must never stop the sheet printing */ }
+      }
+      y += rowH;
+    });
+
+    photoPages(doc, data);
 
     // Footers go on last, because "of N" is not known until the end.
     var total = doc.internal.getNumberOfPages(), d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
@@ -305,5 +341,107 @@
     return doc;
   }
 
-  global.VehicleCheckPDF = { build: build };
+  var VIEWS = [["front", "Front"], ["back", "Back"], ["right", "Right side"], ["left", "Left side"],
+    ["cab", "Cab"], ["saloon", "Patient compartment"]];
+
+  /* A photo fitted inside a box, keeping its shape, with a caption above. */
+  function photo(doc, p, label, x, y, w, h) {
+    setFont(doc, 8, "bold");
+    colour(doc, MUTED);
+    doc.text(label.toUpperCase(), x, y + 3);
+    var boxY = y + 5, boxH = h - 5;
+    var scale = Math.min(w / p.w, boxH / p.h), iw = p.w * scale, ih = p.h * scale;
+    try {
+      doc.addImage(p.src, p.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", x + (w - iw) / 2, boxY + (boxH - ih) / 2, iw, ih);
+    } catch (e) { /* an unreadable photo must never stop the sheet printing */ }
+    setLine(doc, GRID, 0.2);
+    doc.rect(x, boxY, w, boxH, "S");
+    colour(doc, INK);
+  }
+
+  /* The vehicle's photos in a grid, then each defect's photos under its name. */
+  function photoPages(doc, data) {
+    var views = VIEWS.filter(function (v) { return data.photos && data.photos[v[0]]; });
+    var defects = [];
+    data.sections.forEach(function (s) {
+      s.items.forEach(function (i) { if (i.photos && i.photos.length) defects.push(i); });
+    });
+    if (!views.length && !defects.length) return;
+    var w = (contentW(doc) - 6) / 2, h = 72, bottom = pageH(doc) - PAGE.mb;
+    doc.addPage();
+    var y = masthead(doc, data, "VEHICLE CHECK PHOTOS") + 6;
+    function place(i) {   // two to a row; a new page when a row will not fit
+      if (i % 2 === 0 && i > 0) y += h + 6;
+      if (i % 2 === 0 && y + h > bottom) { doc.addPage(); y = PAGE.mt; }
+      return PAGE.ml + (i % 2) * (w + 6);
+    }
+    views.forEach(function (v, i) { photo(doc, data.photos[v[0]], v[1], place(i), y, w, h); });
+    if (views.length) y += h + 10;
+    defects.forEach(function (item) {
+      if (y + 8 + h > bottom) { doc.addPage(); y = PAGE.mt; }
+      setFont(doc, 9.5, "bold");
+      colour(doc, MARK.defect);
+      doc.text(wrap(doc, "DEFECT: " + txt(item.name) + (txt(item.note) ? "  \u2014  " + txt(item.note) : ""),
+        contentW(doc))[0], PAGE.ml, y + 4);
+      colour(doc, INK);
+      y += 7;
+      item.photos.forEach(function (p, i) { photo(doc, p, "Photo " + (i + 1), place(i), y, w, h); });
+      y += h + 10;
+    });
+  }
+
+  /* A QR code as filled squares, `size` mm across, dark runs merged into one rectangle. */
+  function drawQr(doc, text, x, y, size) {
+    var qr = global.qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount(), quiet = 4, m = size / (n + quiet * 2);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(x, y, size, size, "F");
+    doc.setFillColor(0, 0, 0);
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        if (!qr.isDark(r, c)) continue;
+        var run = 1;
+        while (c + run < n && qr.isDark(r, c + run)) run++;
+        doc.rect(x + (quiet + c) * m, y + (quiet + r) * m, run * m, m, "F");
+        c += run - 1;
+      }
+    }
+  }
+
+  /* Six stickers to cut out and keep in the vehicle. */
+  function stickers(data, url) {
+    var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
+    var w = contentW(doc) / 2, h = (pageH(doc) - PAGE.mt - PAGE.mb) / 3;
+    var c = data.company || {};
+    for (var i = 0; i < 6; i++) {
+      var x = PAGE.ml + (i % 2) * w, y = PAGE.mt + Math.floor(i / 2) * h;
+      setLine(doc, LINE, 0.2);
+      doc.setLineDashPattern([2, 1.5], 0);
+      doc.rect(x, y, w, h, "S");
+      doc.setLineDashPattern([], 0);
+      doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+      doc.rect(x + 4, y + 4, w - 8, 9, "F");
+      setFont(doc, 9, "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("DAILY VEHICLE CHECK", x + w / 2, y + 9.8, { align: "center" });
+      colour(doc, INK);
+      setFont(doc, 15, "bold");
+      doc.text(wrap(doc, txt(data.callsign) || txt(data.reg).toUpperCase(), w - 10)[0] || "", x + w / 2, y + 21, { align: "center" });
+      setFont(doc, 10, "normal");
+      doc.text(txt(data.callsign) ? txt(data.reg).toUpperCase() : txt(data.makeModel), x + w / 2, y + 26.5, { align: "center" });
+      var size = Math.min(w - 30, h - 46);
+      drawQr(doc, url, x + (w - size) / 2, y + 29, size);
+      setFont(doc, 8, "normal");
+      colour(doc, MUTED);
+      doc.text(wrap(doc, "Scan with your phone camera to start this vehicle\u2019s check.", w - 12),
+        x + w / 2, y + 31 + size + 3, { align: "center" });
+      if (txt(c.companyName)) doc.text(wrap(doc, c.companyName, w - 12)[0], x + w / 2, y + h - 4, { align: "center" });
+      colour(doc, INK);
+    }
+    return doc;
+  }
+
+  global.VehicleCheckPDF = { build: build, stickers: stickers };
 })(window);

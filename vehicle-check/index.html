@@ -43,6 +43,7 @@
 <main>
   <!-- ============ VEHICLE ============ -->
   <section class="panel active" id="panel-vehicle" role="tabpanel">
+    <p class="notice good" id="scanResult" hidden></p>
     <div class="card">
       <h2>Company</h2>
       <p class="hint">Printed at the top of the check sheet. Comes from your company profile.</p>
@@ -77,6 +78,25 @@
     </div>
 
     <div class="card">
+      <h2>Vehicle photos</h2>
+      <p class="hint">A photo of each side and inside, to show the vehicle&rsquo;s condition at the check. On a
+        phone, <strong>Take photo</strong> opens the camera. Photos print on the last page of the check sheet.</p>
+      <div class="photo-grid" id="photoGrid"></div>
+      <p class="notice" id="photoResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>QR sticker for this vehicle</h2>
+      <p class="hint">Print and stick inside the vehicle. Scanning it with a phone camera opens this tool with
+        the vehicle and your checklist filled in, ready for the day&rsquo;s check. Make new stickers if you
+        change the checklist.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="stickerBtn">Download QR stickers (PDF)</button>
+      </div>
+      <p class="notice" id="stickerResult" hidden></p>
+    </div>
+
+    <div class="card">
       <h2>Start from a saved check</h2>
       <p class="hint">Open a vehicle check saved earlier, with its vehicle and checklist.</p>
       <div class="actions">
@@ -99,6 +119,7 @@
         asks for a note. Every service&rsquo;s list differs: <strong>Edit checklist</strong> adds and removes
         items, and your list is kept for next time.</p>
       <p class="check-summary" id="checkSummary"></p>
+      <p class="notice" id="photoNote" hidden></p>
       <div class="actions">
         <button type="button" class="btn ghost small" id="allOk">Mark the rest OK</button>
         <button type="button" class="btn ghost small" id="editToggle" aria-pressed="false">Edit checklist</button>
@@ -115,6 +136,23 @@
 
   <!-- ============ GENERATE ============ -->
   <section class="panel" id="panel-generate" role="tabpanel">
+    <div class="card">
+      <h2>Crew</h2>
+      <p class="hint">Everyone on the vehicle adds their name and clinical grade and signs to confirm the check
+        (VDI) is done. Sign with a finger or the mouse; the time is recorded. Anyone not signed here gets a
+        row to sign by hand on the sheet.</p>
+      <div id="crewList"></div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="addCrew">+ Add crew member</button>
+      </div>
+    </div>
+    <datalist id="grades">
+      <option value="First responder"></option><option value="FREC 3"></option>
+      <option value="Emergency care assistant"></option><option value="FREC 4"></option><option value="AAP"></option>
+      <option value="EMT"></option><option value="FREUC 5"></option><option value="Paramedic"></option>
+      <option value="APP (advanced paramedic)"></option><option value="Nurse"></option><option value="Doctor"></option>
+    </datalist>
+
     <div class="card">
       <h2>Check sheet</h2>
       <p class="hint">An A4 PDF of the vehicle, every check, the defects and a signed sign-off. Unchecked
@@ -162,6 +200,7 @@
 </footer>
 
 <script src="../bag-tracker/vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/qrcode.js"></script>
 <script src="pdf.js"></script>
 <script src="app.js"></script>
 </body>
