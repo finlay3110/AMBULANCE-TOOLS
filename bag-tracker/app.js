@@ -34,6 +34,7 @@
       if (typeof pr[PRINT[id]] === "boolean") out.print[PRINT[id]] = pr[PRINT[id]];
     });
     out.print.copies = copiesOf(pr.copies);
+    out.check = cleanCheck(raw.check);
     (Array.isArray(raw.pouches) ? raw.pouches : []).forEach(function (p) {
       if (!p || typeof p !== "object") return;
       out.pouches.push({
@@ -45,6 +46,26 @@
         })
       });
     });
+    return out;
+  }
+
+  /* An on-screen check: counts as whole numbers, a PNG signature, nothing else. */
+  function cleanCheck(c) {
+    if (!c || typeof c !== "object") return null;
+    var s = function (v) { return typeof v === "string" ? v : ""; };
+    var out = { date: s(c.date), time: s(c.time), by: s(c.by), grade: s(c.grade), bagSealFound: s(c.bagSealFound),
+      bagNewSeal: s(c.bagNewSeal), results: {}, seals: {}, sig: null, signedAt: s(c.signedAt) };
+    Object.keys(c.results && typeof c.results === "object" ? c.results : {}).forEach(function (k) {
+      var r = c.results[k] || {};
+      out.results[k] = { found: /^\d{1,4}$/.test(r.found) ? r.found : "", note: s(r.note) };
+    });
+    Object.keys(c.seals && typeof c.seals === "object" ? c.seals : {}).forEach(function (k) {
+      var x = c.seals[k] || {};
+      out.seals[k] = { found: s(x.found), intact: x.intact === "yes" || x.intact === "no" ? x.intact : "", newSeal: s(x.newSeal) };
+    });
+    if (c.sig && typeof c.sig.src === "string" && c.sig.src.indexOf("data:image/png;base64,") === 0 && +c.sig.w > 0 && +c.sig.h > 0) {
+      out.sig = { src: c.sig.src, w: +c.sig.w, h: +c.sig.h };
+    }
     return out;
   }
 
@@ -296,6 +317,7 @@
     document.querySelectorAll(".panel").forEach(function (p) {
       p.classList.toggle("active", p.id === "panel-" + name);
     });
+    if (name === "check") renderCheck();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll(".tab").forEach(function (t) {
@@ -472,6 +494,266 @@
     reader.readAsText(file);
   });
 
+  /* ---------------- on-screen check ---------------- */
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function todayIso() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function nowTime() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+  function newCheck() {
+    return { date: todayIso(), time: nowTime(), by: "", grade: "", bagSealFound: "", bagNewSeal: "",
+      results: {}, seals: {}, sig: null, signedAt: "" };
+  }
+  function result(p, it) {
+    var key = window.BagPDF.resultKey(p, it);
+    if (!bag.check.results[key]) bag.check.results[key] = { found: "", note: "" };
+    return bag.check.results[key];
+  }
+  function stateOf(found, min) { return found === "" ? "" : Number(found) >= min ? "ok" : "short"; }
+
+  function checkSummary() {
+    var ok = 0, short = 0, todo = 0;
+    bag.pouches.forEach(function (p) {
+      p.items.forEach(function (it) {
+        var r = bag.check.results[window.BagPDF.resultKey(p, it)], st = r ? stateOf(r.found, it.min) : "";
+        if (st === "ok") ok++; else if (st === "short") short++; else todo++;
+      });
+    });
+    $("checkSummary").textContent = ok + " all there  ·  " + short + " short  ·  " + todo + " not counted";
+  }
+
+  function renderCheck() {
+    if (!bag.check) bag.check = newCheck();
+    var c = bag.check;
+    [["checkBy", "by"], ["checkGrade", "grade"], ["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
+      .forEach(function (f) { $(f[0]).value = c[f[1]]; });
+    var list = $("checkList");
+    list.innerHTML = "";
+    if (!bag.pouches.length) list.appendChild(el("p", "empty", "This bag has no pouches yet. Add them on the Pouches tab."));
+    bag.pouches.forEach(function (p) {
+      var card = el("div", "card");
+      card.appendChild(el("h2", "", p.name));
+      if (p.sealed) {
+        if (!c.seals[p.name]) c.seals[p.name] = { found: "", intact: "", newSeal: "" };
+        var s = c.seals[p.name], row = el("div", "seal-check");
+        [["found", "Seal found"], ["newSeal", "New seal"]].forEach(function (f, i) {
+          var label = el("label", "field");
+          label.appendChild(el("span", "", f[1]));
+          var input = el("input");
+          input.type = "text";
+          input.value = s[f[0]];
+          input.setAttribute("aria-label", f[1] + ": " + p.name);
+          input.addEventListener("input", function () { s[f[0]] = input.value; save(); });
+          label.appendChild(input);
+          if (i === 0) row.appendChild(label);
+          else {
+            var intact = el("div", "intact");
+            intact.setAttribute("role", "group");
+            intact.setAttribute("aria-label", "Seal intact: " + p.name);
+            [["yes", "Intact"], ["no", "Broken"]].forEach(function (o) {
+              var b = el("button", o[0], o[1]);
+              b.type = "button";
+              b.setAttribute("aria-pressed", s.intact === o[0]);
+              b.addEventListener("click", function () {
+                s.intact = s.intact === o[0] ? "" : o[0];
+                save();
+                intact.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x.className === s.intact); });
+              });
+              intact.appendChild(b);
+            });
+            row.appendChild(intact);
+            row.appendChild(label);
+          }
+        });
+        card.appendChild(row);
+      }
+      p.items.forEach(function (it) {
+        var r = result(p, it), row = el("div", "count-row");
+        var name = el("div", "item-name", it.name);
+        name.appendChild(el("span", "min", "minimum " + it.min));
+        row.appendChild(name);
+        var found = el("input");
+        found.type = "number";
+        found.min = "0";
+        found.inputMode = "numeric";
+        found.value = r.found;
+        found.setAttribute("aria-label", "Found: " + it.name);
+        var tick = el("button", "btn ghost small", "✓");
+        tick.type = "button";
+        tick.setAttribute("aria-label", "All there: " + it.name);
+        var state = el("span", "count-state");
+        function show() {
+          var st = stateOf(r.found, it.min);
+          state.className = "count-state " + st;
+          state.textContent = st === "ok" ? "All there" : st === "short" ? "Short" : "";
+          checkSummary();
+        }
+        found.addEventListener("input", function () {
+          r.found = found.value === "" ? "" : String(Math.max(0, Math.floor(Number(found.value)) || 0));
+          save();
+          show();
+        });
+        tick.addEventListener("click", function () { r.found = String(it.min); found.value = r.found; save(); show(); });
+        var note = el("input", "note");
+        note.type = "text";
+        note.value = r.note;
+        note.placeholder = "Note (optional): replaced, out of date…";
+        note.setAttribute("aria-label", "Note: " + it.name);
+        note.addEventListener("input", function () { r.note = note.value; save(); });
+        row.appendChild(found);
+        row.appendChild(tick);
+        row.appendChild(state);
+        row.appendChild(note);
+        card.appendChild(row);
+        show();
+      });
+      list.appendChild(card);
+    });
+    renderSig();
+    checkSummary();
+    save();
+  }
+
+  [["checkBy", "by"], ["checkGrade", "grade"], ["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
+    .forEach(function (f) { $(f[0]).addEventListener("input", function () { bag.check[f[1]] = this.value; save(); }); });
+
+  function renderSig() {
+    var area = $("checkSig"), c = bag.check;
+    area.innerHTML = "";
+    if (c.sig) {
+      var img = el("img", "sig-pad");
+      img.src = c.sig.src;
+      img.alt = "Signature";
+      area.appendChild(img);
+      area.appendChild(el("span", "sig-done", "Signed at " + c.signedAt));
+      var again = el("button", "btn ghost small", "Sign again");
+      again.type = "button";
+      again.addEventListener("click", function () { c.sig = null; c.signedAt = ""; save(); renderSig(); });
+      area.appendChild(again);
+      return;
+    }
+    var when = el("span", "sig-done");
+    area.appendChild(window.Shared.signaturePad(function (sig) {
+      c.sig = sig;
+      if (!c.signedAt) c.signedAt = nowTime();
+      save();
+      when.textContent = "Signed at " + c.signedAt;
+    }));
+    area.appendChild(when);
+  }
+
+  $("allThere").addEventListener("click", function () {
+    bag.pouches.forEach(function (p) {
+      p.items.forEach(function (it) { var r = result(p, it); if (r.found === "") r.found = String(it.min); });
+    });
+    save();
+    renderCheck();
+  });
+
+  $("checkPdfBtn").addEventListener("click", function () {
+    if (!bag.pouches.length) return;
+    window.BagPDF.buildCheck(bag).save("Bag-check-" + fileName().replace(/^bag-/, "") + "-" + bag.check.date + ".pdf");
+  });
+
+  $("newCheckBtn").addEventListener("click", function () {
+    if (!confirm("Start a new check? The counts, seals, notes and signature are cleared. Download this check first " +
+      "if you want it.")) return;
+    bag.check = newCheck();
+    save();
+    renderCheck();
+  });
+
+  /* ---------------- QR stickers ---------------- */
+  function bagNumbers() {
+    var list = (bag.bagNumber || "").split(/[,;\n]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    return list.length ? list : [""];
+  }
+
+  /* A link that carries this bag's layout, for one bag number. */
+  function bagLink(number) {
+    return window.Shared.link({
+      bagName: (bag.bagName || "").trim(), bagNumber: number, location: (bag.location || "").trim(),
+      pouches: bag.pouches.map(function (p) {
+        return [p.name, p.sealed ? 1 : 0, p.items.map(function (it) { return [it.name, it.min]; })];
+      })
+    });
+  }
+  window.BagTrackerLink = bagLink;   // for the tests
+
+  $("stickerBtn").addEventListener("click", function () {
+    if (!(bag.bagName || "").trim() || !bag.pouches.length) {
+      $("stickerResult").className = "notice bad";
+      $("stickerResult").textContent = "Enter the bag name and add its pouches first.";
+      $("stickerResult").hidden = false;
+      return;
+    }
+    var numbers = bagNumbers();
+    Promise.all(numbers.map(bagLink)).then(function (urls) {
+      window.BagPDF.stickers(bag, numbers.map(function (n, i) { return { number: n, url: urls[i] }; }))
+        .save("QR-stickers-" + fileName().replace(/^bag-/, "") + ".pdf");
+      $("stickerResult").className = "notice good";
+      $("stickerResult").textContent = "Downloaded " + (numbers.length === 1 ? "six stickers" :
+        numbers.length + " sheets of six stickers, one per bag number") + ".";
+      $("stickerResult").hidden = false;
+    });
+  });
+
+  /* Opened from a bag's sticker: a check of that bag, or today's check carried on. */
+  function applyLink(v) {
+    var same = v.bagName === (bag.bagName || "").trim() && v.bagNumber === (bag.bagNumber || "").trim();
+    var name = v.bagNumber || v.bagName || "this bag";
+    var started = bag.check && Object.keys(bag.check.results).some(function (k) { return bag.check.results[k].found !== ""; });
+    showTab("check");
+    if (same && started && bag.check.date === todayIso()) {
+      $("scanResult").textContent = "Carrying on with today’s check of " + name + ".";
+      $("scanResult").hidden = false;
+      return;
+    }
+    if (!same && bag.pouches.length && !confirm("Check " + name + "? This replaces " +
+      ((bag.bagNumber || bag.bagName || "the bag").trim()) + " on this device. Export it first if you want to keep it.")) return;
+    if (!same) {
+      bag.bagName = v.bagName;
+      bag.bagNumber = v.bagNumber;
+      bag.location = v.location;
+      bag.sealNumber = "";
+      bag.pouches = v.pouches;
+      if (!(bag.companyName || "").trim()) {
+        var profile = savedProfile();
+        if (profile) useCompany(profile, "Using");
+      }
+    }
+    bag.check = newCheck();
+    save();
+    fillSetup();
+    renderPouches();
+    renderCheck();
+    $("scanResult").textContent = "Ready to check " + name + ". Count each pouch, then sign at the bottom.";
+    $("scanResult").hidden = false;
+  }
+
+  function fromLink() {
+    if (!location.hash) return;
+    window.Shared.readLink(location.hash).then(function (p) {
+      history.replaceState(null, "", location.href.split("#")[0]);
+      if (!p || !Array.isArray(p.pouches)) {
+        $("scanResult").className = "notice bad";
+        $("scanResult").textContent = "That link could not be read.";
+        $("scanResult").hidden = false;
+        showTab("check");
+        return;
+      }
+      $("scanResult").className = "notice good";
+      applyLink({
+        bagName: String(p.bagName || ""), bagNumber: String(p.bagNumber || ""), location: String(p.location || ""),
+        pouches: p.pouches.filter(Array.isArray).map(function (q) {
+          return { name: String(q[0] || ""), sealed: q[1] === 1, seal: "",
+            items: (Array.isArray(q[2]) ? q[2] : []).filter(Array.isArray).map(function (it) {
+              return { name: String(it[0] || ""), min: minOf(it[1]) };
+            }) };
+        })
+      });
+    });
+  }
+  window.addEventListener("hashchange", fromLink);
+
   $("resetAll").addEventListener("click", function () {
     if (!confirm("Clear this bag? Export it first if you want to keep it.")) return;
     bag = blank();
@@ -482,4 +764,5 @@
   fillSetup();
   renderPouches();
   showProfileButton();
+  fromLink();
 })();

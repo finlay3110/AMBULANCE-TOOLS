@@ -44,6 +44,21 @@ Open `index.html` in a browser.
 The bag is also kept in this browser's storage, but that can be cleared — export
 it to keep it.
 
+## Checking a bag on a phone, with QR stickers
+
+**Download QR stickers** on the Generate tab prints six stickers per bag number.
+Scanning one with a phone camera opens this tool with that bag's pouches and
+kit list loaded, on the **Check bag** tab (or carries on with today's check on
+that phone). The bag travels in the link after the `#`, so nothing is uploaded.
+Make new stickers after changing the pouches.
+
+On **Check bag**, type the number found for each item, or tap the tick when all
+are there; anything under its minimum shows as short. Sealed pouches record the
+seal found, intact or broken, and any new seal. Add notes, who checked (name and
+clinical grade), and a signature on screen. **Download check (PDF)** gives the
+kit checklist filled in with the counts, OK or SHORT, seals, notes and the
+signature. **New check** clears the counts and keeps the bag.
+
 ## User guide
 
 [Bag-Tracker-User-Guide.pdf](Bag-Tracker-User-Guide.pdf) walks through every tab and sheet,

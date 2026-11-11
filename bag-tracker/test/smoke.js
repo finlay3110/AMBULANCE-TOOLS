@@ -165,6 +165,60 @@ const assert = require("assert");
   await page.waitForFunction(() => document.querySelectorAll(".pouch").length === 2);
   assert.strictEqual(await page.inputValue("#companyName"), "Test Medical Ltd");
 
+  // QR stickers: scanning one opens a check of this bag on another phone.
+  await page.click(".tab[data-tab=generate]");
+  const [stickers] = await Promise.all([page.waitForEvent("download"), page.click("#stickerBtn")]);
+  assert.match(stickers.suggestedFilename(), /^QR-stickers-/);
+  const link = await page.evaluate(() => window.BagTrackerLink("RB-03"));
+  assert.ok(/#v=[jz][A-Za-z0-9_-]+$/.test(link), "the bag travels after the #");
+  const phone = await (await browser.newContext()).newPage();
+  phone.on("pageerror", (e) => errors.push("phone: " + e.message));
+  phone.on("dialog", (d) => d.accept());
+  await phone.goto(link);
+  await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Ready to check RB-03"));
+  assert.ok(await phone.locator("#panel-check.active").isVisible(), "it opens on the check");
+  const state = (item) => phone.locator(".count-row", { hasText: item }).locator(".count-state").textContent();
+  await phone.getByLabel("Found: OPA size 2").fill("1");
+  eq(await state("OPA size 2"), "All there");
+  await phone.getByLabel("Found: NPA 6.0").fill("1");
+  eq(await state("NPA 6.0"), "Short", "under the minimum of 2");
+  await phone.getByLabel("Note: NPA 6.0").fill("One used, reorder");
+  await phone.getByLabel("All there: Crepe bandage 7.5cm").click();
+  eq(await state("Crepe bandage 7.5cm"), "All there", "the tick fills in the minimum");
+  await phone.getByLabel("Seal found: Airway pouch").fill("T12345");
+  await phone.getByRole("group", { name: "Seal intact: Airway pouch" }).getByRole("button", { name: "Intact" }).click();
+  await phone.getByLabel("New seal: Airway pouch").fill("T22222");
+  await phone.click("#allThere");
+  eq(await phone.textContent("#checkSummary"), "4 all there  \u00b7  1 short  \u00b7  0 not counted");
+  await phone.fill("#checkBy", "Sam Patel");
+  await phone.fill("#checkGrade", "Paramedic");
+  await phone.fill("#bagSealFound", "B100");
+  await phone.locator("#checkSig canvas").scrollIntoViewIfNeeded();
+  const box = await phone.locator("#checkSig canvas").boundingBox();
+  await phone.mouse.move(box.x + 20, box.y + 50);
+  await phone.mouse.down();
+  for (let i = 1; i <= 10; i++) await phone.mouse.move(box.x + 20 + i * 25, box.y + 50 + (i % 2 ? -20 : 20));
+  await phone.mouse.up();
+  const checked = await phone.evaluate(() => {
+    const doc = window.BagPDF.buildCheck(JSON.parse(localStorage.getItem("bag-tracker/v1")));
+    return doc.output();
+  });
+  for (const s of ["BAG KIT CHECKLIST", "RB-03", "SHORT", "One used, reorder", "T12345", "T22222", "B100",
+    "Sam Patel, Paramedic"]) {
+    assert.ok(checked.includes(s), "completed check missing " + s);
+  }
+  assert.ok(checked.includes("/Subtype /Image"), "the signature is on the check");
+  const [checkPdf] = await Promise.all([phone.waitForEvent("download"), phone.click("#checkPdfBtn")]);
+  assert.match(checkPdf.suggestedFilename(), /^Bag-check-RB-03-\d{4}-\d{2}-\d{2}\.pdf$/);
+  // Scanning again the same day carries on with that check.
+  await phone.goto(link);
+  await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Carrying on"));
+  eq(await phone.inputValue("[aria-label='Found: NPA 6.0']"), "1");
+  // A new check clears the counts but keeps the bag.
+  await phone.click("#newCheckBtn");
+  eq(await phone.inputValue("[aria-label='Found: NPA 6.0']"), "");
+  eq(await phone.textContent("#checkSummary"), "0 all there  \u00b7  0 short  \u00b7  5 not counted");
+
   assert.deepStrictEqual(errors, []);
   await browser.close();
   console.log("smoke: ok");
