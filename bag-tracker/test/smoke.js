@@ -190,21 +190,32 @@ const assert = require("assert");
   await phone.getByLabel("New seal: Airway pouch").fill("T22222");
   await phone.click("#allThere");
   eq(await phone.textContent("#checkSummary"), "4 all there  \u00b7  1 short  \u00b7  0 not counted");
-  await phone.fill("#checkBy", "Sam Patel");
-  await phone.fill("#checkGrade", "Paramedic");
   await phone.fill("#bagSealFound", "B100");
-  await phone.locator("#checkSig canvas").scrollIntoViewIfNeeded();
-  const box = await phone.locator("#checkSig canvas").boundingBox();
-  await phone.mouse.move(box.x + 20, box.y + 50);
-  await phone.mouse.down();
-  for (let i = 1; i <= 10; i++) await phone.mouse.move(box.x + 20 + i * 25, box.y + 50 + (i % 2 ? -20 : 20));
-  await phone.mouse.up();
+  // Both of the crew check the bag at the start of the shift, and each signs.
+  const sign = async (n) => {
+    const pad = phone.locator(".checker").nth(n).locator("canvas");
+    await pad.scrollIntoViewIfNeeded();
+    const box = await pad.boundingBox();
+    await phone.mouse.move(box.x + 20, box.y + 50);
+    await phone.mouse.down();
+    for (let i = 1; i <= 10; i++) await phone.mouse.move(box.x + 20 + i * 25, box.y + 50 + (i % 2 ? -20 : 20));
+    await phone.mouse.up();
+  };
+  const person = (n) => phone.locator(".checker").nth(n).locator("input");
+  await person(0).nth(0).fill("Sam Patel");
+  await person(0).nth(1).fill("Paramedic");
+  await sign(0);
+  await phone.click("#addChecker");
+  await person(1).nth(0).fill("Alex Jones");
+  await person(1).nth(1).fill("ECA");
+  await sign(1);
+  eq(await phone.locator(".checker .sig-done").filter({ hasText: /^Signed at \d\d:\d\d$/ }).count(), 2);
   const checked = await phone.evaluate(() => {
     const doc = window.BagPDF.buildCheck(JSON.parse(localStorage.getItem("bag-tracker/v1")));
     return doc.output();
   });
   for (const s of ["BAG KIT CHECKLIST", "RB-03", "SHORT", "One used, reorder", "T12345", "T22222", "B100",
-    "Sam Patel, Paramedic"]) {
+    "Sam Patel", "Paramedic", "Alex Jones", "ECA", "CHECKED BY"]) {
     assert.ok(checked.includes(s), "completed check missing " + s);
   }
   assert.ok(checked.includes("/Subtype /Image"), "the signature is on the check");
@@ -218,6 +229,19 @@ const assert = require("assert");
   await phone.click("#newCheckBtn");
   eq(await phone.inputValue("[aria-label='Found: NPA 6.0']"), "");
   eq(await phone.textContent("#checkSummary"), "0 all there  \u00b7  0 short  \u00b7  5 not counted");
+  eq(await phone.locator(".checker").count(), 1, "a new check starts with one empty person");
+  eq(await person(0).nth(0).inputValue(), "");
+  // A check saved before checks took a crew keeps its one signer.
+  await phone.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem("bag-tracker/v1"));
+    delete d.check.crew;
+    Object.assign(d.check, { by: "Old Signer", grade: "Technician", signedAt: "08:15" });
+    localStorage.setItem("bag-tracker/v1", JSON.stringify(d));
+  });
+  await phone.reload();
+  await phone.click("[data-tab=check]");
+  eq(await person(0).nth(0).inputValue(), "Old Signer");
+  eq(await person(0).nth(1).inputValue(), "Technician");
 
   assert.deepStrictEqual(errors, []);
   await browser.close();

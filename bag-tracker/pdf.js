@@ -290,10 +290,28 @@
           txt(r.note)];
       }
     }) + 6;
-    signBlock(doc, y, "CHECK COMPLETED", [
-      c ? { label: "CHECKED BY", name: [txt(c.by), txt(c.grade)].filter(Boolean).join(", "), date: ukDate(c.date), sig: c.sig }
-        : { label: "CHECKED BY" },
-      { label: "SECOND CHECK (IF REQUIRED)" }]);
+    if (c) checkedBy(doc, y, c);
+    else signBlock(doc, y, "CHECK COMPLETED", [{ label: "CHECKED BY" }, { label: "SECOND CHECK (IF REQUIRED)" }]);
+  }
+
+  /* Everyone who did an on-screen check, with their signatures. */
+  function checkedBy(doc, y, c) {
+    var widths = [70, 50, 22, 44], rowH = 14;
+    var crew = (c.crew || []).filter(function (m) { return txt(m.name) || m.sig; });
+    if (!crew.length) crew = [{}, {}];   // nobody filled in on screen: rows to sign by hand
+    if (y + 8 + rowH > pageH(doc) - PAGE.mb) { doc.addPage(); y = PAGE.mt; }
+    y += drawRow(doc, y, widths, cells(["CHECKED BY \u2014 " + (ukDate(c.date) || "date: ________"),
+      "Clinical grade", "Signed at", "Signature"]), { bold: true, fill: HEAD_BG, size: 8.5 });
+    crew.forEach(function (m) {
+      if (y + rowH > pageH(doc) - PAGE.mb) { doc.addPage(); y = PAGE.mt; }
+      drawRow(doc, y, widths, [{ text: txt(m.name), bold: true }, { text: txt(m.grade) }, { text: txt(m.signedAt) },
+        { text: "" }], { minH: rowH });
+      if (m.sig) {
+        var sh = rowH - 3, sw = Math.min(widths[3] - 4, m.sig.w * sh / m.sig.h);
+        try { doc.addImage(m.sig.src, "PNG", PAGE.ml + 142 + (widths[3] - sw) / 2, y + 1.5, sw, sh); } catch (e) { /* never stop the PDF */ }
+      }
+      y += rowH;
+    });
   }
 
   /* ---------------- 3. Sign in / sign out log ---------------- */
