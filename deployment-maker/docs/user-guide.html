@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deployment Maker — user guide</title>
+<style>
+  @page { size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: #16202c; background: #fff;
+    font: 10.5pt/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1, h2, h3 { line-height: 1.25; }
+  h2 {
+    font-size: 17pt; margin: 0 0 4mm; padding-bottom: 2mm;
+    border-bottom: 2px solid #0b6b3a; color: #0b6b3a;
+  }
+  h3 { font-size: 12pt; margin: 6mm 0 2mm; }
+  h4 { font-size: 10.5pt; margin: 4mm 0 1mm; }
+  p, ul, ol { margin: 0 0 3mm; }
+  ul, ol { padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  a { color: #0b6b3a; }
+  code { background: #eef2f6; padding: 0 1mm; border-radius: 2px; font-size: 9.5pt; }
+
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  section { page-break-inside: auto; }
+  h2, h3, h4 { page-break-after: avoid; }
+  figure { page-break-inside: avoid; margin: 3mm 0 5mm; }
+  /* Capped so a tall screenshot never outgrows the page it belongs on. */
+  figure img {
+    max-width: 100%; max-height: 168mm; width: auto; height: auto;
+    border: 1px solid #ccd4dc; border-radius: 3px; display: block; margin: 0 auto;
+  }
+  figure img.plain { border: 0; }
+  figcaption { font-size: 8.5pt; color: #5d6b7a; margin-top: 1.5mm; }
+  .two { display: flex; gap: 4mm; }
+  .two figure { flex: 1; margin-top: 0; }
+  .narrow { max-width: 62%; margin-left: auto; margin-right: auto; }
+  /* Landscape figures: shorter so a pair still shares a page with its text. */
+  .compact img { max-height: 104mm; }
+  /* Tall portrait cards: capped so text still shares the page with them. */
+  .tall img { max-height: 132mm; }
+  /* Sample PDF pages: small enough for two sheets, with their text, on one page. */
+  .sheet img { max-height: 98mm; }
+  .sheet.wide img { max-height: 82mm; }
+
+  /* cover */
+  /* Flows from the top: centring it clipped the content when it grew. */
+  .cover { padding-top: 4mm; }
+  .cover .mark {
+    width: 22mm; height: 22mm; border-radius: 5mm; background: #0b6b3a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30pt; font-weight: 700; margin-bottom: 8mm;
+  }
+  .cover h1 { font-size: 30pt; margin: 0 0 2mm; letter-spacing: -0.3pt; }
+  .cover .sub { font-size: 13pt; color: #5d6b7a; margin: 0 0 10mm; }
+  .cover dl { display: grid; grid-template-columns: 32mm 1fr; gap: 1.5mm 4mm; font-size: 10pt; margin: 0; }
+  .cover dt { color: #5d6b7a; }
+  .cover dd { margin: 0; font-weight: 600; }
+
+  .callout {
+    border: 1px solid #ecd396; background: #fdf3dd; color: #6f4a00;
+    border-radius: 3px; padding: 3.5mm 4mm; margin: 4mm 0;
+  }
+  .callout.stop { border-color: #f3c3c0; background: #fdeceb; color: #8f2a22; }
+  .callout.info { border-color: #cfd8e2; background: #f2f5f8; color: #2f4055; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout, table, .steps li { page-break-inside: avoid; }
+  .callout strong { color: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.5pt; }
+  th, td { border: 1px solid #ccd4dc; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f2f5f8; }
+
+  .steps { counter-reset: step; padding: 0; list-style: none; }
+  .steps li { counter-increment: step; position: relative; padding-left: 8mm; margin-bottom: 2.5mm; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0.3mm;
+    width: 5.5mm; height: 5.5mm; border-radius: 50%; background: #0b6b3a; color: #fff;
+    font-size: 8pt; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .toc { list-style: none; padding: 0; }
+  .toc li { border-bottom: 1px dotted #ccd4dc; padding: 1.8mm 0; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page cover">
+  <div class="mark">+</div>
+  <h1>Deployment Maker</h1>
+  <p class="sub">Who is deployed where, with a sign-in, break and stand-down log</p>
+  <dl>
+    <dt>Guide for</dt><dd>Event leads planning a deployment, and event control running it on the day</dd>
+    <dt>Made by</dt><dd>Finlay Russell &mdash; finlay3110@gmail.com</dd>
+    <dt>Licence</dt><dd>MIT &mdash; provided as is, with no warranty</dd>
+  </dl>
+  <div class="callout stop" style="margin-top:10mm">
+    <p><strong>Before you use anything this produces.</strong> This tool formats what you type. It does not
+    check it. You are responsible for making sure each deployment meets your organisation&rsquo;s and the
+    event&rsquo;s requirements.</p>
+  </div>
+  <ul class="toc" style="margin-top:9mm">
+    <li>1. What it does</li>
+    <li>2. Getting started</li>
+    <li>3. The event</li>
+    <li>4. Units and people</li>
+    <li>5. On the day</li>
+    <li>6. The PDF</li>
+    <li>7. Plans for venues</li>
+    <li>8. Saving and backing up</li>
+    <li>9. Phones, tablets and offline</li>
+    <li>10. Troubleshooting</li>
+  </ul>
+</div>
+
+<div class="page">
+  <section>
+    <h2>1. What it does</h2>
+    <p>Deployment Maker plans who is deployed where at an event, and produces a printed deployment log
+      for the day. For each unit it records the callsign, whether it is an ambulance (with its
+      registration), where it is posted or whether it roams, its kit bag and drug bag, and the people on
+      it: name, clinical grade, radio and whether they are a manager.</p>
+    <p>On the day, event control can sign people in, record breaks and stand people down in the app,
+      or print the log and do it on paper. Either way, signatures are done on paper.</p>
+    <div class="callout info"><p><strong>Everything stays on your device.</strong> There is no account and
+      no upload. Once opened, it works offline.</p></div>
+  </section>
+  <section>
+    <h2>2. Getting started</h2>
+    <p>Open the Ambulance Tools home page and choose <b>Deployment Maker</b>. Set up your
+      <strong>Company Profile</strong> first (Step 1 on the home page): the Deployment Maker picks it up by
+      itself.</p>
+    <figure><img src="build/shots/topbar.png" alt="The top bar"><figcaption>The top bar.
+      <b>Generate PDF</b> works from any tab; <b>Clear all</b> empties the event and units but keeps your
+      company details.</figcaption></figure>
+    <ol class="steps">
+      <li><strong>Event</strong> &mdash; start from a plan, check the company, fill in the event.</li>
+      <li><strong>Units</strong> &mdash; each unit and the people on it.</li>
+      <li><strong>On the day</strong> &mdash; sign people in, breaks, stand down.</li>
+      <li><strong>Generate</strong> &mdash; the PDF, and saving for later.</li>
+    </ol>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>3. The event</h2>
+    <figure><img src="build/shots/plans.png" alt="Start from a plan"><figcaption>Plans saved on this device,
+      ready to open (section 7).</figcaption></figure>
+    <figure><img src="build/shots/company.png" alt="Company"><figcaption>Company details come from your
+      Company Profile. <b>Import company details</b> takes a company file instead.</figcaption></figure>
+    <figure><img src="build/shots/event.png" alt="Event details"><figcaption>Event name, venue, date and
+      who made the deployment are printed at the top of the log. Any left blank print as a box to write
+      in.</figcaption></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>4. Units and people</h2>
+    <figure><img src="build/shots/add-unit.png" alt="Add a unit"></figure>
+    <p>Type a callsign and press <b>Add unit</b>. Then, on the unit:</p>
+    <figure class="tall"><img src="build/shots/unit-card.png" alt="A unit"></figure>
+    <ul>
+      <li><strong>Roaming</strong>, or the <strong>location</strong> it is posted to.</li>
+      <li><strong>Ambulance</strong> &mdash; tick it and it asks for the vehicle registration.</li>
+      <li><strong>Kit bag</strong> and <strong>Drug bag</strong> &mdash; untick them for a unit with none,
+        such as event control. Leave a number blank to write it in on the day. Bag numbers set up in the
+        Bag Tracker and Drug Bag Tracker on this device are suggested as you type.</li>
+      <li><strong>People</strong> &mdash; name, clinical grade, radio and a <strong>Manager</strong> tick.
+        Leave a name blank for a post still to fill. <b>+ Add person</b> adds a row.</li>
+      <li><b>Copy</b> makes the next callsign (Alpha 1 to Alpha 2) with the same set-up and nobody on it
+        yet. <b>&uarr; &darr;</b> reorder; <b>Remove</b> deletes the unit.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>5. On the day</h2>
+    <figure><img src="build/shots/day-summary.png" alt="On the day"><figcaption>A running count of who is
+      on duty, on break, stood down and not yet signed in.</figcaption></figure>
+    <figure><img src="build/shots/day-unit.png" alt="A unit on the day"></figure>
+    <ul>
+      <li>Tap <b>Sign in</b>, <b>Start break</b>, <b>End break</b> or <b>Stand down</b>: each records the
+        time now. Someone can stand down without taking a break.</li>
+      <li>Type over a time to change it, or clear it to undo.</li>
+      <li>A post with no name has a name box, to fill in as the person arrives.</li>
+      <li><b>Clear all times</b> starts the day again, keeping names and units.</li>
+    </ul>
+    <p>The times are filled in on the deployment log. Signatures are still collected on paper.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>6. The PDF</h2>
+    <figure><img src="build/shots/generate.png" alt="Generate"></figure>
+    <p>A landscape A4 deployment log. Each unit is its own block: a dark band with the callsign (tagged
+      AMBULANCE or ROAMING), a strip with its location, registration and bags, and a row per person with
+      boxes for <strong>signed in</strong>, <strong>break started</strong>, <strong>break ended</strong>,
+      <strong>stood down</strong> and a <strong>signature</strong>. Managers have a green MANAGER badge.
+      Anything left blank is a box to write in.</p>
+    <figure class="sheet wide"><img class="plain" src="build/shots/pdf-log.png" alt="The deployment log"></figure>
+    <p>With <b>Add a radio list page</b> ticked, a radio list for event control follows: every person
+      with their unit, location, grade and radio.</p>
+    <figure class="sheet wide"><img class="plain" src="build/shots/pdf-radio.png" alt="The radio list"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>7. Plans for venues</h2>
+    <p>A venue that uses the same units each time needs a plan: the units, callsigns, locations,
+      ambulances, which units have bags, and each post&rsquo;s grade and manager tick, with the names,
+      radios, bag numbers, registrations, times and date left blank.</p>
+    <figure><img src="build/shots/save.png" alt="Save for later"></figure>
+    <ul>
+      <li><b>Save as plan</b> keeps it on this device, named after the venue, listed on the Event tab with
+        <b>Open</b> and <b>Delete</b>.</li>
+      <li><b>Download plan (.json)</b> saves it as a file, to share or open on another device with
+        <b>Open a plan or deployment file</b>.</li>
+      <li>Open the plan, fill in the names on screen, or print it and fill them in by hand.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>8. Saving and backing up</h2>
+    <p>Everything is saved in this browser as you type. <b>Save deployment (.json)</b> keeps a whole
+      deployment, times included, as a file. <b>Back up everything</b> on the home page saves every
+      tool&rsquo;s work, plans included, in one file, and reminds you when a backup is due.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>9. Phones, tablets and offline</h2>
+    <div class="two">
+      <figure class="narrow"><img src="build/shots/phone.png" alt="On the day on a phone"></figure>
+      <div style="flex:1">
+        <p>The tool works on a phone or tablet, and the On the day buttons are big enough to tap.</p>
+        <p>Once opened with a connection, it works offline, and can be added to the home screen like an
+          app: in Chrome, <b>Install app</b>; on an iPhone, <b>Share</b> then <b>Add to Home Screen</b>. On
+          an iPhone the home-screen app keeps its own saved work, separate from Safari, so use
+          <b>Back up everything</b> to move it across.</p>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>10. Troubleshooting</h2>
+    <table>
+      <tr><th style="width:62mm">Problem</th><th>What to do</th></tr>
+      <tr><td>&ldquo;Add at least one unit&rdquo;</td><td>Add a unit on the Units tab first.</td></tr>
+      <tr><td>&ldquo;Unit 2 has no callsign&rdquo;</td><td>Give every unit a callsign.</td></tr>
+      <tr><td>No company at the top</td><td>Create a Company Profile on the home page, or use
+        <b>Import company details</b>.</td></tr>
+      <tr><td>My deployment has gone</td><td>Browser storage was cleared, or this is a different browser.
+        Restore your last backup on the home page, or open your saved .json.</td></tr>
+      <tr><td>&ldquo;Not a plan or deployment saved from this tool&rdquo;</td><td>The file is from another
+        tool. Plans and deployments are .json files saved from the Deployment Maker.</td></tr>
+    </table>
+  </section>
+</div>
+</body>
+</html>

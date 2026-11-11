@@ -67,6 +67,12 @@ screen, or print it and fill them in by hand.
 
 **Save deployment** saves everything, names included.
 
+## User guide
+
+[Deployment-Maker-User-Guide.pdf](Deployment-Maker-User-Guide.pdf), linked from
+the page footer. Rebuild it from the current app with
+`node docs/build-guide.js` (needs Playwright, and python3 with pypdfium2).
+
 ## Files
 
 | File | What it is |
