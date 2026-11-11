@@ -502,8 +502,19 @@
         doc.text(wrap(doc, txt(l.number) || txt(data.bagName), w - 10)[0] || "", x + w / 2, y + 21, { align: "center" });
         setFont(doc, 10, "normal");
         doc.text(wrap(doc, txt(l.number) ? txt(data.bagName) : "", w - 10)[0] || "", x + w / 2, y + 26.5, { align: "center" });
-        var size = Math.min(w - 30, h - 46);
-        global.Shared.drawQr(doc, l.url, x + (w - size) / 2, y + 29, size);
+        // The QR keeps its full size (a whole kit list makes it dense); pen lines sit beside it.
+        var size = Math.min(w - 50, h - 46), fx = x + 6 + size + 4, fw = x + w - 5 - fx;
+        global.Shared.drawQr(doc, l.url, x + 6, y + 29, size);
+        ["Printed (date)", "Printed by", "First expiry"].forEach(function (label, k) {
+          var ly = y + 33 + k * (size - 4) / 3;
+          setFont(doc, 7.5, "bold");
+          colour(doc, MUTED);
+          doc.text(label.toUpperCase(), fx, ly);
+          doc.setDrawColor(INK[0], INK[1], INK[2]);
+          doc.setLineWidth(0.3);
+          doc.line(fx, ly + 8, fx + fw, ly + 8);
+        });
+        colour(doc, INK);
         setFont(doc, 8, "normal");
         colour(doc, MUTED);
         doc.text(wrap(doc, "Scan with your phone camera to check this bag.", w - 12), x + w / 2, y + 34 + size,
