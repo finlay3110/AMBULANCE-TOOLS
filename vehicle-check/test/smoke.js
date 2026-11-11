@@ -132,6 +132,7 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   // The test's photos are one picture, which the PDF stores once; then the signature.
   assert.ok(sheet.raw.split("/Subtype /Image").length - 1 >= 2, "photos and the signature are in the PDF");
   const [dlPdf] = await Promise.all([page.waitForEvent("download"), page.click("#generateBtn")]);
+  eq(await page.isVisible("#shareBtn"), false, "no Share button where the browser can't share files");
   eq(dlPdf.suggestedFilename(), "Vehicle-check-ab12-cde-2027-07-17.pdf");
 
   // Save, then a new check keeps the vehicle and checklist but clears the results.
@@ -169,7 +170,13 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(stickers.suggestedFilename(), "QR-stickers-ab12-cde.pdf");
   const link = await page.evaluate(() => window.VehicleCheckLink());
   assert.ok(/#v=[jz][A-Za-z0-9_-]+$/.test(link), "the vehicle travels after the #");
+  // A stand-in for the phone's share sheet: records the file shared.
+  const fakeShare = () => {
+    navigator.canShare = (d) => !!(d && d.files);
+    navigator.share = (d) => { window.__shared = { name: d.files[0].name, type: d.files[0].type, size: d.files[0].size }; return Promise.resolve(); };
+  };
   const phone = await (await browser.newContext()).newPage();
+  await phone.addInitScript(fakeShare);
   phone.on("pageerror", (e) => errors.push("phone: " + e.message));
   phone.on("dialog", (d) => d.accept());
   await phone.goto(link);
@@ -178,6 +185,7 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await phone.inputValue("#reg"), "ab12 cde");
   eq(await phone.inputValue("#callsign"), "Alpha 1");
   eq(new URL(phone.url()).hash, "", "the vehicle is taken out of the address");
+  eq(await phone.getAttribute("#shareBtn", "hidden"), null, "phones that can share get a Share button");
   await phone.click(".tab[data-tab=checks]");
   assert.ok(await phone.locator(".check-row-item", { hasText: "Spare wheel and jack" }).isVisible(), "with your checklist");
   await phone.locator(".check-row-item", { hasText: "Horn" }).getByRole("button", { name: "OK", exact: true }).click();

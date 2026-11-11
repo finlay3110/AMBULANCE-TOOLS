@@ -104,5 +104,21 @@
     return c;
   }
 
-  global.Shared = { link: link, readLink: readLink, drawQr: drawQr, signaturePad: signaturePad };
+  /* True where the phone can send a PDF to other apps (WhatsApp, email…); desktop browsers mostly can't. */
+  function canSharePdf() {
+    try {
+      return !!(navigator.canShare && navigator.canShare({ files: [new File(["%PDF"], "x.pdf", { type: "application/pdf" })] }));
+    } catch (e) { return false; }
+  }
+
+  /* Opens the phone's share sheet with the PDF; downloads it instead if sharing fails. */
+  function sharePdf(doc, name) {
+    var file = new File([doc.output("blob")], name, { type: "application/pdf" });
+    return navigator.share({ files: [file], title: name }).catch(function (e) {
+      if (!e || e.name !== "AbortError") doc.save(name);   // AbortError: they closed the share sheet
+    });
+  }
+
+  global.Shared = { link: link, readLink: readLink, drawQr: drawQr, signaturePad: signaturePad,
+    canSharePdf: canSharePdf, sharePdf: sharePdf };
 })(window);

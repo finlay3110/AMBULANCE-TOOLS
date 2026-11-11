@@ -200,8 +200,10 @@
     <div class="card">
       <h2>QR stickers for this bag</h2>
       <p class="hint">Stick one on the bag. Scanning it with a phone camera opens this tool with the bag&rsquo;s
-        pouches and kit list loaded, ready to check. One sheet of six per bag number. Make new stickers if
+        pouches and kit list loaded, ready to check. One sheet per bag number. Make new stickers if
         you change the pouches.</p>
+      <label class="check-row"><input type="checkbox" id="largeStickers"><span>Large stickers &mdash; four per
+        page with a bigger code, easier to scan</span></label>
       <div class="actions">
         <button type="button" class="btn ghost" id="stickerBtn">Download QR stickers (PDF)</button>
       </div>
@@ -252,6 +254,7 @@
       </div>
       <div class="actions">
         <button type="button" class="btn primary big" id="checkPdfBtn">Download check (PDF)</button>
+        <button type="button" class="btn ghost big" id="checkShareBtn" hidden>Share check</button>
         <button type="button" class="btn ghost" id="newCheckBtn">New check</button>
       </div>
     </div>

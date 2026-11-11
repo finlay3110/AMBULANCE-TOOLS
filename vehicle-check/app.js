@@ -570,6 +570,11 @@
     if (pdf) pdf.save("Vehicle-check-" + fileBase() + ".pdf");
   }
   $("generateBtn").addEventListener("click", download);
+  $("shareBtn").hidden = !window.Shared.canSharePdf();
+  $("shareBtn").addEventListener("click", function () {
+    var pdf = build();
+    if (pdf) window.Shared.sharePdf(pdf, "Vehicle-check-" + fileBase() + ".pdf");
+  });
   $("generateTop").addEventListener("click", download);
   $("previewBtn").addEventListener("click", function () {
     var pdf = build();

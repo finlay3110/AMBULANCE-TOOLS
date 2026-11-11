@@ -13,7 +13,8 @@ A daily ambulance vehicle check, printed as a signed A4 check sheet.
 - **Generate:** **Fit for service** yes or no, who defects were reported to, and
   the PDF: the vehicle, every check with its box ticked, the defects, and a
   sign-off with name, signature and date. Unchecked items print as empty
-  boxes, so a blank sheet works for checks done on paper.
+  boxes, so a blank sheet works for checks done on paper. On a phone, **Share
+  PDF** sends it straight to WhatsApp, email or another app.
 - **Photos:** the Vehicle tab has slots for the front, back, right side, left
   side, cab and patient compartment; a defect can carry up to three photos. On a
   phone the camera opens. Photos are shrunk to JPEGs before storing, and print

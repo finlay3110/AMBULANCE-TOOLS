@@ -3,7 +3,7 @@
    is used and saved, so a new version shows as soon as it is published. */
 "use strict";
 
-var CACHE = "ambulance-tools-v8";
+var CACHE = "ambulance-tools-v9";
 // Everything the tools load. test/site.js checks this list against the repository.
 var FILES = [
   "index.html", "home.js", "theme.js", "disclaimer.html", "manifest.webmanifest",

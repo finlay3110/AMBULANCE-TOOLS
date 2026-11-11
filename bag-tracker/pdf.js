@@ -479,13 +479,22 @@
     return doc;
   }
 
-  /* Six stickers per bag number, to cut out and keep on the bag. `links` is [{ number, url }]. */
-  function stickers(data, links) {
+  /* A sheet of stickers per bag number, to cut out and keep on the bag. `links` is [{ number, url }].
+     Large: four per page with a bigger code (the write-in boxes move under it). */
+  function stickers(data, links, large) {
     var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4" });
-    var w = contentW(doc) / 2, h = (pageH(doc) - PAGE.mt - PAGE.mb) / 3;
+    var rows = large ? 2 : 3, w = contentW(doc) / 2, h = (pageH(doc) - PAGE.mt - PAGE.mb) / rows;
+    function box(label, bx, by, bw) {
+      setFont(doc, 7.5, "bold");
+      colour(doc, MUTED);
+      doc.text(label.toUpperCase(), bx, by);
+      doc.setDrawColor(INK[0], INK[1], INK[2]);
+      doc.setLineWidth(0.3);
+      doc.rect(bx, by + 2, bw, 10, "S");
+    }
     links.forEach(function (l, page) {
       if (page) doc.addPage();
-      for (var i = 0; i < 6; i++) {
+      for (var i = 0; i < rows * 2; i++) {
         var x = PAGE.ml + (i % 2) * w, y = PAGE.mt + Math.floor(i / 2) * h;
         doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
         doc.setLineWidth(0.2);
@@ -502,23 +511,26 @@
         doc.text(wrap(doc, txt(l.number) || txt(data.bagName), w - 10)[0] || "", x + w / 2, y + 21, { align: "center" });
         setFont(doc, 10, "normal");
         doc.text(wrap(doc, txt(l.number) ? txt(data.bagName) : "", w - 10)[0] || "", x + w / 2, y + 26.5, { align: "center" });
-        // The QR keeps its full size (a whole kit list makes it dense); write-in boxes sit beside it.
-        var size = Math.min(w - 50, h - 46), fx = x + 6 + size + 4, fw = x + w - 5 - fx;
-        global.Shared.drawQr(doc, l.url, x + 6, y + 29, size);
-        ["Printed (date)", "Printed by"].forEach(function (label, k) {
-          var ly = y + 33 + k * (size - 4) / 2.2;
-          setFont(doc, 7.5, "bold");
-          colour(doc, MUTED);
-          doc.text(label.toUpperCase(), fx, ly);
-          doc.setDrawColor(INK[0], INK[1], INK[2]);
-          doc.setLineWidth(0.3);
-          doc.rect(fx, ly + 2, fw, 10, "S");
-        });
-        colour(doc, INK);
+        var size, below;
+        if (large) {
+          size = Math.min(w - 20, h - 62);
+          global.Shared.drawQr(doc, l.url, x + (w - size) / 2, y + 29, size);
+          var bw = (w - 16) / 2, by = y + 29 + size + 6;
+          box("Printed (date)", x + 6, by, bw);
+          box("Printed by", x + 10 + bw, by, bw);
+          below = by + 18;
+        } else {
+          // The QR keeps its full size (a whole kit list makes it dense); write-in boxes sit beside it.
+          size = Math.min(w - 50, h - 46);
+          var fx = x + 6 + size + 4;
+          global.Shared.drawQr(doc, l.url, x + 6, y + 29, size);
+          box("Printed (date)", fx, y + 33, x + w - 5 - fx);
+          box("Printed by", fx, y + 33 + (size - 4) / 2.2, x + w - 5 - fx);
+          below = y + 34 + size;
+        }
         setFont(doc, 8, "normal");
         colour(doc, MUTED);
-        doc.text(wrap(doc, "Scan with your phone camera to check this bag.", w - 12), x + w / 2, y + 34 + size,
-          { align: "center" });
+        doc.text(wrap(doc, "Scan with your phone camera to check this bag.", w - 12), x + w / 2, below, { align: "center" });
         if (txt(data.companyName)) doc.text(wrap(doc, data.companyName, w - 12)[0], x + w / 2, y + h - 4, { align: "center" });
         colour(doc, INK);
       }

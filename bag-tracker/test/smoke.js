@@ -170,11 +170,24 @@ const assert = require("assert");
   const [stickers] = await Promise.all([page.waitForEvent("download"), page.click("#stickerBtn")]);
   assert.match(stickers.suggestedFilename(), /^QR-stickers-/);
   const sheet = require("fs").readFileSync(await stickers.path(), "latin1");
+  eq(await page.isVisible("#checkShareBtn"), false, "no Share button where the browser can't share files");
+  await page.check("#largeStickers");
+  const [big] = await Promise.all([page.waitForEvent("download"), page.click("#stickerBtn")]);
+  const bigSheet = require("fs").readFileSync(await big.path(), "latin1");
+  assert.ok(bigSheet.includes("PRINTED BY"), "large stickers keep the write-in boxes");
+  assert.match(await page.textContent("#stickerResult"), /four stickers/);
+  await page.uncheck("#largeStickers");
   for (const s of ["PRINTED BY", "DATE"]) assert.ok(sheet.includes(s), "sticker missing " + s);
   assert.ok(!sheet.includes("EXPIRY"), "no expiry line on the sticker");
   const link = await page.evaluate(() => window.BagTrackerLink("RB-03"));
   assert.ok(/#v=[jz][A-Za-z0-9_-]+$/.test(link), "the bag travels after the #");
+  // A stand-in for the phone's share sheet: records the file shared.
+  const fakeShare = () => {
+    navigator.canShare = (d) => !!(d && d.files);
+    navigator.share = (d) => { window.__shared = { name: d.files[0].name, type: d.files[0].type, size: d.files[0].size }; return Promise.resolve(); };
+  };
   const phone = await (await browser.newContext()).newPage();
+  await phone.addInitScript(fakeShare);
   phone.on("pageerror", (e) => errors.push("phone: " + e.message));
   phone.on("dialog", (d) => d.accept());
   await phone.goto(link);
@@ -224,6 +237,11 @@ const assert = require("assert");
   assert.ok(checked.includes("/Subtype /Image"), "the signature is on the check");
   const [checkPdf] = await Promise.all([phone.waitForEvent("download"), phone.click("#checkPdfBtn")]);
   assert.match(checkPdf.suggestedFilename(), /^Bag-check-RB-03-\d{4}-\d{2}-\d{2}\.pdf$/);
+  await phone.click("#checkShareBtn");
+  const shared = await phone.waitForFunction(() => window.__shared).then((h) => h.jsonValue());
+  assert.match(shared.name, /^Bag-check-RB-03-\d{4}-\d{2}-\d{2}\.pdf$/);
+  eq(shared.type, "application/pdf");
+  assert.ok(shared.size > 5000, "the shared file is the check PDF");
   // Scanning again the same day carries on with that check.
   await phone.goto(link);
   await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Carrying on"));
