@@ -53,8 +53,8 @@
   function cleanCheck(c) {
     if (!c || typeof c !== "object") return null;
     var s = function (v) { return typeof v === "string" ? v : ""; };
-    var out = { date: s(c.date), time: s(c.time), by: s(c.by), grade: s(c.grade), bagSealFound: s(c.bagSealFound),
-      bagNewSeal: s(c.bagNewSeal), results: {}, seals: {}, sig: null, signedAt: s(c.signedAt) };
+    var out = { date: s(c.date), time: s(c.time), bagSealFound: s(c.bagSealFound), bagNewSeal: s(c.bagNewSeal),
+      results: {}, seals: {}, crew: [] };
     Object.keys(c.results && typeof c.results === "object" ? c.results : {}).forEach(function (k) {
       var r = c.results[k] || {};
       out.results[k] = { found: /^\d{1,4}$/.test(r.found) ? r.found : "", note: s(r.note) };
@@ -63,9 +63,16 @@
       var x = c.seals[k] || {};
       out.seals[k] = { found: s(x.found), intact: x.intact === "yes" || x.intact === "no" ? x.intact : "", newSeal: s(x.newSeal) };
     });
-    if (c.sig && typeof c.sig.src === "string" && c.sig.src.indexOf("data:image/png;base64,") === 0 && +c.sig.w > 0 && +c.sig.h > 0) {
-      out.sig = { src: c.sig.src, w: +c.sig.w, h: +c.sig.h };
+    function sig(g) {
+      return g && typeof g.src === "string" && g.src.indexOf("data:image/png;base64,") === 0 && +g.w > 0 && +g.h > 0
+        ? { src: g.src, w: +g.w, h: +g.h } : null;
     }
+    // A check saved with one signer (before checks took a crew) becomes the first person.
+    var crew = Array.isArray(c.crew) ? c.crew : (c.by || c.sig ? [{ name: c.by, grade: c.grade, sig: c.sig, signedAt: c.signedAt }] : []);
+    out.crew = crew.filter(function (m) { return m && typeof m === "object"; }).map(function (m) {
+      return { name: s(m.name), grade: s(m.grade), sig: sig(m.sig), signedAt: /^([01]\d|2[0-3]):[0-5]\d$/.test(m.signedAt) ? m.signedAt : "" };
+    });
+    if (!out.crew.length) out.crew.push({ name: "", grade: "", sig: null, signedAt: "" });
     return out;
   }
 
@@ -499,8 +506,8 @@
   function todayIso() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
   function nowTime() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function newCheck() {
-    return { date: todayIso(), time: nowTime(), by: "", grade: "", bagSealFound: "", bagNewSeal: "",
-      results: {}, seals: {}, sig: null, signedAt: "" };
+    return { date: todayIso(), time: nowTime(), bagSealFound: "", bagNewSeal: "", results: {}, seals: {},
+      crew: [{ name: "", grade: "", sig: null, signedAt: "" }] };
   }
   function result(p, it) {
     var key = window.BagPDF.resultKey(p, it);
@@ -523,7 +530,7 @@
   function renderCheck() {
     if (!bag.check) bag.check = newCheck();
     var c = bag.check;
-    [["checkBy", "by"], ["checkGrade", "grade"], ["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
+    [["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
       .forEach(function (f) { $(f[0]).value = c[f[1]]; });
     var list = $("checkList");
     list.innerHTML = "";
@@ -612,33 +619,66 @@
     save();
   }
 
-  [["checkBy", "by"], ["checkGrade", "grade"], ["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
+  [["bagSealFound", "bagSealFound"], ["bagNewSeal", "bagNewSeal"]]
     .forEach(function (f) { $(f[0]).addEventListener("input", function () { bag.check[f[1]] = this.value; save(); }); });
 
+  /* Everyone who checked the bag (say both of a crew): name, clinical grade, signature and when they signed. */
   function renderSig() {
-    var area = $("checkSig"), c = bag.check;
-    area.innerHTML = "";
-    if (c.sig) {
-      var img = el("img", "sig-pad");
-      img.src = c.sig.src;
-      img.alt = "Signature";
-      area.appendChild(img);
-      area.appendChild(el("span", "sig-done", "Signed at " + c.signedAt));
-      var again = el("button", "btn ghost small", "Sign again");
-      again.type = "button";
-      again.addEventListener("click", function () { c.sig = null; c.signedAt = ""; save(); renderSig(); });
-      area.appendChild(again);
-      return;
-    }
-    var when = el("span", "sig-done");
-    area.appendChild(window.Shared.signaturePad(function (sig) {
-      c.sig = sig;
-      if (!c.signedAt) c.signedAt = nowTime();
-      save();
-      when.textContent = "Signed at " + c.signedAt;
-    }));
-    area.appendChild(when);
+    var box = $("checkCrew");
+    box.innerHTML = "";
+    bag.check.crew.forEach(function (m, mi) {
+      var row = el("div", "checker");
+      [["name", "Name", ""], ["grade", "Clinical grade", "grades"]].forEach(function (f) {
+        var label = el("label", "field");
+        label.appendChild(el("span", "", f[1]));
+        var input = el("input");
+        input.type = "text";
+        input.value = m[f[0]];
+        if (f[2]) input.setAttribute("list", f[2]);
+        input.addEventListener("input", function () { m[f[0]] = input.value; save(); });
+        label.appendChild(input);
+        row.appendChild(label);
+      });
+      var area = el("div", "sig-area");
+      if (m.sig) {
+        var img = el("img", "sig-pad");
+        img.src = m.sig.src;
+        img.alt = "Signature of " + (m.name || "checker");
+        area.appendChild(img);
+        area.appendChild(el("span", "sig-done", "Signed at " + m.signedAt));
+        var again = el("button", "btn ghost small", "Sign again");
+        again.type = "button";
+        again.addEventListener("click", function () { m.sig = null; m.signedAt = ""; save(); renderSig(); });
+        area.appendChild(again);
+      } else {
+        var when = el("span", "sig-done");
+        area.appendChild(window.Shared.signaturePad(function (sig) {
+          m.sig = sig;
+          if (!m.signedAt) m.signedAt = nowTime();
+          save();
+          when.textContent = "Signed at " + m.signedAt;
+        }));
+        area.appendChild(when);
+      }
+      if (bag.check.crew.length > 1) {
+        var remove = el("button", "btn ghost small", "Remove");
+        remove.type = "button";
+        remove.setAttribute("aria-label", "Remove " + (m.name || "person " + (mi + 1)));
+        remove.addEventListener("click", function () { bag.check.crew.splice(mi, 1); save(); renderSig(); });
+        area.appendChild(remove);
+      }
+      row.appendChild(area);
+      box.appendChild(row);
+    });
   }
+
+  $("addChecker").addEventListener("click", function () {
+    bag.check.crew.push({ name: "", grade: "", sig: null, signedAt: "" });
+    save();
+    renderSig();
+    var rows = $("checkCrew").querySelectorAll(".checker");
+    rows[rows.length - 1].querySelector("input").focus();
+  });
 
   $("allThere").addEventListener("click", function () {
     bag.pouches.forEach(function (p) {

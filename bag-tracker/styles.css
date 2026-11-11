@@ -389,3 +389,8 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--
   .tabs { padding: 0 8px; overflow-x: auto; }
   .tab { padding: 12px 10px; white-space: nowrap; }
 }
+
+.checker { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; padding: 12px 0;
+  border-top: 1px solid var(--line); }
+.checker:first-child { border-top: 0; }
+.checker .sig-area { grid-column: 1 / -1; }

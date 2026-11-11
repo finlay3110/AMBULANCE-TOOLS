@@ -54,10 +54,12 @@ Make new stickers after changing the pouches.
 
 On **Check bag**, type the number found for each item, or tap the tick when all
 are there; anything under its minimum shows as short. Sealed pouches record the
-seal found, intact or broken, and any new seal. Add notes, who checked (name and
-clinical grade), and a signature on screen. **Download check (PDF)** gives the
-kit checklist filled in with the counts, OK or SHORT, seals, notes and the
-signature. **New check** clears the counts and keeps the bag.
+seal found, intact or broken, and any new seal. Add notes, then everyone who
+checked the bag adds their name and clinical grade and signs on screen; the time
+each signs is recorded. **+ Add person** adds a crewmate, so both of a crew can
+sign the check at the start of a shift. **Download check (PDF)** gives the kit
+checklist filled in with the counts, OK or SHORT, seals, notes and a Checked by
+table with each person's signature. **New check** clears the counts and keeps the bag.
 
 ## User guide
 

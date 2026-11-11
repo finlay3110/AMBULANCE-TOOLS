@@ -234,8 +234,6 @@
         Anything under its minimum shows as short. Then sign below and download the completed checklist.</p>
       <p class="check-summary" id="checkSummary"></p>
       <div class="grid">
-        <label class="field"><span>Checked by</span><input type="text" id="checkBy" placeholder="Your name"></label>
-        <label class="field"><span>Clinical grade</span><input type="text" id="checkGrade" list="grades" placeholder="e.g. Paramedic"></label>
         <label class="field"><span>Bag seal found</span><input type="text" id="bagSealFound" placeholder="Seal number on the bag"></label>
         <label class="field"><span>New bag seal</span><input type="text" id="bagNewSeal" placeholder="If resealed"></label>
       </div>
@@ -245,9 +243,13 @@
     </div>
     <div id="checkList"></div>
     <div class="card">
-      <h2>Sign and download</h2>
-      <p class="hint">Sign with a finger or the mouse; the time is recorded.</p>
-      <div class="sig-area" id="checkSig"></div>
+      <h2>Checked by</h2>
+      <p class="hint">Everyone who checked the bag &mdash; say both of a crew at the start of a shift &mdash; adds
+        their name and clinical grade and signs with a finger or the mouse. The time is recorded.</p>
+      <div id="checkCrew"></div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="addChecker">+ Add person</button>
+      </div>
       <div class="actions">
         <button type="button" class="btn primary big" id="checkPdfBtn">Download check (PDF)</button>
         <button type="button" class="btn ghost" id="newCheckBtn">New check</button>
