@@ -629,6 +629,22 @@ async function testApp(page) {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 
+  // Nothing filled in: no saved file either, and the empty starred fields turn red.
+  await page.click('[data-tab="generate"]');
+  let downloads = 0;
+  const counting = () => downloads++;
+  page.on("download", counting);
+  await page.click("#exportBtn");
+  await page.waitForTimeout(300);
+  page.off("download", counting);
+  check("an unfinished bag is not saved to a file", downloads === 0);
+  check("and says which starred fields are missing",
+    (await page.textContent("#exportResult")).includes("company name, contact number, drug bag number, prepped by"),
+    await page.textContent("#exportResult"));
+  check("which turn red", await page.getAttribute("#companyName", "aria-invalid") === "true" &&
+    await page.getAttribute("#preppedBy", "aria-invalid") === "true");
+  await page.click('[data-tab="setup"]');
+
   const addMed = async (m) => {
     await page.fill("#mName", m.name);
     await page.fill("#mPresentation", m.presentation);
@@ -643,6 +659,8 @@ async function testApp(page) {
   await page.fill("#companyPhone", "01234 567890");
   await page.fill("#bagNumber", "1");
   await page.fill("#preppedBy", "F. Smith");
+  check("the red goes once they are filled in", await page.getAttribute("#companyName", "aria-invalid") === null &&
+    await page.getAttribute("#preppedBy", "aria-invalid") === null);
 
   check("CD is not offered as a bag schedule",
     (await page.locator("#mSchedule option[value=CD]").count()) === 0);

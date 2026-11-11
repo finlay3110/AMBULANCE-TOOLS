@@ -30,9 +30,21 @@ const assert = require("assert");
   // Generating with nothing filled in is refused with reasons.
   await page.click("#generateTop");
   assert.match(await page.textContent("#genError"), /company name.*bag name.*at least one item/);
+  // So is saving it to a file, and the empty starred fields turn red.
+  let downloads = 0;
+  const counting = () => downloads++;
+  page.on("download", counting);
+  await page.click("#exportBtn");
+  await page.waitForTimeout(300);
+  eq(downloads, 0, "an unfinished bag is not saved to a file");
+  page.off("download", counting);
+  assert.match(await page.textContent("#importResult"), /starred fields.*company name.*bag name/);
+  eq(await page.getAttribute("#companyName", "aria-invalid"), "true");
+  eq(await page.getAttribute("#bagName", "aria-invalid"), "true");
 
   await page.click(".tab[data-tab=setup]");
   await page.fill("#companyName", "Test Medical Ltd");
+  eq(await page.getAttribute("#companyName", "aria-invalid"), null, "the red goes once it is filled in");
   // CQC: a ticked box needs a number before anything generates.
   assert.ok(await page.locator("#f-cqcNumber").isHidden());
   await page.check("#cqcRegistered");

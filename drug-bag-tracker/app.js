@@ -1585,16 +1585,26 @@
   }
 
   /* ---------------- generate ---------------- */
-  function collect() {
+  /* The starred setup fields, needed before the document is printed or saved
+     to a file. Any left empty turn red until they are filled in. */
+  function missingRequired() {
     readSetup();
-    var missing = [];
-    if (!doc().setup.companyName) missing.push("company name");
-    if (!doc().setup.companyPhone) missing.push("contact number");
-    if (doc().setup.cqcRegistered && !doc().setup.cqcNumber) {
-      missing.push("CQC registration number");
-    }
-    if (!doc().setup.bagNumber) missing.push(words().identity[0].toLowerCase());
-    if (!doc().setup.preppedBy) missing.push(words().preppedBy[0].toLowerCase());
+    var s = doc().setup, missing = [];
+    [["companyName", "company name"], ["companyPhone", "contact number"],
+     ["cqcNumber", "CQC registration number", !s.cqcRegistered],
+     ["bagNumber", words().identity[0].toLowerCase()], ["preppedBy", words().preppedBy[0].toLowerCase()]
+    ].forEach(function (f) {
+      var empty = !f[2] && !s[f[0]];
+      if (empty) missing.push(f[1]);
+      if (!$(f[0])) return;
+      if (empty) $(f[0]).setAttribute("aria-invalid", "true");
+      else $(f[0]).removeAttribute("aria-invalid");
+    });
+    return missing;
+  }
+
+  function collect() {
+    var missing = missingRequired();
     if (missing.length) {
       return { error: "Complete the setup tab first — missing: " + missing.join(", ") + "." };
     }
@@ -1650,7 +1660,16 @@
   }
 
   function exportBag() {
-    readSetup();
+    var missing = missingRequired();
+    var box = $("exportResult");
+    if (missing.length) {
+      box.className = "notice bad";
+      box.textContent = "Fill in the starred fields on the setup tab before saving to a file. Missing: " +
+        missing.join(", ") + ". Your work so far is still kept in this browser.";
+      box.hidden = false;
+      return;
+    }
+    box.hidden = true;
     var blob = new Blob([JSON.stringify({
       mode: state.mode, setup: doc().setup, medications: doc().medications,
       grades: isMatrixMode() ? grades() : undefined,
@@ -1963,6 +1982,13 @@
     // Says the stored document has been restored into the form. Navigating
     // between the two generators is a page load, so a test — or anything
     // watching — can wait for this rather than for a value to appear.
+    // A starred field marked red goes back to normal once something is typed in it.
+    document.addEventListener("input", function (e) {
+      var t = e.target;
+      if (t.getAttribute && t.getAttribute("aria-invalid") === "true" && String(t.value).trim()) {
+        t.removeAttribute("aria-invalid");
+      }
+    });
     document.body.dataset.ready = "1";
   }
 

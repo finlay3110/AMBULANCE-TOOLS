@@ -31,9 +31,11 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   const opened = (name) => page.waitForFunction(
     (n) => document.getElementById("openResult").textContent.includes(n), name);
 
-  // Nothing to print yet.
+  // Nothing to print yet, or to save.
   await page.click("#generateTop");
   assert.match(await page.textContent("#genError"), /at least one unit/);
+  await page.click("#exportBtn");
+  assert.match(await page.textContent("#saveResult"), /nothing to save/);
 
   // The company comes from the saved profile without being asked.
   await page.click(".tab[data-tab=setup]");
