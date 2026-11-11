@@ -64,8 +64,10 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   assert.ok(await alpha.getByLabel("Vehicle registration").isVisible(), "an ambulance asks for its registration");
   await alpha.getByLabel("Vehicle registration").fill("ab12 cde");
   await alpha.getByLabel("Location").fill("Main stage");
-  await alpha.getByLabel("Kit bag").fill("KB-01");
-  await alpha.getByLabel("Drug bag").fill("DB-02");
+  assert.ok(await alpha.getByLabel("Kit bag", { exact: true }).isChecked(), "a new unit has a kit bag");
+  assert.ok(await alpha.getByLabel("Drug bag", { exact: true }).isChecked(), "and a drug bag");
+  await alpha.getByLabel("Kit bag number").fill("KB-01");
+  await alpha.getByLabel("Drug bag number").fill("DB-02");
   await people(alpha).nth(0).getByLabel("Name").fill("Sam Patel");
   await people(alpha).nth(0).getByLabel("Clinical grade").fill("Paramedic");
   await people(alpha).nth(0).getByLabel("Radio").fill("R4");
@@ -83,6 +85,10 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   const foot = page.locator(".unit").nth(1);
   await foot.getByLabel("Roaming").check();
   assert.ok(await foot.getByLabel("Location").isHidden(), "roaming needs no location");
+  // A foot team carries a kit bag (number given out on the day) but no drug bag.
+  await foot.getByLabel("Drug bag", { exact: true }).uncheck();
+  assert.ok(await foot.getByLabel("Drug bag number").isHidden(), "no drug bag, no number to fill in");
+  assert.ok(await foot.getByLabel("Kit bag number").isVisible());
   await people(foot).nth(0).getByLabel("Name").fill("Ali Khan");
   await people(foot).nth(0).getByLabel("Clinical grade").fill("FREC 4");
   await foot.getByRole("button", { name: "+ Add person" }).click();
@@ -91,17 +97,23 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
 
   // Blanks are allowed, and the generate tab says what will print empty.
   await page.click(".tab[data-tab=generate]");
-  eq(await page.textContent("#blankNote"), "Left blank to fill in by hand on the printed sheet: 1 name.");
+  eq(await page.textContent("#blankNote"),
+    "Left blank to fill in by hand on the printed sheet: 1 name, 1 kit bag number.");
 
   const sheet = await pdf();
   eq(sheet.pages, 1);
   for (const s of ["DEPLOYMENT LOG", "Northern Event Medical Ltd", "CQC 1-234567890", "18/07/2026",
     "Summer Music Festival", "Riverside Park", "J. Smith", "2 / 4", "01234 567890", "ALPHA 1",
-    "AMBULANCE  REG AB12 CDE", "LOCATION: Main stage", "KIT BAG: KB-01", "DRUG BAG: DB-02", "FOOT 1", "ROAMING",
+    "AMBULANCE", "VEHICLE REG", "AB12 CDE", "LOCATION", "Main stage", "KB-01", "DB-02", "FOOT 1", "ROAMING",
     "Sam Patel", "Paramedic", "R4", "Yes", "Jo Bloggs", "Ali Khan", "FREC 4", "First responder",
     "Signed in", "Break started", "Stood down", "Signature"]) {
     assert.ok(sheet.raw.includes(s), "PDF missing " + s);
   }
+  // A box per bag a unit has: kit bags on both units, a drug bag only on the ambulance.
+  const count = (raw, label) => raw.split("(" + label + ")").length - 1;
+  eq(count(sheet.raw, "KIT BAG"), 2);
+  eq(count(sheet.raw, "DRUG BAG"), 1);
+  assert.ok(!sheet.raw.includes("______"), "blanks are boxes to write in, not lines in a dark bar");
   const [dlPdf] = await Promise.all([page.waitForEvent("download"), page.click("#generateBtn")]);
   eq(dlPdf.suggestedFilename(), "Deployment-Summer-Music-Festival-Riverside-Park-2026-07-18.pdf");
 
@@ -122,8 +134,11 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(a1.ambulance, true);
   eq(a1.reg, "");
   eq(a1.location, "Main stage");
+  eq(a1.hasKitBag, true);
   eq(a1.kitBag, "");
+  eq(a1.hasDrugBag, true);
   eq(a1.drugBag, "");
+  eq(plan.json.units[1].hasDrugBag, false, "a plan remembers which units have no drug bag");
   assert.deepStrictEqual(a1.staff, [
     { name: "", grade: "Paramedic", radio: "", manager: true },
     { name: "", grade: "EMT", radio: "", manager: false }]);
@@ -142,10 +157,12 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await people(alpha).nth(0).getByLabel("Clinical grade").inputValue(), "Paramedic");
   await page.click(".tab[data-tab=generate]");
   eq(await page.textContent("#blankNote"),
-    "Left blank to fill in by hand on the printed sheet: 4 names, 1 vehicle registration.");
+    "Left blank to fill in by hand on the printed sheet: 4 names, 1 vehicle registration, 2 kit bag numbers, " +
+    "1 drug bag number.");
   const blankSheet = await pdf();
-  assert.ok(blankSheet.raw.includes("REG ______________"), "a blank registration gets a line to write on");
-  assert.ok(blankSheet.raw.includes("KIT BAG: ______________"));
+  eq(count(blankSheet.raw, "VEHICLE REG"), 1, "a blank registration still gets its box");
+  eq(count(blankSheet.raw, "KIT BAG"), 2);
+  assert.ok(!blankSheet.raw.includes("KB-01"), "a plan prints no bag numbers");
   assert.ok(!blankSheet.raw.includes("Sam Patel"), "a plan prints no names");
 
   // The full deployment opens back in over the plan (opening is on the first tab).
@@ -153,6 +170,18 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   await page.setInputFiles("#openFile", full.file);
   await opened(full.name);
   eq(await people(alpha).nth(0).getByLabel("Name").inputValue(), "Sam Patel");
+  assert.ok(!(await foot.getByLabel("Drug bag", { exact: true }).isChecked()));
+
+  // A file saved before the bag ticks existed opens with both bags ticked, as it printed then.
+  const older = JSON.parse(JSON.stringify(full.json));
+  older.units.forEach((u) => { delete u.hasKitBag; delete u.hasDrugBag; });
+  const olderFile = path.join(os.tmpdir(), "smoke-older-deployment.json");
+  fs.writeFileSync(olderFile, JSON.stringify(older));
+  await page.setInputFiles("#openFile", olderFile);
+  await opened("smoke-older-deployment.json");
+  assert.ok(await foot.getByLabel("Drug bag", { exact: true }).isChecked());
+  await page.setInputFiles("#openFile", full.file);
+  await opened(full.name);
 
   // A file from elsewhere changes nothing.
   await page.setInputFiles("#openFile", { name: "junk.json", mimeType: "application/json",

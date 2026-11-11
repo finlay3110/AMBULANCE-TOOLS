@@ -17,7 +17,7 @@
   function newPerson() { return { name: "", grade: "", radio: "", manager: false }; }
   function newUnit(callsign) {
     return { callsign: callsign, ambulance: false, reg: "", roaming: false, location: "",
-      kitBag: "", drugBag: "", staff: [newPerson()] };
+      hasKitBag: true, kitBag: "", hasDrugBag: true, drugBag: "", staff: [newPerson()] };
   }
   var dep = blank();
 
@@ -43,7 +43,9 @@
     return {
       callsign: str(raw.callsign), ambulance: raw.ambulance === true, reg: str(raw.reg),
       roaming: raw.roaming === true, location: str(raw.location),
-      kitBag: str(raw.kitBag), drugBag: str(raw.drugBag),
+      // Files saved before the bag ticks existed had a box for both bags.
+      hasKitBag: raw.hasKitBag !== false, kitBag: str(raw.kitBag),
+      hasDrugBag: raw.hasDrugBag !== false, drugBag: str(raw.drugBag),
       staff: (Array.isArray(raw.staff) ? raw.staff : []).filter(isObj).map(cleanPerson)
     };
   }
@@ -109,13 +111,6 @@
     row.appendChild(box);
     row.appendChild(el("span", "", label));
     return row;
-  }
-
-  function labelled(text, input) {
-    var f = el("label", "field");
-    f.appendChild(el("span", "", text));
-    f.appendChild(input);
-    return f;
   }
 
   function slug(s) {
@@ -245,10 +240,19 @@
     }));
     amb.appendChild(reg);
     opts.appendChild(amb);
-    var bags = el("div", "bags");
-    bags.appendChild(labelled("Kit bag", bound(u, "kitBag", { type: "text", placeholder: "e.g. KB-03" })));
-    bags.appendChild(labelled("Drug bag", bound(u, "drugBag", { type: "text", placeholder: "e.g. DB-01" })));
-    opts.appendChild(bags);
+    // Not every unit has bags (event control, say). Ticked with no number, the sheet has a box to write it in.
+    [["Kit bag", "hasKitBag", "kitBag", "KB-03"], ["Drug bag", "hasDrugBag", "drugBag", "DB-01"]].forEach(function (b) {
+      var num = bound(u, b[2], { type: "text", placeholder: b[0] + " number, e.g. " + b[3] +
+        ", or leave blank to write in on the day", "aria-label": b[0] + " number" });
+      num.hidden = !u[b[1]];
+      var row = el("div", "opt-row");
+      row.appendChild(tick(b[0], u, b[1], function () {
+        num.hidden = !u[b[1]];
+        if (u[b[1]]) num.focus();
+      }));
+      row.appendChild(num);
+      opts.appendChild(row);
+    });
     card.appendChild(opts);
 
     if (u.staff.length) {
@@ -339,15 +343,19 @@
 
   /* Blanks are allowed: they print as space to write in. This says how many. */
   function showBlanks() {
-    var names = 0, regs = 0, places = 0, parts = [];
+    var names = 0, regs = 0, places = 0, kits = 0, drugs = 0, parts = [];
     dep.units.forEach(function (u) {
       names += u.staff.filter(function (p) { return !p.name.trim(); }).length;
       if (u.ambulance && !u.reg.trim()) regs++;
       if (!u.roaming && !u.location.trim()) places++;
+      if (u.hasKitBag && !u.kitBag.trim()) kits++;
+      if (u.hasDrugBag && !u.drugBag.trim()) drugs++;
     });
     if (names) parts.push(names + (names === 1 ? " name" : " names"));
     if (regs) parts.push(regs + (regs === 1 ? " vehicle registration" : " vehicle registrations"));
     if (places) parts.push(places + (places === 1 ? " location" : " locations"));
+    if (kits) parts.push(kits + (kits === 1 ? " kit bag number" : " kit bag numbers"));
+    if (drugs) parts.push(drugs + (drugs === 1 ? " drug bag number" : " drug bag numbers"));
     $("blankNote").hidden = !parts.length;
     $("blankNote").textContent = "Left blank to fill in by hand on the printed sheet: " + parts.join(", ") + ".";
   }
@@ -401,7 +409,7 @@
       units: dep.units.map(function (u) {
         return {
           callsign: u.callsign, ambulance: u.ambulance, reg: "", roaming: u.roaming, location: u.location,
-          kitBag: "", drugBag: "",
+          hasKitBag: u.hasKitBag, kitBag: "", hasDrugBag: u.hasDrugBag, drugBag: "",
           staff: u.staff.map(function (p) { return { name: "", grade: p.grade, radio: "", manager: p.manager }; })
         };
       })

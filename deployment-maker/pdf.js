@@ -11,8 +11,8 @@
   var BAR_BG = [18, 33, 47];
   var SOFT_BG = [242, 244, 246];
   var MUTED = [95, 105, 118];
-  var BLANK = "______________";
-  var ROW_H = 9;   // tall enough to write a time or sign in
+  var ROW_H = 9;     // tall enough to write a time or sign in
+  var UNIT_H = 13;   // a unit's header: a blank box leaves about 9 mm to write in
 
   // Widths total 273 mm, the content width of landscape A4.
   var COLS = [["Name", 52], ["Clinical grade", 36], ["Manager", 18], ["Radio", 20],
@@ -138,14 +138,54 @@
     return y + 3 + linesHeight(lines, 8.5) + 2;
   }
 
-  /* The dark bar over each unit: callsign, vehicle, where, and its bags. Blanks get a line to write on. */
-  function unitLabel(u, continued) {
-    var parts = [txt(u.callsign).toUpperCase() + (continued ? " (continued)" : "")];
-    if (u.ambulance) parts.push("AMBULANCE  REG " + (txt(u.reg).toUpperCase() || BLANK));
-    parts.push(u.roaming ? "ROAMING" : "LOCATION: " + (txt(u.location) || BLANK));
-    parts.push("KIT BAG: " + (txt(u.kitBag) || BLANK));
-    parts.push("DRUG BAG: " + (txt(u.drugBag) || BLANK));
-    return parts.join("     ·     ");
+  /*
+   * The row over each unit: its callsign in a dark cell, then a white labelled
+   * box for each detail it has. A detail left blank is an empty box, big enough
+   * to write in with a pen on the day.
+   */
+  function unitHead(doc, y, u, continued, measure) {
+    var full = contentW(doc), first = COLS[0][1], details = [];
+    if (u.ambulance) details.push(["Vehicle reg", txt(u.reg).toUpperCase()]);
+    if (!u.roaming) details.push(["Location", txt(u.location)]);
+    if (u.hasKitBag) details.push(["Kit bag", txt(u.kitBag)]);
+    if (u.hasDrugBag) details.push(["Drug bag", txt(u.drugBag)]);
+    var callW = details.length ? first : full, cellW = (full - first) / (details.length || 1);
+    var tags = [u.ambulance ? "AMBULANCE" : "", u.roaming ? "ROAMING" : ""].filter(Boolean).join("  \u00b7  ");
+
+    setFont(doc, 10, "bold");
+    var name = wrap(doc, txt(u.callsign).toUpperCase() + (continued ? " (continued)" : ""), callW - 5).slice(0, 2);
+    setFont(doc, 9, "bold");
+    var values = details.map(function (d) { return wrap(doc, d[1], cellW - 4).slice(0, 2); });
+    var h = Math.max(UNIT_H, name.length * 4.2 + (tags ? 7 : 4));
+    values.forEach(function (v) { h = Math.max(h, 8 + v.length * 3.8); });
+    if (measure) return h;
+
+    doc.setFillColor(BAR_BG[0], BAR_BG[1], BAR_BG[2]);
+    doc.rect(PAGE.ml, y, callW, h, "F");
+    doc.setTextColor(255, 255, 255);
+    setFont(doc, 10, "bold");
+    doc.text(name, PAGE.ml + 2.5, y + 5.5);
+    if (tags) {
+      setFont(doc, 7, "bold");
+      doc.text(tags, PAGE.ml + 2.5, y + h - 2.6);
+    }
+    details.forEach(function (d, i) {
+      var x = PAGE.ml + first + cellW * i;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+      doc.setLineWidth(0.3);
+      doc.rect(x, y, cellW, h, "FD");
+      setFont(doc, 6.5, "normal");
+      colour(doc, MUTED);
+      doc.text(d[0].toUpperCase(), x + 2, y + 3.3);
+      if (values[i].length) {
+        setFont(doc, 9, "bold");
+        colour(doc, INK);
+        doc.text(values[i], x + 2, y + 7.6);
+      }
+    });
+    colour(doc, INK);
+    return h;
   }
 
   function personCells(p) {
@@ -179,17 +219,12 @@
   function build(data) {
     var doc = new global.jspdf.jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
     var widths = COLS.map(function (c) { return c[1]; });
-    var full = [contentW(doc)];
     var bottom = pageH(doc) - PAGE.mb;
     var staff = data.units.reduce(function (n, u) { return n + u.staff.length; }, 0);
 
     function head(y) {
       return y + drawRow(doc, y, widths, COLS.map(function (c) { return { text: c[0] }; }),
         { bold: true, fill: HEAD_BG, size: 8.5 });
-    }
-    function bar(y, u, continued) {
-      return y + drawRow(doc, y, full, [{ text: unitLabel(u, continued) }],
-        { bold: true, fill: BAR_BG, colour: [255, 255, 255], minH: 8 });
     }
     function newPage() {
       doc.addPage("a4", "landscape");
@@ -214,14 +249,17 @@
     data.units.forEach(function (u) {
       // A unit with nobody on it yet still gets rows to write names in.
       var rows = u.staff.length ? u.staff : [{}, {}];
-      var barH = drawRow(doc, 0, full, [{ text: unitLabel(u) }], { bold: true, measure: true, minH: 8 });
+      var headH = unitHead(doc, 0, u, false, true);
       var firstH = drawRow(doc, 0, widths, personCells(rows[0]), { measure: true, minH: ROW_H });
-      if (y + barH + firstH > bottom) y = newPage();   // never a unit bar alone at the foot of a page
-      y = bar(y, u);
+      if (y + headH + firstH > bottom) y = newPage();   // never a unit header alone at the foot of a page
+      y += unitHead(doc, y, u, false);
       rows.forEach(function (p) {
         var c = personCells(p);
         var h = drawRow(doc, 0, widths, c, { measure: true, minH: ROW_H });
-        if (y + h > bottom) y = bar(newPage(), u, true);
+        if (y + h > bottom) {
+          y = newPage();
+          y += unitHead(doc, y, u, true);
+        }
         y += drawRow(doc, y, widths, c, { minH: ROW_H });
       });
     });
