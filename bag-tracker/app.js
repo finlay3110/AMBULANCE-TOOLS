@@ -688,9 +688,14 @@
     renderCheck();
   });
 
+  function checkFile() { return "Bag-check-" + fileName().replace(/^bag-/, "") + "-" + bag.check.date + ".pdf"; }
   $("checkPdfBtn").addEventListener("click", function () {
     if (!bag.pouches.length) return;
-    window.BagPDF.buildCheck(bag).save("Bag-check-" + fileName().replace(/^bag-/, "") + "-" + bag.check.date + ".pdf");
+    window.BagPDF.buildCheck(bag).save(checkFile());
+  });
+  $("checkShareBtn").hidden = !window.Shared.canSharePdf();
+  $("checkShareBtn").addEventListener("click", function () {
+    if (bag.pouches.length) window.Shared.sharePdf(window.BagPDF.buildCheck(bag), checkFile());
   });
 
   $("newCheckBtn").addEventListener("click", function () {
@@ -727,11 +732,12 @@
     }
     var numbers = bagNumbers();
     Promise.all(numbers.map(bagLink)).then(function (urls) {
-      window.BagPDF.stickers(bag, numbers.map(function (n, i) { return { number: n, url: urls[i] }; }))
+      var large = $("largeStickers").checked;
+      window.BagPDF.stickers(bag, numbers.map(function (n, i) { return { number: n, url: urls[i] }; }), large)
         .save("QR-stickers-" + fileName().replace(/^bag-/, "") + ".pdf");
       $("stickerResult").className = "notice good";
-      $("stickerResult").textContent = "Downloaded " + (numbers.length === 1 ? "six stickers" :
-        numbers.length + " sheets of six stickers, one per bag number") + ".";
+      $("stickerResult").textContent = "Downloaded " + (numbers.length === 1 ? (large ? "four" : "six") + " stickers" :
+        numbers.length + " sheets of " + (large ? "four" : "six") + " stickers, one per bag number") + ".";
       $("stickerResult").hidden = false;
     });
   });

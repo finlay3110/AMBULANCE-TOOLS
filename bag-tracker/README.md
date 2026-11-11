@@ -47,7 +47,8 @@ it to keep it.
 ## Checking a bag on a phone, with QR stickers
 
 **Download QR stickers** on the Generate tab prints six stickers per bag number.
-Beside each code are boxes to write the date printed and who printed it.
+Beside each code are boxes to write the date printed and who printed it. Tick
+**Large stickers** for four per page with a bigger code that is easier to scan.
 Scanning one with a phone camera opens this tool with that bag's pouches and
 kit list loaded, on the **Check bag** tab (or carries on with today's check on
 that phone). The bag travels in the link after the `#`, so nothing is uploaded.
@@ -60,7 +61,8 @@ checked the bag adds their name and clinical grade and signs on screen; the time
 each signs is recorded. **+ Add person** adds a crewmate, so both of a crew can
 sign the check at the start of a shift. **Download check (PDF)** gives the kit
 checklist filled in with the counts, OK or SHORT, seals, notes and a Checked by
-table with each person's signature. **New check** clears the counts and keeps the bag.
+table with each person's signature. On a phone, **Share check** sends the PDF
+straight to WhatsApp, email or another app. **New check** clears the counts and keeps the bag.
 
 ## User guide
 
