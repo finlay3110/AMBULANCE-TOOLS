@@ -37,8 +37,8 @@
 <nav class="tabs" role="tablist">
   <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Event</button>
   <button class="tab" role="tab" data-tab="units" aria-selected="false">2. Units <span class="pill" id="unitCount">0</span></button>
-  <button class="tab" role="tab" data-tab="day" aria-selected="false">3. On the day</button>
-  <button class="tab" role="tab" data-tab="generate" aria-selected="false">4. Generate</button>
+  <button class="tab" role="tab" data-tab="day" aria-selected="false" id="dayTab" hidden>3. On the day</button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false" id="generateTab">3. Generate</button>
 </nav>
 
 <main>
@@ -90,6 +90,10 @@
           <input type="text" id="madeBy" placeholder="e.g. J. Smith, event lead">
         </label>
       </div>
+      <label class="check-row use-day"><input type="checkbox" id="useDay">
+        <span>Sign people in on the day in this app
+          <small class="echo">Adds an On the day tab to record sign-in, break and stand-down times. Leave it
+            off to fill the printed log in by hand.</small></span></label>
     </div>
 
     <div class="actions">
@@ -132,7 +136,7 @@
 
     <div class="actions">
       <button type="button" class="btn ghost" data-goto="setup">&larr; Back</button>
-      <button type="button" class="btn primary" data-goto="day">Next: On the day &rarr;</button>
+      <button type="button" class="btn primary" data-goto="generate" id="unitsNext">Next: Generate &rarr;</button>
     </div>
   </section>
 
@@ -192,7 +196,7 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn ghost" data-goto="day">&larr; Back</button>
+      <button type="button" class="btn ghost" data-goto="units" id="generateBack">&larr; Back</button>
     </div>
   </section>
 </main>

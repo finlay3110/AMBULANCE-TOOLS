@@ -23,7 +23,8 @@ people in and out on the day.
 
 ## On the day
 
-The **On the day** tab lists everyone with their status (not signed in, on
+Tick **Sign people in on the day in this app** on the Event tab to add an
+**On the day** tab (it is hidden otherwise, since most events use paper). It lists everyone with their status (not signed in, on
 duty, on break, stood down) and a running count. Tap **Sign in**, **Start
 break**, **End break** or **Stand down** to record the time now; type over a
 time to change it, or clear it to undo. A post with no name can be named as the

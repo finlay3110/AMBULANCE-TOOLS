@@ -16,7 +16,7 @@
   var $ = function (id) { return document.getElementById(id); };
 
   function blank() {
-    return { eventName: "", venue: "", eventDate: "", madeBy: "", company: null, radioList: true, units: [] };
+    return { eventName: "", venue: "", eventDate: "", madeBy: "", company: null, radioList: true, useDay: false, units: [] };
   }
   function newPerson() {
     return { name: "", grade: "", radio: "", manager: false, signedIn: "", breakStart: "", breakEnd: "", stoodDown: "" };
@@ -67,6 +67,7 @@
     EVENT_FIELDS.forEach(function (f) { out[f] = str(raw[f]); });
     out.company = cleanCompany(raw.company);
     out.radioList = raw.radioList !== false;
+    out.useDay = raw.useDay === true;
     out.units = (Array.isArray(raw.units) ? raw.units : []).filter(isObj).map(cleanUnit);
     return out;
   }
@@ -465,6 +466,21 @@
       .join("  ·  ");
   }
 
+  /* On the day is used rarely, so its tab only shows when this deployment turns it on. */
+  function applyDay() {
+    $("useDay").checked = dep.useDay;
+    $("dayTab").hidden = !dep.useDay;
+    $("generateTab").textContent = dep.useDay ? "4. Generate" : "3. Generate";
+    $("generateBack").dataset.goto = dep.useDay ? "day" : "units";
+    $("unitsNext").dataset.goto = dep.useDay ? "day" : "generate";
+    $("unitsNext").innerHTML = dep.useDay ? "Next: On the day &rarr;" : "Next: Generate &rarr;";
+  }
+  $("useDay").addEventListener("change", function () {
+    dep.useDay = this.checked;
+    save();
+    applyDay();
+  });
+
   $("clearTimes").addEventListener("click", function () {
     if (!confirm("Clear every sign-in, break and stand-down time? Names and units are kept.")) return;
     dep.units.forEach(function (u) {
@@ -580,7 +596,7 @@
   function asPlan() {
     return {
       format: PLAN_FORMAT, version: 1,
-      eventName: dep.eventName, venue: dep.venue, eventDate: "", madeBy: "",
+      eventName: dep.eventName, venue: dep.venue, eventDate: "", madeBy: "", useDay: dep.useDay,
       units: dep.units.map(planUnit)
     };
   }
@@ -676,6 +692,7 @@
     showCompany();
     render();
     $("radioList").checked = dep.radioList;
+    applyDay();
     message("openResult", "good", "Opened " + label + ": " + dep.units.length +
       (dep.units.length === 1 ? " unit." : " units.") +
       (plan ? " Fill in the names now, or print it and fill them in by hand." : ""));
@@ -709,6 +726,7 @@
     save();
     fillEvent();
     render();
+    applyDay();
     showTab("setup");
   });
 
@@ -724,6 +742,7 @@
   renderPlans();
   bagSuggestions();
   $("radioList").checked = dep.radioList;
+  applyDay();
   // Plans or bags saved in another tab show up here without a reload.
   window.addEventListener("storage", function () {
     renderPlans();

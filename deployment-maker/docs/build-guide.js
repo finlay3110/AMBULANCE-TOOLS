@@ -30,7 +30,7 @@ const unit = (callsign, o, staff) => Object.assign({ callsign, ambulance: false,
 // A made-up event: every name here is invented.
 const EXAMPLE = {
   eventName: "Riverside Summer Festival", venue: "Riverside Park, Townsville", eventDate: "2027-07-17",
-  madeBy: "J. Smith, Medical Lead", radioList: true,
+  madeBy: "J. Smith, Medical Lead", radioList: true, useDay: true,
   company: { companyName: "Northern Event Medical Ltd", companyPhone: "01234 567890", companyAddress: "",
     cqcRegistered: true, cqcNumber: "1-234567890" },
   units: [

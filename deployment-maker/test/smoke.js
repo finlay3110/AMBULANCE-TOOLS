@@ -232,6 +232,12 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   const row = (name) => page.locator(".day-row", { hasText: name });
   const state = (name) => row(name).locator(".day-status").textContent();
   const press = (name, label) => row(name).getByRole("button", { name: label }).click();
+  // Off by default: no tab until it is turned on.
+  await page.click(".tab[data-tab=setup]");
+  assert.ok(await page.locator(".tab[data-tab=day]").isHidden(), "On the day is hidden until wanted");
+  eq(await page.textContent("#generateTab"), "3. Generate");
+  await page.check("#useDay");
+  eq(await page.textContent("#generateTab"), "4. Generate");
   await page.click(".tab[data-tab=day]");
   eq(await state("Sam Patel"), "Not signed in");
   await at("09:05");
