@@ -37,7 +37,8 @@
 <nav class="tabs" role="tablist">
   <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Event</button>
   <button class="tab" role="tab" data-tab="units" aria-selected="false">2. Units <span class="pill" id="unitCount">0</span></button>
-  <button class="tab" role="tab" data-tab="generate" aria-selected="false">3. Generate</button>
+  <button class="tab" role="tab" data-tab="day" aria-selected="false">3. On the day</button>
+  <button class="tab" role="tab" data-tab="generate" aria-selected="false">4. Generate</button>
 </nav>
 
 <main>
@@ -45,10 +46,12 @@
   <section class="panel active" id="panel-setup" role="tabpanel">
     <div class="card">
       <h2>Start from a plan</h2>
-      <p class="hint">Open a plan saved for a venue &mdash; its units, callsigns, locations and posts, with
-        the staff left blank &mdash; or a whole deployment you saved earlier.</p>
+      <p class="hint">A plan is a venue&rsquo;s units, callsigns, locations and posts, with the staff left
+        blank. Open one saved on this device, or a plan or whole deployment saved as a file.</p>
+      <div class="plan-list" id="planList"></div>
+      <p class="empty" id="planEmpty">No plans saved on this device yet. Save one from the Generate tab.</p>
       <div class="actions">
-        <button type="button" class="btn ghost" id="openBtn">Open plan or deployment (.json)</button>
+        <button type="button" class="btn ghost" id="openBtn">Open a plan or deployment file (.json)</button>
         <input type="file" id="openFile" accept="application/json,.json" hidden>
       </div>
       <p class="notice" id="openResult" hidden></p>
@@ -123,9 +126,33 @@
       <option value="Nurse"></option>
       <option value="Doctor"></option>
     </datalist>
+    <!-- Bag numbers set up in the Bag Tracker and Drug Bag Tracker on this device, filled in by app.js. -->
+    <datalist id="kitBagList"></datalist>
+    <datalist id="drugBagList"></datalist>
 
     <div class="actions">
       <button type="button" class="btn ghost" data-goto="setup">&larr; Back</button>
+      <button type="button" class="btn primary" data-goto="day">Next: On the day &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ ON THE DAY ============ -->
+  <section class="panel" id="panel-day" role="tabpanel">
+    <div class="card">
+      <h2>On the day</h2>
+      <p class="hint">Sign people in as they arrive. Each button records the time now; type over a time to
+        change it, or clear it to undo. The times print on the deployment log, and signatures are still
+        done on paper.</p>
+      <p class="day-summary" id="daySummary"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="clearTimes">Clear all times</button>
+      </div>
+    </div>
+    <div id="dayList"></div>
+    <p class="empty" id="dayEmpty">No units yet. Add them on the Units tab.</p>
+
+    <div class="actions">
+      <button type="button" class="btn ghost" data-goto="units">&larr; Back</button>
       <button type="button" class="btn primary" data-goto="generate">Next: Generate &rarr;</button>
     </div>
   </section>
@@ -135,7 +162,10 @@
     <div class="card">
       <h2>Deployment log</h2>
       <p class="hint">A landscape A4 PDF listing every unit and person, with boxes for the time each person
-        signed in, started a break and was stood down, and a signature.</p>
+        signed in, started and ended a break and was stood down, and a signature. Times recorded on the
+        day are filled in.</p>
+      <label class="check-row radio-choice"><input type="checkbox" id="radioList">
+        <span>Add a radio list page for event control</span></label>
       <p class="notice info" id="blankNote" hidden></p>
       <p class="error" id="genError" hidden></p>
       <div class="actions">
@@ -147,19 +177,22 @@
     <div class="card">
       <h2>Save for later</h2>
       <p class="hint">Everything stays on this device &mdash; nothing is uploaded. <strong>Save
-        deployment</strong> keeps everything. <strong>Save as plan</strong> is for a venue that uses the
-        same units each time: it keeps the units, callsigns, locations, ambulances, which units have
-        bags, and each post&rsquo;s grade, and leaves the names, radios, bag numbers, vehicle
-        registrations and date blank for whoever fills it in next.</p>
+        deployment</strong> keeps everything, times included. A <strong>plan</strong> is for a venue that
+        uses the same units each time: it keeps the units, callsigns, locations, ambulances, which units
+        have bags, and each post&rsquo;s grade, and leaves the names, radios, bag numbers, vehicle
+        registrations, times and date blank for whoever fills it in next. <strong>Save as plan</strong>
+        keeps it on this device, listed on the Event tab; <strong>Download plan</strong> saves it as a
+        file to share.</p>
       <div class="actions">
         <button type="button" class="btn ghost" id="exportBtn">Save deployment (.json)</button>
-        <button type="button" class="btn ghost" id="planBtn">Save as plan (.json)</button>
+        <button type="button" class="btn ghost" id="planBtn">Save as plan</button>
+        <button type="button" class="btn ghost" id="planFileBtn">Download plan (.json)</button>
       </div>
       <p class="notice" id="saveResult" hidden></p>
     </div>
 
     <div class="actions">
-      <button type="button" class="btn ghost" data-goto="units">&larr; Back</button>
+      <button type="button" class="btn ghost" data-goto="day">&larr; Back</button>
     </div>
   </section>
 </main>
