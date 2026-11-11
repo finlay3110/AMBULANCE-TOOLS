@@ -1,0 +1,30 @@
+/* Additions to the Bag Tracker's styles: the checklist. */
+.check-summary { margin: 0; font-weight: 600; }
+.check-row-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center;
+  padding: 9px 0; border-top: 1px solid var(--line);
+}
+.check-row-item:first-of-type { border-top: 0; }
+.item-name { font-weight: 600; }
+.item-name input { font-weight: 600; }
+.status { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.status button {
+  appearance: none; border: 0; background: var(--card); color: var(--ink-soft);
+  padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; min-width: 64px;
+}
+.status button + button { border-left: 1px solid var(--line); }
+.status button[aria-pressed="true"].ok { background: var(--good-bg); color: var(--good-ink); }
+.status button[aria-pressed="true"].defect { background: var(--danger-bg); color: var(--danger); }
+.status button[aria-pressed="true"].na { background: var(--soft-2); color: var(--ink); }
+.item-note { grid-column: 1 / -1; }
+.item-note.needed { border-color: var(--danger); }
+.add-check { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.add-check input { flex: 1; }
+.fit-row { display: flex; gap: 18px; flex-wrap: wrap; }
+.reported { margin-top: 14px; }
+
+@media (max-width: 700px) {
+  .check-row-item { grid-template-columns: 1fr; }
+  .status { width: 100%; }
+  .status button { flex: 1; }
+}

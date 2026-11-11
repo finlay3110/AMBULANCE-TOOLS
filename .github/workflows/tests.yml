@@ -33,6 +33,9 @@ jobs:
       - name: Deployment Maker
         if: ${{ !cancelled() }}
         run: node deployment-maker/test/smoke.js
+      - name: Vehicle Check
+        if: ${{ !cancelled() }}
+        run: node vehicle-check/test/smoke.js
       - name: Site (home page, backup, offline)
         if: ${{ !cancelled() }}
         run: node test/site.js

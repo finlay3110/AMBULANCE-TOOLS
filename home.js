@@ -9,7 +9,8 @@
     ["company-profile/", "Company Profile"],
     ["drug-bag-tracker/", "Drug Bag Tracker"],
     ["bag-tracker/", "Bag Tracker"],
-    ["deployment-maker/", "Deployment Maker"]
+    ["deployment-maker/", "Deployment Maker"],
+    ["vehicle-check/", "Vehicle Check"]
   ];
   var $ = function (id) { return document.getElementById(id); };
 
