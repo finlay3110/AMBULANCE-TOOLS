@@ -96,6 +96,7 @@ function checkIcons() {
   console.log("  ok   home page");
 
   /* ---- backup and restore ---- */
+  assert.ok(await home.locator("#backupStatus").isHidden(), "no work, no reminder");
   await home.click("#backupBtn");
   assert.match(await home.textContent("#backupResult"), /no saved work/);
   await home.evaluate(() => {
@@ -104,7 +105,10 @@ function checkIcons() {
     localStorage.setItem("deployment-maker/v1", JSON.stringify({ venue: "Riverside Park", units: [] }));
     localStorage.setItem("another-site/thing", "not ours");   // the github.io address is shared
   });
+  await home.reload();
+  assert.match(await home.textContent("#backupStatus.warn"), /not backed up yet/);
   const [dl] = await Promise.all([home.waitForEvent("download"), home.click("#backupBtn")]);
+  eq(await home.textContent("#backupStatus.good"), "Last backed up today.");
   assert.match(dl.suggestedFilename(), /^Ambulance-Tools-backup-\d{4}-\d{2}-\d{2}\.json$/);
   const file = path.join(os.tmpdir(), "smoke-site-backup.json");
   await dl.saveAs(file);
@@ -113,6 +117,11 @@ function checkIcons() {
   assert.deepStrictEqual(Object.keys(backup.data).sort(),
     ["bag-tracker/v1", "company-profile/v1", "deployment-maker/v1"], "only the tools' own work is backed up");
   assert.match(await home.textContent("#backupResult"), /Company Profile, Bag Tracker, Deployment Maker/);
+  // A month on, it asks again.
+  await home.evaluate(() => localStorage.setItem("ambulance-tools/last-backup",
+    new Date(Date.now() - 40 * 86400000).toISOString()));
+  await home.reload();
+  assert.match(await home.textContent("#backupStatus.warn"), /40 days ago/);
 
   // Restored into a fresh browser, with an entry that is not a tool's slipped in.
   backup.data["another-site/thing"] = "overwritten";
@@ -162,7 +171,7 @@ function checkIcons() {
   }
   // A PDF can still be made: the bundled PDF library was saved as well.
   await off.goto(site.url + "deployment-maker/index.html");
-  eq(await off.evaluate(() => window.DeploymentPDF.build({ units: [] }).internal.getNumberOfPages()), 1,
+  eq(await off.evaluate(() => window.DeploymentPDF.build({ units: [] }).internal.getNumberOfPages()), 2,
     "a PDF can be made offline");
   console.log("  ok   every tool opens offline");
 
