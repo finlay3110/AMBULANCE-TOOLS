@@ -502,17 +502,17 @@
         doc.text(wrap(doc, txt(l.number) || txt(data.bagName), w - 10)[0] || "", x + w / 2, y + 21, { align: "center" });
         setFont(doc, 10, "normal");
         doc.text(wrap(doc, txt(l.number) ? txt(data.bagName) : "", w - 10)[0] || "", x + w / 2, y + 26.5, { align: "center" });
-        // The QR keeps its full size (a whole kit list makes it dense); pen lines sit beside it.
+        // The QR keeps its full size (a whole kit list makes it dense); write-in boxes sit beside it.
         var size = Math.min(w - 50, h - 46), fx = x + 6 + size + 4, fw = x + w - 5 - fx;
         global.Shared.drawQr(doc, l.url, x + 6, y + 29, size);
         ["Printed (date)", "Printed by"].forEach(function (label, k) {
-          var ly = y + 33 + k * (size - 4) / 2.5;
+          var ly = y + 33 + k * (size - 4) / 2.2;
           setFont(doc, 7.5, "bold");
           colour(doc, MUTED);
           doc.text(label.toUpperCase(), fx, ly);
           doc.setDrawColor(INK[0], INK[1], INK[2]);
           doc.setLineWidth(0.3);
-          doc.line(fx, ly + 8, fx + fw, ly + 8);
+          doc.rect(fx, ly + 2, fw, 10, "S");
         });
         colour(doc, INK);
         setFont(doc, 8, "normal");
