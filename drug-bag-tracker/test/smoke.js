@@ -263,7 +263,7 @@ async function testMatrix(page) {
   page.on("pageerror", e => errors.push(e.message));
 
   await page.evaluate(() => localStorage.clear());
-  await page.goto("http://localhost:" + PORT + "/matrix.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/matrix.html");
 
   // Grades start from a default list, and are all editable.
   check("the matrix has its own generator",
@@ -435,7 +435,7 @@ async function testAttach(page, formulary) {
   page.on("dialog", d => d.accept());
   page.on("pageerror", e => errors.push(e.message));
 
-  await page.goto("http://localhost:" + PORT + "/index.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/index.html");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.fill("#companyName", "Test Medical Ltd");
@@ -508,14 +508,14 @@ async function testAttach(page, formulary) {
   eq("so the bag keeps its own medications", await page.textContent("#medCount"), "1");
 
   // And the matrix generator refuses a bag.
-  await page.goto("http://localhost:" + PORT + "/matrix.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/matrix.html");
   await page.setInputFiles("#importFile", savedBag);
   await page.waitForSelector("#importResult:not([hidden])");
   check("the matrix generator refuses a saved bag",
     (await page.textContent("#importResult")).includes("not a formulary"));
 
   // Removing it puts the bag back to plain paperwork.
-  await page.goto("http://localhost:" + PORT + "/index.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/index.html");
   await page.click("#formularyRemove");
   await page.waitForSelector("#formularyRemove", { state: "hidden" });
   const gone = await page.evaluate(() => {
@@ -536,7 +536,7 @@ async function testRestock(page) {
   page.on("dialog", d => d.accept());
   page.on("pageerror", e => errors.push(e.message));
 
-  await page.goto("http://localhost:" + PORT + "/index.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/index.html");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForSelector("body[data-ready]");
@@ -1070,12 +1070,14 @@ async function testApp(page) {
 const TYPES = { ".html": "text/html", ".js": "text/javascript",
                 ".css": "text/css", ".json": "application/json" };
 
+// The whole site, so the page can load the files it shares with the other tools.
+const SITE = path.join(ROOT, "..");
 function serve() {
   return new Promise(resolve => {
     const server = http.createServer((req, res) => {
       const rel = decodeURIComponent(req.url.split("?")[0]).replace(/^\/+/, "") || "index.html";
-      const file = path.join(ROOT, rel);
-      if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      const file = path.join(SITE, rel);
+      if (!file.startsWith(SITE) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
         res.writeHead(404); res.end("not found"); return;
       }
       res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
@@ -1101,7 +1103,7 @@ const NOW = new Date(2026, 10, 10);
   // The browser's clock is fixed, so stock typed with real expiry dates (10/2027
   // and the like) is judged the same way whatever day the tests run.
   await page.clock.setFixedTime(NOW);
-  await page.goto("http://localhost:" + PORT + "/index.html");
+  await page.goto("http://localhost:" + PORT + "/drug-bag-tracker/index.html");
 
   try {
     await testPdfs(page);

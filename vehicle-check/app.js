@@ -2,12 +2,11 @@
    Everything is kept in localStorage on this device. */
 (function () {
   "use strict";
+  var today = window.Shared.today, nowTime = window.Shared.nowTime, savedProfile = window.Shared.savedCompany;
 
   var KEY = "vehicle-check/v1";
-  var PROFILE_KEY = "company-profile/v1";   // written by the Company Profile app
   var FORMAT = "vehicle-check/check";
   var FIELDS = ["callsign", "reg", "makeModel", "mileage", "fuel", "checkedBy", "date", "time", "reportedTo"];
-  var COMPANY_TEXT = ["companyName", "companyPhone", "companyAddress", "cqcNumber"];
   var STATUSES = [["ok", "OK"], ["defect", "Defect"], ["na", "N/A"]];
   var PHOTO_SLOTS = [["front", "Front"], ["back", "Back"], ["right", "Right side"], ["left", "Left side"],
     ["cab", "Cab"], ["saloon", "Patient compartment"]];
@@ -44,16 +43,6 @@
   function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
   function str(v) { return typeof v === "string" ? v : ""; }
 
-  function cleanCompany(raw) {
-    if (!isObj(raw) || typeof raw.companyName !== "string") return null;
-    var out = { cqcRegistered: raw.cqcRegistered === true };
-    COMPANY_TEXT.forEach(function (f) { out[f] = str(raw[f]); });
-    if (typeof raw.logo === "string" && raw.logo.indexOf("data:image/") === 0) {
-      out.logo = raw.logo; out.logoW = +raw.logoW || 0; out.logoH = +raw.logoH || 0;
-    }
-    return out;
-  }
-
   /* A stored photo: a JPEG or PNG data URL, with its size for the PDF. */
   function cleanPhoto(p) {
     return isObj(p) && typeof p.src === "string" && /^data:image\/(jpeg|png);base64,/.test(p.src) &&
@@ -64,7 +53,7 @@
     var out = blank();
     if (!isObj(raw)) return out;
     FIELDS.forEach(function (f) { out[f] = str(raw[f]); });
-    out.company = cleanCompany(raw.company);
+    out.company = window.Shared.company(raw.company);
     out.fit = raw.fit === "yes" || raw.fit === "no" ? raw.fit : "";
     out.crew = (Array.isArray(raw.crew) ? raw.crew : []).filter(isObj).map(function (m) {
       var sig = cleanPhoto(m.sig);
@@ -106,16 +95,8 @@
     $(id).textContent = text;
     $(id).hidden = false;
   }
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
-  function today() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
-  function nowTime() { var d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
 
   /* ---------------- company ---------------- */
-  function savedProfile() {
-    var p;
-    try { p = cleanCompany(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
-    return p && p.companyName.trim() ? p : null;
-  }
 
   function showCompany() {
     var c = chk.company, box = $("companySummary");
@@ -165,7 +146,7 @@
     reader.onload = function () {
       var parsed, c = null;
       try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
-      if (isObj(parsed)) c = cleanCompany(parsed) || cleanCompany(parsed.company) || cleanCompany(parsed.setup);
+      c = window.Shared.company(parsed);
       if (!c) {
         message("companyResult", "bad", "“" + file.name + "” does not contain company details. " +
           "Nothing has been changed.");
@@ -614,16 +595,22 @@
     return chk.sections.some(function (s) { return s.items.some(function (i) { return i.status; }); });
   }
 
+  /* Anything entered for this check, so scanning the sticker again never wipes it. */
+  function started() {
+    return hasResults() || Object.keys(chk.photos).length > 0 || !!(chk.mileage || chk.fuel) ||
+      chk.crew.some(function (m) { return m.name || m.sig; });
+  }
+
   /* Opened from a vehicle's sticker: today's check for that vehicle. */
   function applyLink(v) {
     var same = v.reg.toLowerCase() === chk.reg.trim().toLowerCase() &&
       v.callsign.toLowerCase() === chk.callsign.trim().toLowerCase();
     var name = v.reg || v.callsign || "this vehicle";
-    if (same && chk.date === today() && hasResults()) {
+    if (same && chk.date === today() && started()) {
       message("scanResult", "good", "Carrying on with today\u2019s check of " + name + ".");
       return;
     }
-    if (hasResults() && !same && !confirm("Start a check of " + name + "? The check in progress for " +
+    if (started() && !same && !confirm("Start a check of " + name + "? The check in progress for " +
       (chk.reg || chk.callsign || "another vehicle") + " is replaced. Save it first if you want it.")) return;
     ["callsign", "reg", "makeModel"].forEach(function (f) { chk[f] = v[f]; });
     chk.sections = v.sections;
@@ -645,7 +632,13 @@
       return;
     }
     vehicleLink().then(function (url) {
-      window.VehicleCheckPDF.stickers(chk, url).save("QR-stickers-" + fileBase().replace(/-\d{4}-\d{2}-\d{2}$/, "") + ".pdf");
+      try {
+        window.VehicleCheckPDF.stickers(chk, url).save("QR-stickers-" + fileBase().replace(/-\d{4}-\d{2}-\d{2}$/, "") + ".pdf");
+      } catch (e) {   // the QR library throws when the link is more than a QR code can hold
+        message("stickerResult", "bad", "This checklist is too long to fit in a QR code. Remove some items, or " +
+          "shorten their names.");
+        return;
+      }
       message("stickerResult", "good", "Downloaded six stickers for " + (chk.reg || chk.callsign) + ".");
     });
   });

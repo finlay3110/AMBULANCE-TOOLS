@@ -1,6 +1,7 @@
 /* UI state and wiring. Everything is kept in localStorage on this device. */
 (function () {
   "use strict";
+  var todayIso = window.Shared.today, nowTime = window.Shared.nowTime, savedProfile = window.Shared.savedCompany;
 
   var KEY = "bag-tracker/v1";
   var FIELDS = ["companyName", "companyPhone", "companyAddress", "cqcNumber",
@@ -435,7 +436,6 @@
   /* Company details only, from the Company Profile saved on this device, a
      company file, a Drug Bag Tracker or Deployment Maker export, or another
      bag. Pouches and bag details are left alone. */
-  var PROFILE_KEY = "company-profile/v1";   // written by the Company Profile app
 
   function companyMessage(kind, text) {
     $("companyResult").hidden = false;
@@ -443,29 +443,15 @@
     $("companyResult").textContent = text;
   }
 
-  function companyIn(parsed) {
-    if (!parsed || typeof parsed !== "object") return null;
-    return [parsed, parsed.company, parsed.setup].filter(function (c) {
-      return c && typeof c === "object" && typeof c.companyName === "string";
-    })[0] || null;
-  }
-
   function useCompany(src, verb) {
     ["companyName", "companyPhone", "companyAddress", "cqcNumber"].forEach(function (f) {
       if (typeof src[f] === "string") bag[f] = src[f];
     });
-    bag.cqcRegistered = src.cqcRegistered === true;
-    var c = clean(src);
-    if (c.logo) { bag.logo = c.logo; bag.logoW = c.logoW; bag.logoH = c.logoH; }
+    bag.cqcRegistered = src.cqcRegistered;
+    if (src.logo) { bag.logo = src.logo; bag.logoW = src.logoW; bag.logoH = src.logoH; }
     save(); fillSetup();
     companyMessage("good", verb + " company details for " + (bag.companyName || "this organisation") +
-      (c.logo ? ", including the logo." : "."));
-  }
-
-  function savedProfile() {
-    var p;
-    try { p = companyIn(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
-    return p && p.companyName.trim() ? p : null;
+      (src.logo ? ", including the logo." : "."));
   }
 
   function showProfileButton() {
@@ -491,7 +477,7 @@
     reader.onload = function () {
       var parsed;
       try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
-      var src = companyIn(parsed);
+      var src = window.Shared.company(parsed);
       if (!src) {
         companyMessage("bad", "\u201c" + file.name + "\u201d does not contain company details. Nothing has been changed.");
         return;
@@ -502,9 +488,6 @@
   });
 
   /* ---------------- on-screen check ---------------- */
-  function pad2(n) { return (n < 10 ? "0" : "") + n; }
-  function todayIso() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
-  function nowTime() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
   function newCheck() {
     return { date: todayIso(), time: nowTime(), bagSealFound: "", bagNewSeal: "", results: {}, seals: {},
       crew: [{ name: "", grade: "", sig: null, signedAt: "" }] };
@@ -712,6 +695,8 @@
     return list.length ? list : [""];
   }
 
+  var LONG_LINK = 1500;   // characters; past this the code is too dense to scan on a small sticker
+
   /* A link that carries this bag's layout, for one bag number. */
   function bagLink(number) {
     return window.Shared.link({
@@ -732,12 +717,24 @@
     }
     var numbers = bagNumbers();
     Promise.all(numbers.map(bagLink)).then(function (urls) {
+      // A long kit list makes a dense code that only scans when printed large.
+      var long = urls.some(function (u) { return u.length > LONG_LINK; });
+      if (long) $("largeStickers").checked = true;
       var large = $("largeStickers").checked;
-      window.BagPDF.stickers(bag, numbers.map(function (n, i) { return { number: n, url: urls[i] }; }), large)
-        .save("QR-stickers-" + fileName().replace(/^bag-/, "") + ".pdf");
+      try {
+        window.BagPDF.stickers(bag, numbers.map(function (n, i) { return { number: n, url: urls[i] }; }), large)
+          .save("QR-stickers-" + fileName().replace(/^bag-/, "") + ".pdf");
+      } catch (e) {   // the QR library throws when the link is more than a QR code can hold
+        $("stickerResult").className = "notice bad";
+        $("stickerResult").textContent = "This kit list is too long to fit in a QR code. Split the bag into " +
+          "smaller kit lists, or shorten the item names.";
+        $("stickerResult").hidden = false;
+        return;
+      }
       $("stickerResult").className = "notice good";
       $("stickerResult").textContent = "Downloaded " + (numbers.length === 1 ? (large ? "four" : "six") + " stickers" :
-        numbers.length + " sheets of " + (large ? "four" : "six") + " stickers, one per bag number") + ".";
+        numbers.length + " sheets of " + (large ? "four" : "six") + " stickers, one per bag number") +
+        (long ? ", large because the kit list is long." : ".");
       $("stickerResult").hidden = false;
     });
   });
@@ -746,7 +743,13 @@
   function applyLink(v) {
     var same = v.bagName === (bag.bagName || "").trim() && v.bagNumber === (bag.bagNumber || "").trim();
     var name = v.bagNumber || v.bagName || "this bag";
-    var started = bag.check && Object.keys(bag.check.results).some(function (k) { return bag.check.results[k].found !== ""; });
+    // Anything entered for this check, so scanning the sticker again never wipes it.
+    var c = bag.check;
+    var filled = function (rows) {   // counts and notes, or a pouch's seal details
+      return Object.keys(rows).some(function (k) { var r = rows[k]; return r.found || r.note || r.intact || r.newSeal; });
+    };
+    var started = !!c && (filled(c.results) || filled(c.seals) || !!(c.bagSealFound || c.bagNewSeal) ||
+      c.crew.some(function (m) { return m.name || m.sig; }));
     showTab("check");
     if (same && started && bag.check.date === todayIso()) {
       $("scanResult").textContent = "Carrying on with today’s check of " + name + ".";

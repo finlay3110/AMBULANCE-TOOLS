@@ -27,7 +27,7 @@ document's PDF then carries the table too.
 
 Everything runs locally in the browser — no server, no upload, no network calls.
 The PDF is built with [jsPDF](https://github.com/parallax/jsPDF), bundled in
-`vendor/` so the tool works fully offline.
+the site's `../vendor/` so the tool works fully offline.
 
 ## Using it
 
@@ -308,7 +308,7 @@ Screen only — the generated PDF is a printed document and stays light.
 | `docs/user-guide.html` | The guide's text and layout |
 | `Drug-Bag-Tracker-User-Guide.pdf` | The built guide, committed so it can be read without building it |
 | `test/smoke.js` | Smoke test: expiry parser, app flow, PDF page counts and margins |
-| `vendor/jspdf.umd.min.js` | Bundled jsPDF build (MIT, see `vendor/jspdf-LICENSE.txt`) |
+| `../vendor/jspdf.umd.min.js` | Bundled jsPDF build, shared by all the tools (MIT, see `../vendor/jspdf-LICENSE.txt`) |
 
 ## User guide
 
@@ -356,7 +356,7 @@ duty. Browser storage is not a backup.
 MIT. Copyright © 2026 Finlay Russell. See [LICENSE](LICENSE).
 
 PDF generation uses [jsPDF](https://github.com/parallax/jsPDF), bundled in
-`vendor/` under the MIT licence (`vendor/jspdf-LICENSE.txt`).
+the site's `../vendor/` under the MIT licence (`../vendor/jspdf-LICENSE.txt`).
 
 ## Sources
 

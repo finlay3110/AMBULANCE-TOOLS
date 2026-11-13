@@ -146,6 +146,25 @@ function checkIcons() {
   eq(await fresh.inputValue("#venue"), "Riverside Park", "a tool carries on from the backup");
   console.log("  ok   backup and restore");
 
+  /* ---- the company details every tool reads ---- */
+  const co = await fresh.evaluate(() => {
+    const C = window.Shared.company;
+    return {
+      file: C({ companyName: "Acme", cqcRegistered: true, logo: "javascript:x", extra: 1 }),
+      nested: C({ format: "deployment-maker", company: { companyName: "Nested" } }).companyName,
+      setup: C({ setup: { companyName: "Bag", companyPhone: 7 } }),
+      junk: [C(null), C([]), C("Acme"), C({ companyName: 5 }), C({ setup: "x" })],
+      blankSaved: (localStorage.setItem("company-profile/v1", JSON.stringify({ companyName: "  " })), window.Shared.savedCompany())
+    };
+  });
+  assert.deepStrictEqual(co.file, { cqcRegistered: true, companyName: "Acme", companyPhone: "", companyAddress: "", cqcNumber: "" },
+    "only the known fields, and only an image as the logo");
+  eq(co.nested, "Nested", "a tool's file holding the company");
+  eq(co.setup.companyPhone, "", "a field that is not text is left blank");
+  assert.deepStrictEqual(co.junk, [null, null, null, null, null]);
+  eq(co.blankSaved, null, "a profile with no name is not offered");
+  console.log("  ok   company details");
+
   /* ---- offline: every tool opens with the server gone ---- */
   const off = await (await browser.newContext()).newPage();
   watch(off, "offline");

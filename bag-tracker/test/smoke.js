@@ -192,6 +192,11 @@ const assert = require("assert");
   phone.on("dialog", (d) => d.accept());
   await phone.goto(link);
   await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Ready to check RB-03"));
+  // Scanning again before anything is counted keeps what was entered (here the bag's seal).
+  await phone.fill("#bagSealFound", "B100");
+  await phone.goto(link);
+  await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Carrying on"));
+  eq(await phone.inputValue("#bagSealFound"), "B100");
   assert.ok(await phone.locator("#panel-check.active").isVisible(), "it opens on the check");
   const state = (item) => phone.locator(".count-row", { hasText: item }).locator(".count-state").textContent();
   await phone.getByLabel("Found: OPA size 2").fill("1");
@@ -263,6 +268,26 @@ const assert = require("assert");
   await phone.click("[data-tab=check]");
   eq(await person(0).nth(0).inputValue(), "Old Signer");
   eq(await person(0).nth(1).inputValue(), "Technician");
+
+  // Long kit lists: large stickers are picked for a dense code, and a list too long for any QR code says so.
+  const longPage = await (await browser.newContext({ acceptDownloads: true })).newPage();
+  longPage.on("pageerror", (e) => errors.push("long list: " + e.message));
+  await longPage.goto("file://" + path.join(__dirname, "..", "index.html"));
+  // Varied names, as real ones are: repeated text compresses too well to test the limit.
+  const word = (i) => (i * 2654435761 % 4294967296).toString(36);
+  const kit = (n) => ({ bagName: "Big Bag", bagNumber: "BB-1", pouches: [{ name: "Pouch", sealed: false,
+    items: Array.from({ length: n }, (_, i) => ({ name: word(i + 1) + " " + word(i + 7), min: 1 })) }] });
+  for (const [n, expect] of [[140, /large because the kit list is long/], [250, /too long to fit in a QR code/]]) {
+    await longPage.evaluate((d) => localStorage.setItem("bag-tracker/v1", JSON.stringify(d)), kit(n));
+    await longPage.reload();
+    await longPage.click(".tab[data-tab=generate]");
+    await longPage.uncheck("#largeStickers");
+    const len = await longPage.evaluate(async () => (await window.BagTrackerLink("BB-1")).length);
+    await longPage.click("#stickerBtn");
+    await longPage.waitForFunction(() => !document.getElementById("stickerResult").hidden);
+    assert.match(await longPage.textContent("#stickerResult"), expect, n + " items, a " + len + "-character link");
+  }
+  eq(await longPage.isChecked("#largeStickers"), true, "a long list ticks Large stickers");
 
   assert.deepStrictEqual(errors, []);
   await browser.close();

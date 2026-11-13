@@ -186,6 +186,11 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   eq(await phone.inputValue("#callsign"), "Alpha 1");
   eq(new URL(phone.url()).hash, "", "the vehicle is taken out of the address");
   eq(await phone.getAttribute("#shareBtn", "hidden"), null, "phones that can share get a Share button");
+  // Scanning again before any item is marked keeps what was entered (here the mileage).
+  await phone.fill("#mileage", "45210");
+  await phone.goto(link);
+  await phone.waitForFunction(() => document.getElementById("scanResult").textContent.includes("Carrying on with today"));
+  eq(await phone.inputValue("#mileage"), "45210");
   await phone.click(".tab[data-tab=checks]");
   assert.ok(await phone.locator(".check-row-item", { hasText: "Spare wheel and jack" }).isVisible(), "with your checklist");
   await phone.locator(".check-row-item", { hasText: "Horn" }).getByRole("button", { name: "OK", exact: true }).click();

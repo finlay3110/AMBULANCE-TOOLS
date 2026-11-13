@@ -2,9 +2,9 @@
    printed deployment log. Everything is kept in localStorage on this device. */
 (function () {
   "use strict";
+  var nowTime = window.Shared.nowTime, savedProfile = window.Shared.savedCompany;
 
   var KEY = "deployment-maker/v1";
-  var PROFILE_KEY = "company-profile/v1";   // written by the Company Profile app
   var FORMAT = "deployment-maker/deployment";
   var PLAN_FORMAT = "deployment-maker/plan";
   var PLANS_KEY = "deployment-maker/plans";   // plans saved on this device
@@ -12,7 +12,6 @@
   var TIMES = [["signedIn", "Signed in", "Sign in"], ["breakStart", "Break started", "Start break"],
     ["breakEnd", "Break ended", "End break"], ["stoodDown", "Stood down", "Stand down"]];
   var EVENT_FIELDS = ["eventName", "venue", "eventDate", "madeBy"];
-  var COMPANY_TEXT = ["companyName", "companyPhone", "companyAddress", "cqcNumber"];
   var $ = function (id) { return document.getElementById(id); };
 
   function blank() {
@@ -30,16 +29,6 @@
   /* ---------------- cleaning: storage and opened files are not trusted ---------------- */
   function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
   function str(v) { return typeof v === "string" ? v : ""; }
-
-  function cleanCompany(raw) {
-    if (!isObj(raw) || typeof raw.companyName !== "string") return null;
-    var out = { cqcRegistered: raw.cqcRegistered === true };
-    COMPANY_TEXT.forEach(function (f) { out[f] = str(raw[f]); });
-    if (typeof raw.logo === "string" && raw.logo.indexOf("data:image/") === 0) {
-      out.logo = raw.logo; out.logoW = +raw.logoW || 0; out.logoH = +raw.logoH || 0;
-    }
-    return out;
-  }
 
   /* A time of day as a time box gives it ("14:05"), or nothing. */
   function time(v) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : ""; }
@@ -65,7 +54,7 @@
     var out = blank();
     if (!isObj(raw)) return out;
     EVENT_FIELDS.forEach(function (f) { out[f] = str(raw[f]); });
-    out.company = cleanCompany(raw.company);
+    out.company = window.Shared.company(raw.company);
     out.radioList = raw.radioList !== false;
     out.useDay = raw.useDay === true;
     out.units = (Array.isArray(raw.units) ? raw.units : []).filter(isObj).map(cleanUnit);
@@ -131,11 +120,6 @@
   }
 
   /* ---------------- company ---------------- */
-  function savedProfile() {
-    var p;
-    try { p = cleanCompany(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
-    return p && p.companyName.trim() ? p : null;
-  }
 
   function showCompany() {
     var c = dep.company, box = $("companySummary");
@@ -187,7 +171,7 @@
     reader.onload = function () {
       var parsed, c = null;
       try { parsed = JSON.parse(reader.result); } catch (e) { parsed = null; }
-      if (isObj(parsed)) c = cleanCompany(parsed) || cleanCompany(parsed.company) || cleanCompany(parsed.setup);
+      c = window.Shared.company(parsed);
       if (!c) {
         message("companyResult", "bad", "“" + file.name + "” does not contain company details. " +
           "Nothing has been changed.");
@@ -383,11 +367,6 @@
   }
 
   /* ---------------- on the day ---------------- */
-  function nowTime() {
-    var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
-    return p(d.getHours()) + ":" + p(d.getMinutes());
-  }
-
   function status(p) {
     if (p.stoodDown) return "Stood down";
     if (!p.signedIn) return "Not signed in";
@@ -613,7 +592,7 @@
     var box = $("planList"), plans = savedPlans();
     box.innerHTML = "";
     $("planEmpty").hidden = plans.length > 0;
-    plans.forEach(function (entry, i) {
+    plans.forEach(function (entry) {
       var row = el("div", "plan-row");
       var info = el("div");
       info.appendChild(el("strong", "", entry.name));
@@ -630,8 +609,8 @@
       btns.appendChild(open);
       btns.appendChild(button("Delete", "del", "Delete the plan " + entry.name, function () {
         if (!confirm("Delete the saved plan “" + entry.name + "” from this device?")) return;
-        var all = savedPlans();
-        all.splice(i, 1);
+        // By name: another tab may have saved a plan since this list was drawn, moving the others along.
+        var all = savedPlans().filter(function (p) { return p.name !== entry.name; });
         try { localStorage.setItem(PLANS_KEY, JSON.stringify(all)); } catch (e) { /* stays listed */ }
         renderPlans();
       }));
