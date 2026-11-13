@@ -268,11 +268,6 @@
 
   /* ---------------- persistence ---------------- */
   /*
-   * Returns false when the browser refused to store (private browsing, or the
-   * quota is full — a large logo makes that a real possibility). The work is
-   * still usable in this session, so say so rather than failing silently.
-   */
-  /*
    * Merges into what is stored rather than replacing it, so the formulary page
    * and the bag page can be open at once without either losing the other's
    * work. Returns false when the browser refused to store (private browsing,
@@ -386,7 +381,7 @@
     showLogo();
     resetLogoHint();
     if (!$("preppedDate").value) {
-      $("preppedDate").value = new Date().toISOString().slice(0, 10);
+      $("preppedDate").value = window.Shared.today();   // the device's date: UTC is a day behind after midnight in summer
       setup.preppedDate = $("preppedDate").value;
     }
   }
@@ -768,19 +763,6 @@
     companyMessage("good", "Saved as " + companyFileName() + ".");
   }
 
-  /*
-   * Accepts a company file, and also a whole exported bag or register, taking
-   * just the company half of it — so details can be lifted from any old export.
-   */
-  function companyFrom(parsed) {
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    if (parsed.format === "drug-bag-tracker/company") return parsed;
-    if (parsed.setup && typeof parsed.setup === "object") return parsed.setup;
-    if (parsed.company && typeof parsed.company === "object") return parsed.company;   // a Deployment Maker file
-    if (typeof parsed.companyName === "string") return parsed;
-    return null;
-  }
-
   function importCompany(file) {
     var reader = new FileReader();
     reader.onerror = function () { companyMessage("bad", "That file could not be read."); };
@@ -792,7 +774,8 @@
         companyMessage("bad", "\u201c" + file.name + "\u201d is not a valid .json file.");
         return;
       }
-      var profile = companyFrom(parsed);
+      // A company file, or the company half of any tool's export.
+      var profile = window.Shared.company(parsed);
       if (!profile) {
         companyMessage("bad", "\u201c" + file.name + "\u201d does not contain company details. " +
           "Nothing has been changed.");
@@ -825,13 +808,7 @@
       (logo ? ", including the logo." : "."));
   }
 
-  /* The profile the Company Profile app keeps on this device, if it has a name. */
-  var PROFILE_KEY = "company-profile/v1";
-  function savedProfile() {
-    var p;
-    try { p = companyFrom(JSON.parse(localStorage.getItem(PROFILE_KEY))); } catch (e) { p = null; }
-    return p && typeof p.companyName === "string" && p.companyName.trim() ? p : null;
-  }
+  var savedProfile = window.Shared.savedCompany;   // the Company Profile app's, if it has a name
 
   function showProfileButton() {
     var p = savedProfile();

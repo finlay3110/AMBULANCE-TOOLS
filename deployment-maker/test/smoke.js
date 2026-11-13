@@ -335,6 +335,18 @@ const eq = (a, b, m) => assert.strictEqual(a, b, m);
   assert.ok(big.raw.split("(BREAK STARTED)").length - 1 >= 14, "column headings with every unit");
   assert.ok(big.raw.includes("Person 11-4"));
 
+  // Deleting a plan removes that plan, even if another tab saved one since the list was drawn.
+  const savedPlan = (name) => ({ name, saved: "2026-11-01T10:00:00.000Z", plan: { units: [] } });
+  await page.evaluate((p) => localStorage.setItem("deployment-maker/plans", JSON.stringify(p)), [savedPlan("Arena"), savedPlan("Stadium")]);
+  await page.reload();
+  await page.click(".tab[data-tab=setup]");
+  // Another tab adds "Park" (a write from this page fires no storage event, so the list stays as drawn).
+  await page.evaluate((p) => localStorage.setItem("deployment-maker/plans", JSON.stringify(p)),
+    [savedPlan("Arena"), savedPlan("Park"), savedPlan("Stadium")]);
+  await page.getByRole("button", { name: "Delete the plan Stadium" }).click();
+  assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("deployment-maker/plans")).map((p) => p.name)),
+    ["Arena", "Park"]);
+
   assert.deepStrictEqual(errors, []);
   await browser.close();
   console.log("smoke: ok");

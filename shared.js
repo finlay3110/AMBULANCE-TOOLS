@@ -1,5 +1,6 @@
 /* Shared by the tools: links that carry their own data (for QR stickers), drawing a
-   QR code on a PDF, and a box to sign in with a finger or the mouse. */
+   QR code on a PDF, a box to sign in with a finger or the mouse, sharing a PDF,
+   today's date, and the saved company profile. */
 (function (global) {
   "use strict";
 
@@ -119,6 +120,37 @@
     });
   }
 
+  /* Today as "2026-11-13" and the time as "14:05", both by the device's clock (not UTC). */
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function today() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function nowTime() { var d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+
+  /*
+   * Company details from a Company Profile, or from any tool's file that holds them
+   * (under "company" or "setup"). Keeps only the known fields; null if there are none.
+   */
+  var COMPANY_TEXT = ["companyName", "companyPhone", "companyAddress", "cqcNumber"];
+  function company(raw) {
+    var src = [raw, raw && raw.company, raw && raw.setup].filter(function (c) {
+      return c && typeof c === "object" && !Array.isArray(c) && typeof c.companyName === "string";
+    })[0];
+    if (!src) return null;
+    var out = { cqcRegistered: src.cqcRegistered === true };
+    COMPANY_TEXT.forEach(function (f) { out[f] = typeof src[f] === "string" ? src[f] : ""; });
+    if (typeof src.logo === "string" && src.logo.indexOf("data:image/") === 0) {
+      out.logo = src.logo; out.logoW = +src.logoW || 0; out.logoH = +src.logoH || 0;
+    }
+    return out;
+  }
+
+  /* The profile the Company Profile app keeps on this device, if it has a name. */
+  function savedCompany() {
+    var c;
+    try { c = company(JSON.parse(localStorage.getItem("company-profile/v1"))); } catch (e) { c = null; }
+    return c && c.companyName.trim() ? c : null;
+  }
+
   global.Shared = { link: link, readLink: readLink, drawQr: drawQr, signaturePad: signaturePad,
-    canSharePdf: canSharePdf, sharePdf: sharePdf };
+    canSharePdf: canSharePdf, sharePdf: sharePdf, today: today, nowTime: nowTime,
+    company: company, savedCompany: savedCompany };
 })(window);

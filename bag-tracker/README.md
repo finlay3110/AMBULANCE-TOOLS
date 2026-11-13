@@ -24,7 +24,7 @@ identical bag in one PDF. Every page carries the kit list version and the date t
 layout last changed, so an out-of-date printout is easy to spot.
 
 Everything runs locally in the browser — no server, no upload. The PDF is built
-with [jsPDF](https://github.com/parallax/jsPDF), bundled in `vendor/`, so it
+with [jsPDF](https://github.com/parallax/jsPDF), bundled in the site's `../vendor/`, so it
 works offline. Based on the
 [ambulance medication tracker](https://github.com/finlay3110/ambulance-medication-tracker).
 
@@ -86,4 +86,4 @@ npm test
 ## Licence
 
 MIT — see [LICENSE](LICENSE). jsPDF is bundled under its own MIT licence
-(`vendor/jspdf-LICENSE.txt`).
+(`../vendor/jspdf-LICENSE.txt`).

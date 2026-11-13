@@ -3,7 +3,7 @@
    is used and saved, so a new version shows as soon as it is published. */
 "use strict";
 
-var CACHE = "ambulance-tools-v9";
+var CACHE = "ambulance-tools-v10";
 // Everything the tools load. test/site.js checks this list against the repository.
 var FILES = [
   "index.html", "home.js", "theme.js", "disclaimer.html", "manifest.webmanifest",
@@ -11,13 +11,12 @@ var FILES = [
   "company-profile/index.html", "company-profile/app.js",
   "drug-bag-tracker/index.html", "drug-bag-tracker/matrix.html", "drug-bag-tracker/styles.css",
   "drug-bag-tracker/app.js", "drug-bag-tracker/parts.js", "drug-bag-tracker/pdf.js",
-  "drug-bag-tracker/expiry.js", "drug-bag-tracker/medicines.js", "drug-bag-tracker/vendor/jspdf.umd.min.js",
+  "drug-bag-tracker/expiry.js", "drug-bag-tracker/medicines.js",
   "bag-tracker/index.html", "bag-tracker/styles.css", "bag-tracker/app.js", "bag-tracker/pdf.js",
-  "bag-tracker/vendor/jspdf.umd.min.js",
   "deployment-maker/index.html", "deployment-maker/styles.css", "deployment-maker/app.js",
   "deployment-maker/pdf.js",
   "vehicle-check/index.html", "vehicle-check/styles.css", "vehicle-check/app.js", "vehicle-check/pdf.js",
-  "vendor/qrcode.js", "shared.js"
+  "vendor/qrcode.js", "vendor/jspdf.umd.min.js", "shared.js"
 ];
 var WAIT_MS = 3000;   // how long a slow network gets before the saved copy is used
 
