@@ -157,7 +157,8 @@
   <section>
     <h3>Locations and hospitals</h3>
     <p>Add the standby points, points of interest and treatment centres (as many as the event has), and the
-      hospitals ambulances may go to. They become the choices on every call.</p>
+      hospitals ambulances may go to. They become the choices on every call. Give a location its site map grid
+      reference and what3words address, and both fill in by themselves when a call is at that location.</p>
     <figure class="compact"><img src="build/shots/setup-locations.png" alt="The locations card"></figure>
     <h3>Alerts, targets, phrases and the site map</h3>
     <ul>
@@ -168,7 +169,9 @@
       <li><b>what3words key</b> (optional): a free key from what3words lets the CAD suggest real addresses as you type
         one. It stays on this laptop.</li>
       <li><b>Quick log phrases</b>: updates you log often, one per line; each becomes a one-tap button on every call.</li>
-      <li><b>Site map</b>: a picture of the event&rsquo;s site map, shown on the CAD tab.</li>
+      <li><b>Site map</b>: a picture of the event&rsquo;s site map, shown on the CAD tab. Set how many grid squares it
+        has across (A, B, C&hellip;) and down (1, 2, 3&hellip;), and you can click the map to fill in a call&rsquo;s grid
+        reference, and the report shows where the calls were on the map.</li>
     </ul>
     <figure class="compact"><img src="build/shots/setup-alerts.png" alt="Alerts, targets and what3words"></figure>
   </section>
@@ -197,14 +200,23 @@
       calls on the left, and the call sheet on the right.</figcaption></figure>
     <ul>
       <li><b>Controller on duty</b>: type your name at the start of your shift. It goes on every call and log entry,
-        and the change is logged.</li>
+        and the change is logged. At a handover, the CAD asks for a handover note for the log.</li>
+      <li><b>The summary strip</b> under the buttons: calls, open calls, patients, conveyed to hospital, average response
+        and units available, kept up to date.</li>
+      <li><b>SITREP</b> writes a short situation report for the last hour or the whole event, to copy into a message,
+        read over the radio, or add to the control log.</li>
       <li><b>Alerts</b> (amber): a call with no unit, a call past its target with no unit on scene, a welfare check,
-        a break that has run over, a hospital on divert, and the hourly treatment centre count.</li>
+        a break that has run over, a hospital on divert, a missing person, and the hourly treatment centre count. A
+        category 1 call with no unit and a missed welfare check also beep.</li>
       <li><b>Open calls</b> are listed category 1 first, then oldest. Closed calls are underneath. <b>Search</b>
         finds a call by number, callsign, place, PRF, NHS CAD number or any text.</li>
       <li><b>Site map</b>: open it under the open calls; click it for full screen, and click again (or press Escape)
         to close.</li>
     </ul>
+    <div class="two">
+      <figure><img src="build/shots/summary.png" alt="The summary strip"><figcaption>The summary strip.</figcaption></figure>
+    </div>
+    <figure class="compact"><img src="build/shots/sitrep.png" alt="A SITREP"><figcaption>A SITREP, ready to copy.</figcaption></figure>
   </section>
 </div>
 
@@ -218,8 +230,11 @@
         the what3words address (with a link to the map) and the site map grid reference.</li>
       <li><strong>What</strong>: the MPDS protocol, the category, the details, and the police, safeguarding and lost
         or vulnerable person ticks. With police involved, add their reference. A second report of the same incident
-        is marked <b>Duplicate of</b> the first: it is kept but left out of the figures.</li>
-      <li><strong>Patients</strong>: age, sex and PRF number for each.</li>
+        is marked <b>Duplicate of</b> the first: it is kept but left out of the figures. Raising or lowering the
+        category is written in the call&rsquo;s log by itself.</li>
+      <li><strong>Patients</strong>: age, sex and PRF number for each, how they presented (minor injury, medical,
+        intoxication and so on) and whether alcohol or drugs were involved. These give the report&rsquo;s patient
+        figures.</li>
       <li><strong>Units</strong>: choose a unit and <b>Assign</b>, then tap each step as the crew report it.</li>
       <li><strong>Close</strong> the call once its units are clear and each patient has an outcome.</li>
     </ol>
@@ -263,13 +278,18 @@
     </ul>
     <p>You can still assign a unit that is on a break, unavailable or off duty: the CAD asks first, and that ends the
       break or the time off.</p>
+    <p><b>Crew</b>, on any unit, records staff going off and coming on mid-event: the unit&rsquo;s staff change, and the
+      report lists every crew change.</p>
   </section>
 </div>
 
 <div class="page">
   <section>
     <figure class="compact"><img src="build/shots/board.png" alt="The unit board"><figcaption>The unit board.</figcaption></figure>
-    <figure class="compact"><img src="build/shots/break-form.png" alt="Starting a break"><figcaption>Starting a break.</figcaption></figure>
+    <div class="two">
+      <figure><img src="build/shots/break-form.png" alt="Starting a break"><figcaption>Starting a break.</figcaption></figure>
+      <figure><img src="build/shots/crew-form.png" alt="A crew change"><figcaption>A crew change.</figcaption></figure>
+    </div>
     <h3>Hospitals</h3>
     <p>When a hospital goes on divert or is under pressure, set it in the <b>Hospitals</b> card on the CAD tab, with
       a note. Crews sent there show a warning, a hospital on divert shows in the alerts, and each change goes in the
@@ -285,8 +305,21 @@
       you when a centre&rsquo;s count is due, and picks the next centre due for you.</p>
     <figure class="compact"><img src="build/shots/tc.png" alt="Treatment centre counts"></figure>
     <p>The <b>Control log</b> tab is for everything that is not a call: &ldquo;Gates open&rdquo;, &ldquo;Spoke to
-      police silver&rdquo;. Controller changes, hospital statuses, METHANE messages and casualty counts are logged
-      there by themselves.</p>
+      police silver&rdquo;. Controller changes, hospital statuses, crew changes, missing persons, METHANE messages and
+      casualty counts are logged there by themselves.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Attendance and weather</h3>
+    <p>Each hour, record how many people are on site (from the gates), the temperature and the weather. The report
+      shows the patients seen in each hour and the rate per 1,000 people there, next to the weather.</p>
+    <figure class="compact"><img src="build/shots/conditions.png" alt="Attendance and weather"></figure>
+    <h3>Lost and vulnerable persons</h3>
+    <p>Lost children and vulnerable adults are kept apart from the medical calls. While someone is missing they stay in
+      the alerts. Record where they were found and who they were handed to; each step is logged and in the report.</p>
+    <figure class="compact"><img src="build/shots/persons.png" alt="Lost and vulnerable persons"></figure>
   </section>
 </div>
 
@@ -314,7 +347,10 @@
         report is marked final. <b>Unlock</b> asks first and is logged.</li>
       <li>Download the <strong>report</strong>, the <strong>call logs</strong> (a zip with each call as its own PDF)
         and, if you want the figures in Excel, the <strong>spreadsheet</strong> of calls.</li>
-      <li><strong>Export CAD</strong> to keep the whole event as one file.</li>
+      <li><strong>Export CAD</strong> to keep the whole event as one file. <strong>Share report</strong> sends the report
+        PDF by email, Teams or WhatsApp where the laptop can.</li>
+      <li>To see how this event compares with last year&rsquo;s, choose last year&rsquo;s CAD file under
+        <strong>Compare with another event</strong>: the report puts the main figures side by side.</li>
       <li>For the next event, <strong>Start a new event</strong>: the calls and logs are cleared, the setup is kept.</li>
     </ol>
     <figure class="compact"><img src="build/shots/report-card.png" alt="The report card"></figure>
@@ -324,13 +360,18 @@
 <div class="page">
   <section>
     <h3>The report</h3>
-    <p>The calls, patients and conveyances, with rates per 1,000 attendees; response times overall and by category,
-      with how many met their target; calls by hour, protocol, category, source and location; outcomes; conveyances
-      and pre-alerts; NHS ambulance waits; each unit&rsquo;s workload, breaks and time on and off duty; the treatment
-      centre counts; the control log; METHANE messages and casualty counts. Duplicate calls are left out of the
+    <p>The calls, patients and conveyances, with rates per 1,000 attendees; the comparison with another event; day by
+      day for events over several days; response times overall and by category, with how many met their target; calls
+      by hour, protocol, category, source and location; attendance and weather each hour; outcomes, presentations,
+      ages and alcohol or drugs; conveyances and pre-alerts; NHS ambulance waits; each unit&rsquo;s workload, breaks,
+      crew changes and time on and off duty; the treatment centre counts; lost and vulnerable persons; the control log;
+      METHANE messages and casualty counts; and a site map with the calls on it. Duplicate calls are left out of the
       figures.</p>
     <div class="two">
       <figure class="sheet"><img src="build/shots/pdf-report.png" alt="The report, first page"><figcaption>The report, first page.</figcaption></figure>
+      <figure class="sheet"><img src="build/shots/pdf-report-map.png" alt="Calls on the site map"><figcaption>The calls on the site map.</figcaption></figure>
+    </div>
+    <div class="two">
       <figure class="sheet"><img src="build/shots/pdf-call.png" alt="A call log"><figcaption>A call log from the zip.</figcaption></figure>
     </div>
   </section>

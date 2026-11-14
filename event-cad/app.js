@@ -160,7 +160,7 @@
     document.querySelectorAll(".panel").forEach(function (p) { p.classList.toggle("active", p.id === "panel-" + name); });
     // The time boxes start at now each visit, so they never keep a time from earlier.
     if (name === "tc") { $("tcTime").value = C.now(); renderTc(); }
-    if (name === "log") { $("logTime").value = C.now(); $("casTime").value = C.now(); }
+    if (name === "log") ["logTime", "casTime", "cdTime", "psTime"].forEach(function (id) { $(id).value = C.now(); });
     if (name === "report") renderReportSummary();
     window.scrollTo(0, 0);
   }
@@ -225,6 +225,8 @@
   var EVENT_IDS = [["evName", "name"], ["evVenue", "venue"], ["evStart", "start"], ["evEnd", "end"], ["evLead", "lead"],
     ["evControl", "control"], ["evCrowd", "crowd"]];
   function fillSetup() {
+    $("gridCols").value = cad.settings.mapGrid.cols || "";
+    $("gridRows").value = cad.settings.mapGrid.rows || "";
     $("phrases").value = cad.settings.phrases.join("\n");
     C.CATEGORIES.forEach(function (k) { $("target" + k[0]).value = cad.settings.targets[k[0]] || ""; });
     EVENT_IDS.forEach(function (f) { $(f[0]).value = cad.event[f[1]] || ""; });
@@ -255,6 +257,13 @@
       changed();
     });
   });
+  [["gridCols", "cols", 26], ["gridRows", "rows", 99]].forEach(function (f) {
+    $(f[0]).addEventListener("input", function () {
+      var n = parseInt($(f[0]).value, 10);
+      cad.settings.mapGrid[f[1]] = n >= 1 && n <= f[2] ? n : 0;
+      changed();
+    });
+  });
   $("phrases").addEventListener("input", function () {
     cad.settings.phrases = $("phrases").value.split("\n").map(function (p) { return p.trim(); })
       .filter(Boolean).slice(0, 20);
@@ -265,7 +274,7 @@
   });
 
   /* ---------------- units ---------------- */
-  function newUnit() { return { id: nextId("u"), callsign: "", type: "Other", reg: "", at: "", staff: [], history: [] }; }
+  function newUnit() { return { id: nextId("u"), callsign: "", type: "Other", reg: "", at: "", staff: [], history: [], crewLog: [] }; }
   function unitUsed(id) { return cad.calls.some(function (c) { return c.units.some(function (a) { return a.unit === id; }); }); }
 
   function renderUnits() {
@@ -413,13 +422,19 @@
     box.innerHTML = "";
     if (!cad.places.length) box.appendChild(el("p", "empty", "No locations yet."));
     cad.places.forEach(function (p, i) {
-      var line = el("div", "place-line");
+      var line = el("div", "place-line with-refs");
       var name = textIn(p.name, function (v) { p.name = v; changed(); }, "e.g. Main stage, Gate B, Treatment centre");
       name.setAttribute("aria-label", "Location name");
       line.appendChild(name);
       var kind = pick(C.PLACE_KINDS, p.kind, function (v) { p.kind = v; changed(); });
       kind.setAttribute("aria-label", "Kind of location");
       line.appendChild(kind);
+      var grid = textIn(p.grid, function (v) { p.grid = v.trim(); changed(); }, "Grid");
+      grid.setAttribute("aria-label", "Grid ref of " + (p.name || "this location"));
+      line.appendChild(grid);
+      var words = textIn(p.w3w ? "///" + p.w3w : "", function (v) { p.w3w = C.w3w(v); changed(); }, "///what3words");
+      words.setAttribute("aria-label", "what3words of " + (p.name || "this location"));
+      line.appendChild(words);
       line.appendChild(btn("Remove", "ghost small", function () {
         if (placeUsed(p.id)) {
           alert((p.name || "That location") + " is used on calls or treatment centre counts, so it can't be removed. " +
@@ -541,10 +556,12 @@
       next.log = [];
       next.methane = [];
       next.casualties = [];
+      next.conditions = [];
+      next.persons = [];
       next.hospitalStatus = {};
       next.finalised = "";
       next.finalisedBy = "";
-      next.units.forEach(function (u) { u.history = []; });
+      next.units.forEach(function (u) { u.history = []; u.crewLog = []; });
       next.controller = cad.controller;
       if (!next.company) next.company = cad.company;
       cad = next;
@@ -612,9 +629,60 @@
           changed();
         }, back + ": " + u.callsign));
       }
+      act.appendChild(btn("Crew", "ghost small", function () { unitForm = { unit: u.id, kind: "crew" }; renderUnitForm(); },
+        "Crew change: " + u.callsign));
       tr.appendChild(act);
       body.appendChild(tr);
     });
+  }
+
+  /* Staff going off a unit and joining it, mid-event: the unit's staff change and the change is kept. */
+  function renderCrewForm(box, u) {
+    box.appendChild(el("h3", "", "Crew change: " + (u.callsign || "Unnamed unit")));
+    var start = when(C.now(), function () {}), offs = [], ons = [];
+    box.appendChild(field("Time", start, "crew-time"));
+    var list = el("div", "crew-off");
+    if (!u.staff.length) list.appendChild(el("p", "empty", "No staff recorded on this unit."));
+    u.staff.forEach(function (p) {
+      var t = tick("Going off: " + ([p.name, p.grade].filter(Boolean).join(", ") || "unnamed"), false, function () {});
+      offs.push([t.querySelector("input"), p]);
+      list.appendChild(t);
+    });
+    box.appendChild(list);
+    var g = el("div", "grid");
+    [1, 2].forEach(function (n) {
+      var nm = textIn("", function () {}, "Name"), gr = textIn("", function () {}, "Clinical grade");
+      gr.setAttribute("list", "grades");
+      g.appendChild(field("Coming on: name " + n, nm));
+      g.appendChild(field("Clinical grade " + n, gr));
+      ons.push([nm, gr]);
+    });
+    box.appendChild(g);
+    var err = el("p", "error");
+    err.hidden = true;
+    var row = el("div", "actions");
+    row.appendChild(btn("Save crew change", "primary small", function () {
+      var off = offs.filter(function (x) { return x[0].checked; }).map(function (x) { return x[1]; });
+      var on = ons.filter(function (x) { return x[0].value.trim(); }).map(function (x) {
+        return { name: x[0].value.trim(), grade: x[1].value.trim() };
+      });
+      if (!off.length && !on.length) { err.textContent = "Tick who is going off, or add who is coming on."; err.hidden = false; return; }
+      var who = function (list) { return list.map(function (p) { return [p.name, p.grade].filter(Boolean).join(" (") + (p.grade && p.name ? ")" : ""); }).join(", "); };
+      var time = C.stamp(start.value) || C.now();
+      u.staff = u.staff.filter(function (p) { return off.indexOf(p) < 0; }).concat(on);
+      u.crewLog.push({ time: time, off: who(off), on: who(on), by: cad.controller });
+      cad.log.push({ time: time, by: cad.controller, text: "Crew change on " + u.callsign + ": " +
+        [off.length ? "off " + who(off) : "", on.length ? "on " + who(on) : ""].filter(Boolean).join("; ") });
+      cad.log.sort(C.byTime);
+      unitForm = null;
+      changed();
+      renderUnitForm();
+      renderUnits();
+      renderLog();
+    }));
+    row.appendChild(btn("Cancel", "ghost small", function () { unitForm = null; renderUnitForm(); }));
+    box.appendChild(row);
+    box.appendChild(err);
   }
 
   /* The break or unavailable form, under the board. */
@@ -623,6 +691,7 @@
     box.innerHTML = "";
     box.hidden = !u;
     if (!u) return;
+    if (unitForm.kind === "crew") return renderCrewForm(box, u);
     var isBreak = unitForm.kind === "break";
     box.appendChild(el("h3", "", (isBreak ? "Break: " : "Unavailable: ") + (u.callsign || "Unnamed unit")));
     var g = el("div", "grid"), start = when(C.now(), function () {}), len, end, endField, reason, back;
@@ -741,6 +810,9 @@
         if (!beeped[a.key]) { beeped[a.key] = true; beep(); }
       }
       if (a.kind === "tc") row.appendChild(btn("Record count", "ghost small", function () { showTab("tc"); }));
+      if (a.kind === "person") row.appendChild(btn("Missing persons", "ghost small", function () { showTab("log"); $("personsCard").scrollIntoView(); }));
+      // A category 1 call with no unit, and a missed welfare check, beep once each.
+      if (a.loud && !beeped[a.key]) { beeped[a.key] = true; beep(); }
       box.appendChild(row);
     });
   }
@@ -753,6 +825,24 @@
     renderAlerts(list);
     $("openCount").textContent = cad.calls.filter(function (c) { return !c.closed; }).length;
     showTcDue();
+    renderSummary();
+  }
+  /* A row of figures for the event so far. */
+  function renderSummary() {
+    var s = C.stats(cad), all = s.response[0], nowMs = Date.now();
+    var free = cad.units.filter(function (u) { return C.unitStatus(cad, u, nowMs).code === "available"; }).length;
+    var tiles = [["Calls", s.calls], ["Open", cad.calls.filter(function (c) { return !c.closed; }).length],
+      ["Patients", s.patients], ["To hospital", s.toHospital],
+      ["Average response", all && all.callToScene ? C.dur(all.callToScene.avg) : "\u2014"],
+      ["Units available", free + " of " + cad.units.length]];
+    var box = $("summaryStrip");
+    box.innerHTML = "";
+    tiles.forEach(function (t) {
+      var tile = el("div", "tile");
+      tile.appendChild(el("b", "", String(t[1])));
+      tile.appendChild(el("span", "", t[0]));
+      box.appendChild(tile);
+    });
   }
   function showTcDue() {
     var due = C.tcDue(cad, Date.now());
@@ -871,6 +961,22 @@
     show();
     return wrap;
   }
+
+  /* The site map, full screen: the square clicked becomes the call's grid ref. */
+  function pickOnMap(c) {
+    $("mapPickImg").src = siteMap.src;
+    $("mapPick").hidden = false;
+    $("mapPickImg").onclick = function (e) {
+      var r = $("mapPickImg").getBoundingClientRect(), g = cad.settings.mapGrid;
+      var col = Math.min(g.cols - 1, Math.floor((e.clientX - r.left) / r.width * g.cols));
+      var row = Math.min(g.rows - 1, Math.floor((e.clientY - r.top) / r.height * g.rows));
+      c.grid = String.fromCharCode(65 + Math.max(0, col)) + (Math.max(0, row) + 1);
+      $("mapPick").hidden = true;
+      changed();
+      renderCall();
+    };
+  }
+  $("mapPickClose").addEventListener("click", function () { $("mapPick").hidden = true; });
 
   function closeProblem(c) {
     var busy = c.units.filter(function (a) { return !C.finished(a); }).map(function (a) { return C.callsignOf(cad, a.unit); });
@@ -1023,10 +1129,23 @@
     box.appendChild(g);
 
     var loc = section(box, "Location"), lg = el("div", "grid");
-    lg.appendChild(field("Point of interest", pick([["", "None chosen"]].concat(placeOptions()), c.place, set("place"))));
+    lg.appendChild(field("Point of interest", pick([["", "None chosen"]].concat(placeOptions()), c.place, function (v) {
+      // The location's own grid ref and what3words fill in, unless the call already has its own.
+      var p = C.placeById(cad, v);
+      c.place = v;
+      if (p && p.grid && !c.grid) c.grid = p.grid;
+      if (p && p.w3w && !c.w3w) c.w3w = p.w3w;
+      changed();
+      renderCall();
+    })));
     lg.appendChild(field("Description", textIn(c.locText, set("locText"), "e.g. Behind the main stage bar")));
     lg.appendChild(w3wField(c));
-    lg.appendChild(field("Site map grid ref", textIn(c.grid, set("grid"), "e.g. C4")));
+    var gridBox = el("div", "grid-ref");
+    gridBox.appendChild(field("Site map grid ref", textIn(c.grid, set("grid"), "e.g. C4")));
+    if (siteMap && cad.settings.mapGrid.cols && cad.settings.mapGrid.rows) {
+      gridBox.appendChild(btn("Pick on map", "ghost small", function () { pickOnMap(c); }, "Pick the grid ref on the site map"));
+    }
+    lg.appendChild(gridBox);
     loc.appendChild(lg);
 
     var what = section(box, "What"), wg = el("div", "grid");
@@ -1035,7 +1154,16 @@
     })), String(c.protocol), function (v) { c.protocol = +v; changed(); })));
     wg.appendChild(field("Category", pick([["0", "No category"]].concat(C.CATEGORIES.map(function (k) {
       return [String(k[0]), "Category " + k[0] + ": " + k[1]];
-    })), String(c.category), function (v) { c.category = +v; changed(); })));
+    })), String(c.category), function (v) {
+      var was = c.category;
+      c.category = +v;
+      if (was && was !== c.category) {
+        c.log.push({ time: C.now(), by: cad.controller, text: c.category ? "Category changed from " + was + " to " + c.category
+          : "Category " + was + " removed" });
+      }
+      changed();
+      if (was) renderCall();
+    })));
     wg.appendChild(field("Details", area(c.details, set("details"), "What the caller says"), "span2"));
     what.appendChild(wg);
     var flags = el("div", "flag-row");
@@ -1071,11 +1199,17 @@
       row.appendChild(field("PRF number", textIn(p.prf, function (v) { p.prf = v; changed(); })));
       row.appendChild(field("Outcome", pick([["", "Not yet"]].concat(C.OUTCOMES.map(function (o) { return [o, o]; })),
         p.outcome, function (v) { p.outcome = v; changed(); })));
-      row.appendChild(btn("Remove", "ghost small", function () {
+      var removeBtn = btn("Remove", "ghost small", function () {
         c.patients.splice(i, 1);
         changed();
         renderCall();
-      }, "Remove patient " + (i + 1)));
+      }, "Remove patient " + (i + 1));
+      row.appendChild(removeBtn);
+      row.appendChild(field("Presentation", pick([["", "Not recorded"]].concat(C.PRESENTATIONS.map(function (t) { return [t, t]; })),
+        p.type, function (v) { p.type = v; changed(); }), "ptype"));
+      var alc = tick("Alcohol or drugs involved", p.alcohol, function (v) { p.alcohol = v; changed(); });
+      alc.classList.add("palc");
+      row.appendChild(alc);
       pat.appendChild(row);
     });
     pat.appendChild(btn("+ Add patient", "ghost small", function () {
@@ -1192,10 +1326,46 @@
   $("controller").addEventListener("change", function () {
     var name = $("controller").value.trim();
     if (name === cad.controller) return;
+    // A change from one controller to another is a handover: a note for the log, if they want one.
+    var note = cad.controller && name ? (window.prompt("Handover from " + cad.controller + " to " + name +
+      ". A handover note for the control log (optional):", "") || "").trim() : "";
     cad.controller = name;
-    if (name) cad.log.push({ time: C.now(), text: "Controller on duty: " + name, by: name });
+    if (name) cad.log.push({ time: C.now(), text: "Controller on duty: " + name + (note ? ". Handover: " + note : ""), by: name });
     changed();
     renderLog();
+  });
+
+  /* ================= SITREP ================= */
+  function makeSitrep() {
+    var mins = +$("sitrepPeriod").value;
+    $("sitrepText").value = C.sitrep(cad, Date.now(), mins ? Date.now() - mins * 60000 : 0);
+  }
+  $("sitrepBtn").addEventListener("click", function () {
+    $("sitrepPanel").hidden = !$("sitrepPanel").hidden;
+    $("sitrepResult").hidden = true;
+    if (!$("sitrepPanel").hidden) makeSitrep();
+  });
+  $("sitrepPeriod").addEventListener("change", makeSitrep);
+  $("sitrepClose").addEventListener("click", function () { $("sitrepPanel").hidden = true; });
+  $("sitrepCopy").addEventListener("click", function () {
+    makeSitrep();
+    var done = function () { message("sitrepResult", "good", "Copied: paste it into a message, or read it over the radio."); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText($("sitrepText").value).then(done, function () {
+        $("sitrepText").select();
+        message("sitrepResult", "info", "Selected: press Ctrl+C (or Cmd+C) to copy.");
+      });
+    } else {
+      $("sitrepText").select();
+      message("sitrepResult", "info", "Selected: press Ctrl+C (or Cmd+C) to copy.");
+    }
+  });
+  $("sitrepLog").addEventListener("click", function () {
+    makeSitrep();
+    cad.log.push({ time: C.now(), by: cad.controller, text: $("sitrepText").value.split("\n").join(" ") });
+    changed();
+    renderLog();
+    message("sitrepResult", "good", "Added to the control log.");
   });
 
   /* ================= TREATMENT CENTRE ================= */
@@ -1509,6 +1679,82 @@
     showBackup();
   });
 
+  /* ================= ATTENDANCE AND WEATHER ================= */
+  function renderConditions() {
+    var body = $("cdBody");
+    body.innerHTML = "";
+    $("cdTable").hidden = !cad.conditions.length;
+    cad.conditions.slice().reverse().forEach(function (h) {
+      var tr = el("tr");
+      [C.ukStamp(h.time), h.crowd ? h.crowd.toLocaleString("en-GB") : "", h.temp ? h.temp + "\u00b0C" : "", h.weather, h.by]
+        .forEach(function (t) { tr.appendChild(el("td", "", t)); });
+      body.appendChild(tr);
+    });
+  }
+  $("cdAdd").addEventListener("click", function () {
+    var crowd = parseInt($("cdCrowd").value, 10), h = { time: C.stamp($("cdTime").value) || C.now(),
+      crowd: crowd >= 0 ? crowd : 0, temp: $("cdTemp").value.trim(), weather: $("cdWeather").value.trim(), by: cad.controller };
+    if (!h.crowd && !h.temp && !h.weather) { message("cdResult", "bad", "Enter the people on site, the temperature or the weather."); return; }
+    cad.conditions.push(h);
+    cad.conditions.sort(C.byTime);
+    ["cdCrowd", "cdTemp", "cdWeather"].forEach(function (id) { $(id).value = ""; });
+    $("cdTime").value = C.now();
+    changed();
+    renderConditions();
+    message("cdResult", "good", "Recorded at " + C.hhmm(h.time) + ".");
+  });
+
+  /* ================= LOST AND VULNERABLE PERSONS ================= */
+  function renderPersons() {
+    var box = $("personList");
+    box.innerHTML = "";
+    cad.persons.slice().reverse().forEach(function (p) {
+      var card = el("div", "person" + (!p.found && !p.closed ? " missing" : "")), head = el("div", "person-head");
+      head.appendChild(el("strong", "", p.desc + (p.name ? " (" + p.name + ")" : "")));
+      head.appendChild(el("span", "badge", p.closed ? "Handed over " + C.hhmm(p.closed) : p.found ? "Found " + C.hhmm(p.found)
+        : "Missing since " + C.hhmm(p.time)));
+      card.appendChild(head);
+      card.appendChild(el("p", "echo", ["Reported " + C.ukStamp(p.time) + (p.reportedBy ? " by " + p.reportedBy : ""),
+        p.lastSeen ? "last seen " + p.lastSeen : "", p.foundAt ? "found at " + p.foundAt : "", p.handedTo ? "handed to " + p.handedTo : ""]
+        .filter(Boolean).join("  ·  ")));
+      if (!p.closed) {
+        var g = el("div", "grid"), input = textIn("", function () {}, p.found ? "e.g. Mother, at the info tent" : "e.g. Info tent, with security");
+        g.appendChild(field(p.found ? "Handed to" : "Found where", input));
+        var cell = el("div", "field");
+        cell.appendChild(el("span", "", "\u00a0"));
+        cell.appendChild(btn(p.found ? "Reunited / handed over" : "Found", "primary small", function () {
+          var t = C.now(), where = input.value.trim();
+          if (p.found) { p.closed = t; p.handedTo = where; } else { p.found = t; p.foundAt = where; }
+          cad.log.push({ time: t, by: cad.controller, text: (p.closed ? "Handed over: " : "Found: ") + p.desc +
+            (where ? (p.closed ? " to " : " at ") + where : "") });
+          changed();
+          renderPersons();
+          renderLog();
+        }, (p.found ? "Handed over: " : "Found: ") + p.desc));
+        g.appendChild(cell);
+        card.appendChild(g);
+      }
+      box.appendChild(card);
+    });
+  }
+  $("psAdd").addEventListener("click", function () {
+    var desc = $("psDesc").value.trim();
+    if (!desc) { message("psResult", "bad", "Describe the person first."); return; }
+    var p = { id: cad.persons.reduce(function (n, x) { return Math.max(n, x.id); }, 0) + 1,
+      time: C.stamp($("psTime").value) || C.now(), desc: desc, name: $("psName").value.trim(), lastSeen: $("psSeen").value.trim(),
+      reportedBy: $("psBy").value.trim(), found: "", foundAt: "", closed: "", handedTo: "", call: 0, by: cad.controller };
+    cad.persons.push(p);
+    cad.persons.sort(C.byTime);
+    cad.log.push({ time: p.time, by: cad.controller, text: "Missing person reported: " + desc + (p.lastSeen ? ", last seen " + p.lastSeen : "") });
+    cad.log.sort(C.byTime);
+    ["psDesc", "psName", "psSeen", "psBy"].forEach(function (id) { $(id).value = ""; });
+    $("psTime").value = C.now();
+    $("psResult").hidden = true;
+    changed();
+    renderPersons();
+    renderLog();
+  });
+
   /* ================= MAJOR INCIDENT CASUALTY COUNT ================= */
   function casualtyText(c) {
     return C.TRIAGE.map(function (t) { return t[1] + " " + c[t[0]]; }).join(", ") + "; total " +
@@ -1589,6 +1835,32 @@
   });
 
   /* ================= REPORT ================= */
+  /* Another event's figures, side by side in the report. */
+  function renderCompare() {
+    var x = cad.compare;
+    $("compareStatus").textContent = x ? "Comparing with " + (x.name || "another event") + (x.start ? " (" + C.ukStamp(x.start).slice(0, 10) + ")" : "") +
+      ": " + x.figures.calls + " calls, " + x.figures.patients + " patients." : "No comparison chosen.";
+    $("compareClear").hidden = !x;
+  }
+  $("compareBtn").addEventListener("click", function () { $("compareFile").click(); });
+  $("compareFile").addEventListener("change", function () {
+    readJson(this, function (parsed, name) {
+      if (!isObj(parsed) || parsed.format !== C.FORMAT) {
+        $("compareStatus").textContent = "“" + name + "” is not a CAD exported from this tool.";
+        return;
+      }
+      cad.compare = C.compareFrom(C.clean(parsed));
+      changed();
+      renderCompare();
+    });
+  });
+  $("compareClear").addEventListener("click", function () { cad.compare = null; changed(); renderCompare(); });
+
+  $("shareReportBtn").hidden = !window.Shared.canSharePdf();
+  $("shareReportBtn").addEventListener("click", function () {
+    window.Shared.sharePdf(window.CadPDF.report(cad, siteMap), "Event-report-" + fileBase() + ".pdf");
+  });
+
   $("csvBtn").addEventListener("click", function () {
     var name = "Calls-" + fileBase() + ".csv";
     download(new Blob(["\ufeff" + C.csv(cad)], { type: "text/csv" }), name);   // the mark tells Excel it is UTF-8
@@ -1603,7 +1875,7 @@
   }
   $("reportBtn").addEventListener("click", function () {
     var name = "Event-report-" + fileBase() + ".pdf";
-    window.CadPDF.report(cad).save(name);
+    window.CadPDF.report(cad, siteMap).save(name);
     message("reportResult", "good", "Downloaded " + name + ".");
   });
   $("zipBtn").addEventListener("click", function () {
@@ -1650,10 +1922,12 @@
     cad.log = [];
     cad.methane = [];
     cad.casualties = [];
+    cad.conditions = [];
+    cad.persons = [];
     cad.hospitalStatus = {};
     cad.finalised = "";
     cad.finalisedBy = "";
-    cad.units.forEach(function (u) { u.history = []; });
+    cad.units.forEach(function (u) { u.history = []; u.crewLog = []; });
     current = 0;
     save();
     renderAll();
@@ -1668,6 +1942,9 @@
     renderWalkUps();
     renderMap();
     renderCasualties();
+    renderConditions();
+    renderPersons();
+    renderCompare();
     applyLock();
     renderTc();
     renderLog();

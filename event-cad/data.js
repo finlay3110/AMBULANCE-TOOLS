@@ -53,6 +53,10 @@
     "Police requested", "Security requested", "Patient refused care", "Crew clear, returning to standby"];
   var HOSPITAL_STATUS = [["", "Normal"], ["pressure", "Under pressure"], ["divert", "On divert"]];
   var TRIAGE = [["p1", "P1"], ["p2", "P2"], ["p3", "P3"], ["dead", "Dead"]];
+  // How each patient presented, in the groupings event medical reports use.
+  var PRESENTATIONS = ["Minor injury", "Major injury", "Medical", "Cardiac / chest pain", "Breathing", "Fit / neurological",
+    "Mental health", "Heat / cold", "Allergic reaction", "Pregnancy", "Intoxication", "Other"];
+  var AGE_BANDS = [["Under 18", 0, 17], ["18 to 24", 18, 24], ["25 to 39", 25, 39], ["40 to 59", 40, 59], ["60 and over", 60, 150]];
 
   /* ---------------- times: local "YYYY-MM-DDTHH:MM", as a datetime-local box gives it ---------------- */
   function pad(n) { return (n < 10 ? "0" : "") + n; }
@@ -90,9 +94,12 @@
       event: { name: "", venue: "", start: "", end: "", lead: "", control: "", crowd: 0 },
       units: [], places: [], hospitals: [],
       settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },   // 0: no target
-        phrases: PHRASES.slice() },
+        phrases: PHRASES.slice(), mapGrid: { cols: 0, rows: 0 } },   // the site map's squares: letters across, numbers down
       controller: "",
       calls: [], tc: [], log: [], methane: [], casualties: [],
+      conditions: [],   // hourly attendance and weather
+      persons: [],      // lost and vulnerable persons
+      compare: null,    // another event's figures, for the report
       hospitalStatus: {},          // by hospital name: { status, note, since }
       finalised: "", finalisedBy: "",   // set once the event is locked
       seq: 0   // the last number used for a unit or place id
@@ -147,7 +154,8 @@
     FLAGS.forEach(function (f) { c.flags[f[0]] = isObj(raw.flags) && raw.flags[f[0]] === true; });
     c.duplicateOf = int(raw.duplicateOf, 1, 99999);
     c.patients = arr(raw.patients).map(function (p) {
-      return { age: str(p.age), sex: oneOf(p.sex, SEXES), prf: str(p.prf), outcome: oneOf(p.outcome, OUTCOMES) };
+      return { age: str(p.age), sex: oneOf(p.sex, SEXES), prf: str(p.prf), outcome: oneOf(p.outcome, OUTCOMES),
+        type: oneOf(p.type, PRESENTATIONS), alcohol: p.alcohol === true };
     });
     c.units = arr(raw.units).map(cleanAssignment).filter(function (a) { return a.unit && a.assigned; });
     c.log = cleanLog(raw.log);
@@ -181,6 +189,8 @@
       out.settings.phrases = s.phrases.filter(function (p) { return typeof p === "string" && p.trim(); })
         .map(function (p) { return p.trim(); }).slice(0, 20);
     }
+    var g = isObj(s.mapGrid) ? s.mapGrid : {};
+    out.settings.mapGrid = { cols: int(g.cols, 0, 26), rows: int(g.rows, 0, 99) };
     out.finalised = stamp(raw.finalised);
     out.finalisedBy = str(raw.finalisedBy);
     if (isObj(raw.hospitalStatus)) {
@@ -202,7 +212,8 @@
     }
     var later = [];
     out.places = arr(raw.places).map(function (p) {
-      var place = { id: fresh(pid(p.id)), name: str(p.name), kind: oneOf(p.kind, ["standby", "poi", "tc"]) || "poi" };
+      var place = { id: fresh(pid(p.id)), name: str(p.name), kind: oneOf(p.kind, ["standby", "poi", "tc"]) || "poi",
+        grid: str(p.grid), w3w: w3w(str(p.w3w)) };
       if (!place.id) later.push(place);
       return place;
     });
@@ -213,7 +224,9 @@
         history: arr(u.history).map(function (h) {
           return { kind: oneOf(h.kind, ["break", "unavailable", "offduty"]) || "unavailable", start: stamp(h.start), until: stamp(h.until),
             end: stamp(h.end), reason: str(h.reason) };
-        }).filter(function (h) { return h.start; }) };
+        }).filter(function (h) { return h.start; }),
+        crewLog: arr(u.crewLog).map(function (x) { return { time: stamp(x.time), off: str(x.off), on: str(x.on), by: str(x.by) }; })
+          .filter(function (x) { return x.time; }) };
       if (!unit.id) later.push(unit);
       return unit;
     });
@@ -239,8 +252,18 @@
       TRIAGE.forEach(function (t) { x[t[0]] = int(c[t[0]], 0, 100000); });
       return x;
     }).filter(function (c) { return c.time; });
+    out.conditions = arr(raw.conditions).map(function (c) {
+      return { time: stamp(c.time), crowd: int(c.crowd, 0, 10000000), temp: str(c.temp), weather: str(c.weather), by: str(c.by) };
+    }).filter(function (c) { return c.time; });
+    var seenPerson = {};
+    out.persons = arr(raw.persons).map(function (p) {
+      var x = { id: int(p.id, 1, 99999), time: stamp(p.time), found: stamp(p.found), closed: stamp(p.closed), call: int(p.call, 1, 99999) };
+      ["desc", "name", "lastSeen", "reportedBy", "foundAt", "handedTo", "by"].forEach(function (f) { x[f] = str(p[f]); });
+      return x;
+    }).filter(function (p) { return p.id && p.time && !seenPerson[p.id] && (seenPerson[p.id] = true); });
+    out.compare = cleanCompare(raw.compare);
     // Oldest first: the hourly count and the alerts read the latest entry from the end.
-    [out.tc, out.log, out.methane, out.casualties].forEach(function (list) { list.sort(byTime); });
+    [out.tc, out.log, out.methane, out.casualties, out.conditions, out.persons].forEach(function (list) { list.sort(byTime); });
     return out;
   }
   function byTime(a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; }
@@ -249,7 +272,7 @@
   function setupOf(cad) {
     return {
       format: SETUP_FORMAT, version: 1, company: cad.company, event: cad.event,
-      units: cad.units.map(function (u) { return Object.assign({}, u, { history: [] }); }),
+      units: cad.units.map(function (u) { return Object.assign({}, u, { history: [], crewLog: [] }); }),
       places: cad.places, hospitals: cad.hospitals, settings: cad.settings, seq: cad.seq
     };
   }
@@ -317,6 +340,79 @@
     return { code: "available", label: "Available", since: "", where: placeName(cad, unit.at) };
   }
 
+  /* ---------------- another event, to compare with ---------------- */
+  var COMPARE = [["calls", "Calls"], ["patients", "Patients"], ["toHospital", "To hospital"],
+    ["ppr", "Patients per 1,000 attendees"], ["tthr", "Hospital transfers per 1,000 attendees"],
+    ["avg", "Average, received to first on scene (min)"], ["median", "Median, received to first on scene (min)"],
+    ["target", "Calls within target (%)"], ["nhs", "NHS ambulances requested"], ["alcohol", "Patients with alcohol or drugs involved"],
+    ["duplicates", "Duplicate calls"]];
+  function cleanCompare(raw) {
+    if (!isObj(raw) || !isObj(raw.figures)) return null;
+    var out = { name: str(raw.name), start: stamp(raw.start), crowd: int(raw.crowd, 0, 10000000), figures: {} };
+    COMPARE.forEach(function (f) {
+      var n = raw.figures[f[0]];
+      out.figures[f[0]] = typeof n === "number" && isFinite(n) && n >= 0 ? n : null;
+    });
+    return out;
+  }
+  /* The figures that the report compares, from a whole CAD. */
+  function figures(cad) {
+    var s = stats(cad), all = s.response[0], t = all && all.target;
+    return { calls: s.calls, patients: s.patients, toHospital: s.toHospital, ppr: s.ppr, tthr: s.tthr,
+      avg: all && all.callToScene ? all.callToScene.avg : null, median: all && all.callToScene ? all.callToScene.median : null,
+      target: t ? t.met / t.n * 100 : null, nhs: s.nhs.length, alcohol: s.alcohol, duplicates: s.duplicates };
+  }
+  function compareFrom(cad) {
+    return { name: cad.event.name, start: cad.event.start, crowd: cad.event.crowd, figures: figures(cad) };
+  }
+
+  /* A site map grid reference, such as "C4": letters across, numbers down. Null if it isn't one on this map. */
+  function gridSquare(cad, ref) {
+    var g = cad.settings.mapGrid, m = /^\s*([A-Za-z])\s*-?\s*(\d{1,2})\s*$/.exec(ref || "");
+    if (!m || !g.cols || !g.rows) return null;
+    var col = m[1].toUpperCase().charCodeAt(0) - 65, row = +m[2] - 1;
+    return col < g.cols && row >= 0 && row < g.rows ? { col: col, row: row, key: String.fromCharCode(65 + col) + (row + 1) } : null;
+  }
+
+  /* A short situation report, for the radio or a message: since a time, or for the whole event. */
+  function sitrep(cad, nowMs, sinceMs) {
+    var all = cad.calls.filter(function (c) { return !c.duplicateOf; });
+    var recent = sinceMs ? all.filter(function (c) { return ms(c.received) >= sinceMs; }) : all;
+    var pts = function (list) { return flat(list.map(function (c) { return c.patients; })); };
+    var hosp = function (list) { return pts(list).filter(function (p) { return TO_HOSPITAL.indexOf(p.outcome) >= 0; }).length; };
+    var total = function (n) { return sinceMs ? " (event total " + n + ")" : ""; };
+    var resp = summary(recent.map(function (c) { return (firstOnScene(c) - ms(c.received)) / 60000; }));
+    var lines = ["SITREP: " + (cad.event.name || "the event") + ", " + hhmm(local(new Date(nowMs))) +
+      (sinceMs ? ", since " + hhmm(local(new Date(sinceMs))) : ", whole event")];
+    lines.push("Calls: " + recent.length + total(all.length) + "; " + all.filter(function (c) { return !c.closed; }).length + " open now.");
+    lines.push("Patients: " + pts(recent).length + total(pts(all).length) + "; to hospital: " + hosp(recent) + total(hosp(all)) + ".");
+    if (resp) lines.push("Call to first unit on scene: average " + dur(resp.avg) + ", longest " + dur(resp.max) + ".");
+    var states = cad.units.map(function (u) { return [u, unitStatus(cad, u, nowMs)]; });
+    var free = states.filter(function (x) { return x[1].code === "available"; }).length;
+    lines.push("Units: " + free + " of " + cad.units.length + " available." + states.filter(function (x) {
+      return x[1].code !== "available";
+    }).map(function (x) {
+      return " " + (x[0].callsign || "Unnamed unit") + ": " + x[1].label.toLowerCase() + (x[1].call ? " (call " + pad3(x[1].call) + ")" : "") + ".";
+    }).join(""));
+    var centres = tcCentres(cad).map(function (p) {
+      var last = cad.tc.filter(function (t) { return t.place === p.id; }).pop();
+      return last ? p.name + " " + last.count + " (" + hhmm(last.time) + ")" : "";
+    }).filter(Boolean);
+    if (!centres.length && cad.tc.length) centres = ["" + cad.tc[cad.tc.length - 1].count + " (" + hhmm(cad.tc[cad.tc.length - 1].time) + ")"];
+    if (centres.length) lines.push("Treatment centres: " + centres.join(", ") + ".");
+    var hospitals = Object.keys(cad.hospitalStatus).map(function (h) {
+      return h + " " + (cad.hospitalStatus[h].status === "divert" ? "on divert" : "under pressure");
+    });
+    if (hospitals.length) lines.push("Hospitals: " + hospitals.join(", ") + ".");
+    var missing = cad.persons.filter(function (p) { return !p.found && !p.closed; });
+    if (missing.length) lines.push("Missing persons: " + missing.map(function (p) { return p.desc; }).join("; ") + ".");
+    var m = cad.methane[cad.methane.length - 1], cas = cad.casualties[cad.casualties.length - 1];
+    if (m) lines.push("Major incident " + m.m.toLowerCase() + " at " + hhmm(m.time) + ": " + m.e + ".");
+    if (cas) lines.push("Casualties at " + hhmm(cas.time) + ": " + TRIAGE.map(function (t) { return t[1] + " " + cas[t[0]]; }).join(", ") + ".");
+    if (cad.controller) lines.push("Controller: " + cad.controller + ".");
+    return lines.join("\n");
+  }
+
   /* A warning for a hospital that is on divert or under pressure, or "". */
   function hospitalWarning(cad, name) {
     var key = String(name || "").trim().toLowerCase(), found = "";
@@ -357,7 +453,7 @@
           target + " min target with no unit on scene (" + Math.floor(waited) + " min)." });
       }
       if (!c.units.length && waited >= s.unassignedMins) {
-        out.push({ kind: "unassigned", call: c.id,
+        out.push({ kind: "unassigned", call: c.id, key: "u" + c.id, loud: c.category === 1,
           text: "Call " + pad3(c.id) + " has no unit assigned (" + Math.floor(waited) + " min)." });
       }
       c.units.forEach(function (a) {
@@ -366,7 +462,7 @@
         var last = c.log.reduce(function (t, e) { return Math.max(t, ms(e.time)); }, ms(a.onscene));
         var quiet = (nowMs - last) / 60000;
         if (quiet >= s.onSceneMins) {
-          out.push({ kind: "welfare", call: c.id, unit: a.unit, text: callsignOf(cad, a.unit) + " on scene at call " +
+          out.push({ kind: "welfare", call: c.id, unit: a.unit, key: "w" + c.id + a.unit + last, loud: true, text: callsignOf(cad, a.unit) + " on scene at call " +
             pad3(c.id) + " with no update for " + Math.floor(quiet) + " min: welfare check." });
         }
       });
@@ -380,6 +476,9 @@
     });
     Object.keys(cad.hospitalStatus).forEach(function (h) {
       if (cad.hospitalStatus[h].status === "divert") out.push({ kind: "hospital", text: hospitalWarning(cad, h) });
+    });
+    cad.persons.forEach(function (p) {
+      if (!p.found && !p.closed) out.push({ kind: "person", text: "Missing: " + p.desc + " (reported " + hhmm(p.time) + ")." });
     });
     var due = tcDue(cad, nowMs);
     if (due.length) out.push({ kind: "tc", text: tcDueText(due) });
@@ -446,6 +545,10 @@
     var places = {};
     calls.forEach(function (c) { var n = placeName(cad, c.place) || "No point of interest given"; places[n] = (places[n] || 0) + 1; });
     var ev = cad.event, dutyEnd = ev.end && ev.end < until ? ev.end : until;
+    var days = Object.keys(calls.reduce(function (o, c) { o[c.received.slice(0, 10)] = true; return o; }, {})).sort();
+    var squares = {};
+    calls.forEach(function (c) { var sq = gridSquare(cad, c.grid); if (sq) squares[sq.key] = (squares[sq.key] || 0) + 1; });
+    var ageOf = function (p) { var n = parseInt(p.age, 10); return isFinite(n) ? n : -1; };
     return {
       calls: calls.length,
       duplicates: cad.calls.length - calls.length,
@@ -471,6 +574,29 @@
         .filter(function (r) { return r[1]; }),
       bySource: counts(SOURCES.concat(["Not recorded"]), calls.map(function (c) { return c.source || "Not recorded"; })),
       flags: FLAGS.map(function (f) { return [f[1], calls.filter(function (c) { return c.flags[f[0]]; }).length]; }),
+      presentations: counts(PRESENTATIONS.concat(["Not recorded"]), patients.map(function (p) { return p.type || "Not recorded"; })),
+      alcohol: patients.filter(function (p) { return p.alcohol; }).length,
+      ages: AGE_BANDS.map(function (b) {
+        return [b[0], patients.filter(function (p) { return ageOf(p) >= b[1] && ageOf(p) <= b[2]; }).length];
+      }).concat([["Not recorded", patients.filter(function (p) { return ageOf(p) < 0 || ageOf(p) > 150; }).length]])
+        .filter(function (r) { return r[1]; }),
+      byDay: days.length > 1 ? days.map(function (day) {
+        var dc = calls.filter(function (c) { return c.received.slice(0, 10) === day; });
+        var dp = flat(dc.map(function (c) { return c.patients; }));
+        return { day: day, calls: dc.length, patients: dp.length,
+          toHospital: dp.filter(function (p) { return TO_HOSPITAL.indexOf(p.outcome) >= 0; }).length,
+          response: summary(dc.map(toScene)) };
+      }) : [],
+      squares: squares,
+      // Each hourly record, with the patients seen in the hour after it and the rate per 1,000 there.
+      hourly: cad.conditions.map(function (h) {
+        var n = flat(calls.filter(function (c) {
+          var t = ms(c.received) - ms(h.time);
+          return t >= 0 && t < 3600000;
+        }).map(function (c) { return c.patients; })).length;
+        return { time: h.time, crowd: h.crowd, temp: h.temp, weather: h.weather, patients: n,
+          rate: h.crowd ? n / h.crowd * 1000 : null };
+      }),
       byLocation: Object.keys(places).map(function (n) { return [n, places[n]]; })
         .sort(function (a, b) { return b[1] - a[1] || (a[0] < b[0] ? -1 : 1); }).slice(0, 15),
       police: calls.filter(function (c) { return c.flags.police; }).map(function (c) {
@@ -529,7 +655,7 @@
     var head = ["Call", "Received", "Controller", "How it came in", "Reported by", "Point of interest", "Description",
       "what3words", "Grid ref", "MPDS protocol", "Category", "Details", "Police involved", "Police / security ref",
       "Safeguarding concern", "Lost or vulnerable person", "Duplicate of", "Patients", "Ages", "Sexes", "PRF numbers",
-      "Patient outcomes", "Call outcome", "Units", "First unit assigned", "First on scene", "Received to first on scene (min)",
+      "Patient outcomes", "Presentations", "Alcohol or drugs involved", "Call outcome", "Units", "First unit assigned", "First on scene", "Received to first on scene (min)",
       "Hospitals", "Blue light / pre-alert", "NHS ambulance requested", "NHS CAD no.", "NHS crew arrived", "NHS wait (min)", "Closed"];
     var rows = cad.calls.slice().sort(function (a, b) { return a.id - b.id; }).map(function (c) {
       var list = function (f) { return c.patients.map(f).join("; "); };
@@ -543,7 +669,8 @@
         c.category || "", c.details, c.flags.police ? "Yes" : "No", c.policeRef, c.flags.safeguarding ? "Yes" : "No",
         c.flags.vulnerable ? "Yes" : "No", c.duplicateOf ? pad3(c.duplicateOf) : "", c.patients.length,
         list(function (p) { return p.age; }), list(function (p) { return p.sex; }), list(function (p) { return p.prf; }),
-        list(function (p) { return p.outcome; }), c.outcome,
+        list(function (p) { return p.outcome; }), list(function (p) { return p.type; }),
+        list(function (p) { return p.alcohol ? "Yes" : "No"; }), c.outcome,
         c.units.map(function (a) { return callsignOf(cad, a.unit); }).join("; "),
         ukStamp(first("assigned")), ukStamp(first("onscene")), mins1((firstOnScene(c) - ms(c.received)) / 60000),
         hospital.map(function (a) { return a.hospital; }).join("; "), hospital.some(function (a) { return a.blue; }) ? "Yes" : "",
@@ -557,6 +684,7 @@
     KEY: KEY, FORMAT: FORMAT, SETUP_FORMAT: SETUP_FORMAT,
     MPDS: MPDS, CATEGORIES: CATEGORIES, OUTCOMES: OUTCOMES, SOURCES: SOURCES, SEXES: SEXES, UNIT_TYPES: UNIT_TYPES,
     PLACE_KINDS: PLACE_KINDS, STEPS: STEPS, FLAGS: FLAGS, ATMIST: ATMIST, METHANE: METHANE, PHRASES: PHRASES,
+    PRESENTATIONS: PRESENTATIONS, COMPARE: COMPARE, compareFrom: compareFrom, gridSquare: gridSquare, sitrep: sitrep,
     HOSPITAL_STATUS: HOSPITAL_STATUS, TRIAGE: TRIAGE, hospitalWarning: hospitalWarning, csv: csv,
     stamp: stamp, now: now, ms: ms, mins: mins, addMins: addMins, hhmm: hhmm, ukStamp: ukStamp, pad3: pad3, dur: dur,
     w3w: w3w, isW3w: isW3w,

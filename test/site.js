@@ -123,6 +123,7 @@ function checkIcons() {
     new Date(Date.now() - 40 * 86400000).toISOString()));
   await home.reload();
   assert.match(await home.textContent("#backupStatus.warn"), /40 days ago/);
+  assert.match(await home.textContent("#savedList"), /Bag Tracker\s*Response bag\s*Not opened yet/, "the home page lists what is saved");
 
   // Restored into a fresh browser, with an entry that is not a tool's slipped in.
   backup.data["another-site/thing"] = "overwritten";
@@ -144,6 +145,10 @@ function checkIcons() {
   assert.deepStrictEqual(restored, { bag: "Response bag", venue: "Riverside Park", other: null });
   await fresh.goto(site.url + "deployment-maker/index.html");
   eq(await fresh.inputValue("#venue"), "Riverside Park", "a tool carries on from the backup");
+  await fresh.goto(site.url);
+  assert.match(await fresh.textContent("#savedList"), /Deployment Maker\s*Riverside Park\s*Opened \d\d\/\d\d\/\d{4} \d\d:\d\d/,
+    "and when each tool was last opened");
+  await fresh.goto(site.url + "deployment-maker/index.html");
   console.log("  ok   backup and restore");
 
   /* ---- the company details every tool reads ---- */

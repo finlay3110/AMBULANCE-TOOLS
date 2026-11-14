@@ -24,6 +24,17 @@
   }
 
   apply();
+
+  // When each tool was last opened in this browser, for the home page's "On this device" list.
+  var tool = /\/(company-profile|drug-bag-tracker|bag-tracker|deployment-maker|vehicle-check|event-cad)\//.exec(location.pathname);
+  if (tool) {
+    try {
+      var opened = JSON.parse(localStorage.getItem("ambulance-tools/opened")) || {};
+      opened[tool[1]] = new Date().toISOString();
+      localStorage.setItem("ambulance-tools/opened", JSON.stringify(opened));
+    } catch (e) { /* not fatal: the home page just won't know */ }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var btn = document.getElementById("themeBtn");
     if (!btn) return;

@@ -126,9 +126,63 @@
       }
       message("good", "Restored: " + toolNames(keys) + ". Open a tool to carry on from the backup.");
       showBackupStatus();
+      showSaved();
     };
     reader.readAsText(file);
   });
 
+  /* ---- what each tool has saved here, and when it was last opened ---- */
+  function read(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+  function plural(n, one) { return n + " " + one + (n === 1 ? "" : "s"); }
+  function str(v) { return typeof v === "string" ? v.trim() : ""; }
+  function list(v) { return Array.isArray(v) ? v : []; }
+  var SUMMARY = {
+    "company-profile/": function () { var p = read("company-profile/v1"); return p && str(p.companyName); },
+    "drug-bag-tracker/": function () {
+      var d = read("drug-bag-tracker/v2"), docs = d && d.docs ? d.docs : {};
+      var bag = list(docs.bag && docs.bag.medications).length, cd = list(docs.cd && docs.cd.medications).length;
+      return [bag ? plural(bag, "medication") + " on the bag" : "", cd ? plural(cd, "medication") + " in the CD register" : ""]
+        .filter(Boolean).join(", ");
+    },
+    "bag-tracker/": function () {
+      var b = read("bag-tracker/v1");
+      return b && [[str(b.bagName), str(b.bagNumber)].filter(Boolean).join(" "),
+        list(b.pouches).length ? plural(list(b.pouches).length, "pouch").replace("pouchs", "pouches") : ""].filter(Boolean).join(", ");
+    },
+    "deployment-maker/": function () {
+      var dep = read("deployment-maker/v1"), plans = list(read("deployment-maker/plans")).length;
+      return [dep && (str(dep.eventName) || str(dep.venue)), dep && list(dep.units).length ? plural(list(dep.units).length, "unit") : "",
+        plans ? plural(plans, "saved plan") : ""].filter(Boolean).join(", ");
+    },
+    "vehicle-check/": function () {
+      var c = read("vehicle-check/v1");
+      return c && [str(c.reg).toUpperCase() || str(c.callsign), str(c.date) ? "check of " + str(c.date).split("-").reverse().join("/") : ""]
+        .filter(Boolean).join(", ");
+    },
+    "event-cad/": function () {
+      var c = read("event-cad/v1"), ev = c && c.event ? c.event : {};
+      return c && [str(ev.name), list(c.calls).length ? plural(list(c.calls).length, "call") : "", c.finalised ? "finalised" : ""]
+        .filter(Boolean).join(", ");
+    }
+  };
+  function showSaved() {
+    var box = $("savedList"), opened = read("ambulance-tools/opened") || {};
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    box.innerHTML = "";
+    TOOLS.forEach(function (t) {
+      var li = document.createElement("li"), when = Date.parse(opened[t[0].replace("/", "")]), d = new Date(when);
+      var what = SUMMARY[t[0]]() || "Nothing saved yet";
+      [["strong", t[1]], ["span", what, "what"], ["span", isNaN(when) ? "Not opened yet" : "Opened " + p(d.getDate()) + "/" +
+        p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes()), "when"]].forEach(function (x) {
+        var e = document.createElement(x[0]);
+        e.textContent = x[1];
+        if (x[2]) e.className = x[2];
+        li.appendChild(e);
+      });
+      box.appendChild(li);
+    });
+  }
+
   showBackupStatus();
+  showSaved();
 })();

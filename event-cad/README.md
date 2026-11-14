@@ -14,11 +14,16 @@ exported to a file when you want to keep it or move it.
   the deployment open there, a saved plan, or a Deployment Maker file. Alert times,
   response time targets for each category, an optional what3words key, the quick
   log phrases (one-tap updates on every call) and the event's site map (an image,
-  shown on the CAD tab) are set here too. **Export setup** and **Import
+  shown on the CAD tab, with its grid squares so a click on it sets a call's grid
+  reference) are set here too. Each location can carry its grid reference and
+  what3words address, which fill in when a call is at that location. **Export setup** and **Import
   setup** save and reuse it as a `.json` file. **Paper fallback pack** prints a unit
   status sheet with your callsigns, a call list, a blank call sheet and METHANE form,
   and your locations, hospitals and the MPDS protocols, in case the laptop fails.
-- **CAD:** the clock, the controller on duty, the unit status board, the open calls
+- **CAD:** the clock, the controller on duty (a change asks for a handover note), a
+  summary strip (calls, open, patients, to hospital, average response, units
+  available), **SITREP** (a situation report to copy or log), the unit status board
+  (with **Crew** for staff changes mid-event), the open calls
   (category 1 first, then oldest) and closed calls with a search, alerts, the site
   map (click it for full screen), and the call sheet. **+ Walk-up** buttons, one per
   treatment centre, start a walk-in call with the centre and a patient ready.
@@ -28,7 +33,8 @@ exported to a file when you want to keep it or move it.
     details; police (with a police or security reference), safeguarding and lost or
     vulnerable person flags; whether it
     is a duplicate of another call; and each patient's age, sex, PRF number and
-    outcome.
+    outcome, presentation type, and whether alcohol or drugs were involved. A change
+    of category is logged on the call.
   - Units are assigned to a call and move through **Assigned, En route, On scene,
     Moving patient, At destination, Clear**, or **Stood down** at any point, each
     timestamped with one tap and correctable afterwards. Moving patient asks for a
@@ -57,13 +63,16 @@ exported to a file when you want to keep it or move it.
 - **Control log:** timestamped entries that are not calls, **METHANE** messages for
   a major incident (each saved to the log and printed as its own PDF), and the
   **major incident casualty count** by triage category (P1, P2, P3, dead), which
-  fills in the "N" of the next METHANE message.
+  fills in the "N" of the next METHANE message. Also **attendance and weather** each
+  hour, and **lost and vulnerable persons** (missing, found, handed over), which stay
+  in the alerts while someone is missing.
 - **Report:** the **live backup file** (choose a file once, on the laptop or a USB
   stick, and the CAD writes a copy into it after every change; Chrome and Edge only;
   after the browser restarts, press Reconnect), the end-of-event report PDF, a zip
   with every call log (and METHANE message) as its own PDF, a **spreadsheet** (.csv)
   with a row per call, **Finalise the event** (locks the CAD and marks the report
-  final; unlocking is logged), export and import of the whole CAD, and **Start a new
+  final; unlocking is logged), **Share report**, **Compare with another event** (last
+  year's CAD file, side by side in the report), export and import of the whole CAD, and **Start a new
   event**, which clears the calls and logs and keeps the setup.
 
 ## The report

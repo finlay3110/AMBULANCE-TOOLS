@@ -11,6 +11,7 @@ main { max-width: 1280px; }
 .unit-edit { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
 .unit-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 10px; align-items: end; }
 .staff-line, .place-line { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; align-items: center; }
+.place-line.with-refs { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 80px minmax(0, 1.2fr) auto; }
 .hospital-line { grid-template-columns: minmax(0, 1fr) auto; }
 .add-staff { margin-top: 10px; }
 .btn.del { color: var(--danger); }
@@ -157,4 +158,34 @@ fieldset.lockable:disabled .btn { opacity: .6; cursor: not-allowed; }
   .hospital-status { grid-template-columns: 1fr 1fr; }
   .hospital-status input { grid-column: 1 / -1; }
   .casualty-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Summary strip, SITREP, map picking, hourly conditions and missing persons. */
+.summary-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.tile b { display: block; font-size: 22px; line-height: 1.2; }
+.tile span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.sitrep-bar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+.sitrep-bar .field { flex: 0 1 220px; }
+.sitrep textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.grid-ref { display: flex; gap: 6px; align-items: flex-end; }
+.grid-ref .field { flex: 1; }
+.map-grid { margin-top: 12px; }
+.grid-hint { margin: 10px 0 0; }
+.map-pick { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .85); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 16px; }
+.map-pick-bar { display: flex; gap: 12px; align-items: center; color: #fff; font-weight: 700; }
+.map-pick img { max-width: 100%; max-height: calc(100vh - 90px); cursor: crosshair; border-radius: 4px; background: #fff; }
+.patient-row .ptype { grid-column: 1 / 4; }
+.patient-row .palc { grid-column: 4 / -1; align-self: center; }
+.conditions-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 10px; }
+.person { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.person.missing { border-color: var(--warn-line); background: var(--warn-bg); }
+.person-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+.person-head strong { flex: 1 1 200px; }
+.person .grid { margin-top: 8px; }
+.crew-off { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; }
+@media (max-width: 700px) {
+  .place-line.with-refs { grid-template-columns: 1fr 1fr; }
+  .conditions-grid { grid-template-columns: 1fr 1fr; }
 }

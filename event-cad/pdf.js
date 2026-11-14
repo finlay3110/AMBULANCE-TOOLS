@@ -236,8 +236,11 @@
     y = strip(doc, y + 2, C.FLAGS.map(function (f) { return [f[1], blank ? "Yes  /  No" : c.flags[f[0]] ? "YES" : "No"]; })
       .concat([["Police / security ref.", v(c && c.policeRef)]]));
 
-    y = table(doc, y, { title: "Patients", widths: [10, 24, 30, 46, 76], header: ["#", "Age", "Sex", "PRF number", "Outcome"],
-      rows: blank ? [] : c.patients.map(function (p, i) { return [String(i + 1), p.age, p.sex, p.prf, p.outcome]; }),
+    y = table(doc, y, { title: "Patients", widths: [8, 14, 20, 28, 40, 18, 58],
+      header: ["#", "Age", "Sex", "PRF number", "Presentation", "Alcohol / drugs", "Outcome"],
+      rows: blank ? [] : c.patients.map(function (p, i) {
+        return [String(i + 1), p.age, p.sex, p.prf, p.type, p.alcohol ? "Yes" : "No", p.outcome];
+      }),
       blank: blank ? 3 : 0, minH: blank ? 9 : 6.5, empty: "No patients recorded." });
 
     var stepCols = C.STEPS.map(function (s) { return s[0] === "clear" ? "Clear / stood down" : s[1]; });
@@ -340,7 +343,7 @@
   function rate(n) { return n === null ? "No crowd size" : n.toFixed(2); }
   function trio(s) { return s ? [C.dur(s.avg), C.dur(s.median), C.dur(s.max)] : ["—", "—", "—"]; }
 
-  function report(cad) {
+  function report(cad, siteMap) {
     var s = C.stats(cad), ev = cad.event;
     var doc = newDoc("Event report (continued)  ·  " + txt(ev.name));
     var dates = ukDate(ev.start) && ukDate(ev.end) && ukDate(ev.start) !== ukDate(ev.end)
@@ -353,7 +356,7 @@
 
     y = heading(doc, y, "Summary");
     y = strip(doc, y, [["Calls", String(s.calls)], ["Patients", String(s.patients)], ["To hospital", String(s.toHospital)],
-      ["Duplicate calls", String(s.duplicates)]]);
+      ["Alcohol or drugs involved", String(s.alcohol)], ["Duplicate calls", String(s.duplicates)]]);
     y = strip(doc, y, [["Patients per 1,000 attendees", rate(s.ppr)], ["Hospital transfers per 1,000 attendees", rate(s.tthr)]]);
     setFont(doc, 7.5, "normal");
     colour(doc, MUTED);
@@ -374,8 +377,35 @@
     });
     if (targets.length) y = note(doc, y + 1, "Targets, from the call to the first unit on scene: " + targets.join(", ") + ".");
 
+    if (cad.compare) {
+      var other = cad.compare, mine = C.compareFrom(cad).figures;
+      var num = function (v, k) {
+        if (v === null || v === undefined) return "\u2014";
+        return k === "ppr" || k === "tthr" ? v.toFixed(2) : k === "avg" || k === "median" || k === "target" ? String(Math.round(v * 10) / 10) : String(v);
+      };
+      y = table(doc, y, { title: "Compared with " + (other.name || "another event") + (other.start ? " (" + ukDate(other.start) + ")" : ""),
+        widths: [106, 40, 40], header: ["", txt(ev.name) || "This event", other.name || "Other event"],
+        rows: [["Crowd size", ev.crowd ? ev.crowd.toLocaleString("en-GB") : "\u2014", other.crowd ? other.crowd.toLocaleString("en-GB") : "\u2014"]]
+          .concat(C.COMPARE.map(function (f) { return [f[1], num(mine[f[0]], f[0]), num(other.figures[f[0]], f[0])]; })) });
+    }
+    if (s.byDay.length) {
+      y = table(doc, y, { title: "Day by day", widths: [40, 24, 24, 30, 34, 34],
+        header: ["Day", "Calls", "Patients", "To hospital", "Received to on scene: average", "longest"],
+        rows: s.byDay.map(function (d) {
+          return [ukDate(d.day), String(d.calls), String(d.patients), String(d.toHospital),
+            d.response ? C.dur(d.response.avg) : "\u2014", d.response ? C.dur(d.response.max) : "\u2014"];
+        }) });
+    }
     y = table(doc, y, { title: "Calls per hour", widths: [40, 20], header: ["Hour", "Calls"],
       rows: s.perHour.map(function (r) { return [r[0], String(r[1])]; }), empty: "No calls." });
+    if (s.hourly.length) {
+      y = table(doc, y, { title: "Attendance and weather each hour", widths: [34, 30, 34, 34, 24, 30],
+        header: ["Time", "People on site", "Patients in the hour after", "Patients per 1,000 on site", "Temperature", "Weather"],
+        rows: s.hourly.map(function (h) {
+          return [C.ukStamp(h.time), h.crowd ? h.crowd.toLocaleString("en-GB") : "", String(h.patients),
+            h.rate === null ? "\u2014" : h.rate.toFixed(2), h.temp ? h.temp + "\u00b0C" : "", h.weather];
+        }) });
+    }
     var list = function (title, rows) {
       y = table(doc, y, { title: title, widths: [146, 40], header: ["", "Count"],
         rows: rows.map(function (r) { return [r[0], String(r[1])]; }), empty: "None." });
@@ -390,6 +420,8 @@
       rows: s.police.map(function (r) { return [C.pad3(r.call), C.ukStamp(r.time), r.where, r.ref]; }),
       empty: "No calls with police involved." });
     list("Outcomes (per patient, or per call when there was no patient)", s.outcomes);
+    list("Patient presentations", s.presentations);
+    list("Patients by age", s.ages);
 
     y = table(doc, y, { title: "Conveyances to hospital", widths: [14, 26, 40, 22, 32, 30, 22],
       header: ["Call", "Unit", "Hospital", "Blue light / pre-alert", "Pre-alert passed to", "Passed via", "NHS CAD no."],
@@ -431,13 +463,55 @@
       header: ["Time", "Major incident", "Exact location", "Casualties", "Passed to"],
       rows: cad.methane.map(function (m) { return [C.ukStamp(m.time), m.m, m.e, m.n, m.passedTo]; }), empty: "None." });
 
+    var crew = [].concat.apply([], cad.units.map(function (u) {
+      return u.crewLog.map(function (x) { return [x.time, u.callsign, x.off, x.on, x.by]; });
+    })).sort(function (a, b) { return a[0] < b[0] ? -1 : 1; });
+    if (crew.length) {
+      y = table(doc, y, { title: "Crew changes", widths: [30, 26, 50, 50, 30], header: ["Time", "Unit", "Going off", "Coming on", "By"],
+        rows: crew.map(function (r) { return [C.ukStamp(r[0])].concat(r.slice(1)); }) });
+    }
+    if (cad.persons.length) {
+      y = table(doc, y, { title: "Lost and vulnerable persons", widths: [26, 52, 36, 36, 36],
+        header: ["Reported", "Description", "Last seen", "Found", "Handed to"],
+        rows: cad.persons.map(function (p) {
+          return [C.ukStamp(p.time), p.desc + (p.name ? " (" + p.name + ")" : ""), p.lastSeen,
+            p.found ? C.hhmm(p.found) + (p.foundAt ? ", " + p.foundAt : "") : "NOT FOUND", p.closed ? C.hhmm(p.closed) + (p.handedTo ? ", " + p.handedTo : "") : ""];
+        }) });
+    }
+
     if (cad.casualties.length) {
-      table(doc, y, { title: "Major incident casualty counts", widths: [30, 14, 14, 14, 14, 16, 54, 30],
+      y = table(doc, y, { title: "Major incident casualty counts", widths: [30, 14, 14, 14, 14, 16, 54, 30],
         header: ["Time", "P1", "P2", "P3", "Dead", "Total", "Note", "By"],
         rows: cad.casualties.map(function (c) {
           return [C.ukStamp(c.time)].concat(C.TRIAGE.map(function (t) { return String(c[t[0]]); }),
             [String(C.TRIAGE.reduce(function (n, t) { return n + c[t[0]]; }, 0)), c.note, c.by]);
         }) });
+    }
+
+    // Where the calls were: a dot on each grid square of the site map, sized by the number of calls.
+    var g = cad.settings.mapGrid, keys = Object.keys(s.squares);
+    if (siteMap && g.cols && g.rows && keys.length) {
+      doc.addPage();
+      y = masthead(doc, cad, "CALLS ON THE SITE MAP", "CALLS PLACED", String(keys.reduce(function (n, k) { return n + s.squares[k]; }, 0)));
+      var maxH = pageH(doc) - PAGE.mb - y - 10, scale = Math.min(W / siteMap.w, maxH / siteMap.h);
+      var mw = siteMap.w * scale, mh = siteMap.h * scale, mx = PAGE.ml + (W - mw) / 2;
+      try { doc.addImage(siteMap.src, siteMap.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", mx, y, mw, mh); } catch (e) { /* skip */ }
+      var most = Math.max.apply(null, keys.map(function (k) { return s.squares[k]; }));
+      keys.forEach(function (k) {
+        var sq = C.gridSquare(cad, k), n = s.squares[k];
+        var cx = mx + (sq.col + 0.5) * mw / g.cols, cy = y + (sq.row + 0.5) * mh / g.rows;
+        var r = Math.max(2.5, Math.min(mw / g.cols, mh / g.rows) * 0.42 * Math.sqrt(n / most));
+        doc.setFillColor(180, 35, 24);
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.4);
+        doc.circle(cx, cy, r, "FD");
+        doc.setTextColor(255, 255, 255);
+        setFont(doc, r > 4 ? 10 : 7.5, "bold");
+        doc.text(String(n), cx, cy + (r > 4 ? 1.3 : 1), { align: "center" });
+      });
+      colour(doc, INK);
+      note(doc, y + mh + 2, "Each dot is a grid square with calls in it; the number is how many. Calls with no grid ref, or one outside " +
+        "the map's grid, are not shown. Duplicate calls are left out.");
     }
 
     return footers(doc, ["Event report", txt(ev.name)].filter(Boolean).join("  ·  "));

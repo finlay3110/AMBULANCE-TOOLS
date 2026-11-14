@@ -54,6 +54,16 @@ function unzip(buf) {
       requestPermission: async () => "granted"
     });
   });
+  // Stand-ins for the beep and the share sheet: they count beeps and keep what was shared.
+  await ctx.addInitScript(() => {
+    window.__beeps = 0;
+    window.AudioContext = function () {
+      return { currentTime: 0, destination: {}, createGain: () => ({ gain: {}, connect() {} }),
+        createOscillator: () => ({ frequency: {}, connect() {}, start() { window.__beeps++; }, stop() {} }) };
+    };
+    navigator.canShare = (d) => !!(d && d.files);
+    navigator.share = (d) => { window.__shared = { name: d.files[0].name, type: d.files[0].type }; return Promise.resolve(); };
+  });
   // what3words, answered here: the test never goes out to the internet.
   const asked = [];
   await ctx.route("https://api.what3words.com/**", (route) => {
@@ -66,7 +76,8 @@ function unzip(buf) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  page.on("dialog", (d) => d.accept());
+  let promptAnswer = "";
+  page.on("dialog", (d) => d.accept(d.type() === "prompt" ? promptAnswer : undefined));
   await page.clock.install({ time: new Date(2026, 6, 4, 12, 0, 0) });
   await page.goto(PAGE);
   const state = () => page.evaluate(() => CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))));
@@ -93,13 +104,24 @@ function unzip(buf) {
     await page.locator(".place-line").last().getByLabel("Location name").fill(name);
     await page.locator(".place-line").last().getByLabel("Kind of location").selectOption(kind);
   }
+  await page.getByLabel("Grid ref of Gate B").fill("C4");
+  await page.getByLabel("what3words of Gate B").fill("///index.home.raft");
   await page.click("#addHospital");
   await page.getByLabel("Hospital name").fill("Royal Infirmary");
   await page.fill("#w3wKey", "TESTKEY");
   await page.fill("#phrases", "Patient stable\nPatient conveyed\nPolice on scene");
   await page.fill("#target1", "3");
   await page.fill("#target2", "15");
-  await page.setInputFiles("#mapFile", { name: "map.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
+  const mapPng = await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 800; c.height = 500;
+    c.getContext("2d").fillStyle = "#cfe8c8";
+    c.getContext("2d").fillRect(0, 0, 800, 500);
+    return c.toDataURL("image/png").split(",")[1];
+  });
+  await page.setInputFiles("#mapFile", { name: "map.png", mimeType: "image/png", buffer: Buffer.from(mapPng, "base64") });
+  await page.fill("#gridCols", "8");
+  await page.fill("#gridRows", "5");
   await page.waitForSelector("#mapPreview img");
 
   const [setupFile] = await Promise.all([page.waitForEvent("download"), page.click("#setupExport")]);
@@ -134,19 +156,26 @@ function unzip(buf) {
   await sheet.getByLabel("How it came in").selectOption("Radio");
   await sheet.getByLabel("Reported by").fill("Steward at gate B");
   await sheet.getByLabel("Point of interest").selectOption({ label: "Gate B" });
+  eq(await sheet.getByLabel("Site map grid ref").inputValue(), "C4", "the location's grid ref fills in");
+  eq(await sheet.getByLabel("what3words").inputValue(), "///index.home.raft", "and its what3words");
+  await sheet.getByLabel("what3words").fill("");
   await sheet.getByLabel("what3words").pressSequentially("///filled.count.so");
   await sheet.getByRole("button", { name: "///filled.count.soap, near Bayswater, London" }).click();
   eq(await sheet.getByLabel("what3words").inputValue(), "///filled.count.soap");
   eq(await sheet.getByRole("link", { name: /Show/ }).getAttribute("href"), "https://what3words.com/filled.count.soap");
   assert.ok(asked.length && asked.every((u) => u.includes("key=TESTKEY")), "suggestions come from what3words with the key");
   await sheet.getByLabel("MPDS protocol").selectOption("17");
+  await sheet.getByLabel("Category", { exact: true }).selectOption("3");
   await sheet.getByLabel("Category", { exact: true }).selectOption("2");
+  assert.match(await sheet.locator(".log-list").textContent(), /Category changed from 3 to 2/, "a category change is logged");
   await sheet.getByLabel("Police involved").check();
   await sheet.getByLabel("Police / security reference").fill("POL-0412");
   await sheet.getByRole("button", { name: "+ Add patient" }).click();
   await sheet.locator(".patient-row").getByLabel("Age").fill("34");
   await sheet.locator(".patient-row").getByLabel("Sex").selectOption("Female");
   await sheet.locator(".patient-row").getByLabel("PRF number").fill("PRF-1001");
+  await sheet.locator(".patient-row").getByLabel("Presentation").selectOption("Minor injury");
+  await sheet.locator(".patient-row").getByLabel("Alcohol or drugs involved").check();
 
   await later("06:00");
   assert.match(await page.textContent("#alerts"), /Call 001 has no unit assigned \(6 min\)/);
@@ -164,6 +193,7 @@ function unzip(buf) {
 
   await later("21:00");
   assert.match(await page.textContent("#alerts"), /Alpha 1 on scene at call 001 with no update for 21 min/);
+  eq(await page.evaluate(() => window.__beeps), 1, "a missed welfare check beeps");
   await page.getByRole("button", { name: "Welfare check done: Alpha 1 OK" }).click();
   assert.doesNotMatch(await page.textContent("#alerts"), /welfare/);
   assert.match(await sheet.locator(".log-list").textContent(), /Welfare check: Alpha 1 OK/);
@@ -205,6 +235,14 @@ function unzip(buf) {
   await sheet.getByRole("button", { name: "Close call" }).click();
   assert.match(await sheet.locator(".badge").first().textContent(), /Closed 13:15/);
   eq(await alphaRow.locator(".badge").textContent(), "Available");
+  assert.match(await page.textContent("#summaryStrip"), /^1Calls0Open1Patients1To hospital12 minAverage response2 of 2Units available$/);
+  await page.click("#sitrepBtn");
+  await page.selectOption("#sitrepPeriod", "0");
+  const sitrep = await page.inputValue("#sitrepText");
+  assert.match(sitrep, /^SITREP: Riverside Festival, 13:15, whole event\nCalls: 1; 0 open now\.\nPatients: 1; to hospital: 1\./);
+  assert.match(sitrep, /Call to first unit on scene: average 12 min, longest 12 min\.\nUnits: 2 of 2 available\./);
+  await page.click("#sitrepLog");
+  await page.click("#sitrepClose");
   assert.match(await alphaRow.textContent(), /Main stage/);
 
   /* ---- a duplicate, and a call handed to an NHS ambulance ---- */
@@ -225,6 +263,10 @@ function unzip(buf) {
   await later("03:00");
   assert.match(await page.textContent("#alerts"), /Call 003 \(category 1\) has passed its 3 min target with no unit on scene \(4 min\)/);
   await sheet.getByRole("button", { name: "On scene: Foot 1" }).click();
+  await sheet.getByRole("button", { name: "Pick the grid ref on the site map" }).click();
+  const mapBox = await page.locator("#mapPickImg").boundingBox();
+  await page.mouse.click(mapBox.x + mapBox.width * 2.5 / 8, mapBox.y + mapBox.height * 3.5 / 5);
+  eq(await sheet.getByLabel("Site map grid ref").inputValue(), "C4", "a click on the map sets the grid ref");
   assert.doesNotMatch(await page.textContent("#alerts"), /target/, "a unit on scene ends the target alert");
   await sheet.getByRole("button", { name: "NHS ambulance requested" }).click();
   await sheet.getByLabel("NHS CAD number").fill("NHS-999");
@@ -249,6 +291,11 @@ function unzip(buf) {
   assert.match(await page.textContent("#alerts"), /Alpha 1’s break ended at 14:14/);
   await page.locator("#alerts").getByRole("button", { name: "Back from break" }).click();
   eq(await alphaRow.locator(".badge").textContent(), "Available");
+  await page.getByRole("button", { name: "Crew change: Alpha 1" }).click();
+  await page.locator("#unitPanel").getByLabel("Going off: Jo Bloggs, Paramedic").check();
+  await page.locator("#unitPanel").getByLabel("Coming on: name 1").fill("Kim Lowe");
+  await page.locator("#unitPanel").getByLabel("Clinical grade 1").fill("Paramedic");
+  await page.getByRole("button", { name: "Save crew change" }).click();
   const footRow = page.locator("#boardBody tr", { hasText: "Foot 1" });
   await page.getByRole("button", { name: "Unavailable: Foot 1" }).click();
   await page.locator("#unitPanel").getByLabel("Reason").fill("Restocking");
@@ -286,6 +333,25 @@ function unzip(buf) {
   assert.match(await page.textContent("#controlLog"), /Gates open/);
   await page.click(".tab[data-tab=cad]");
   await page.click(".tab[data-tab=log]");
+  assert.match(await page.textContent("#controlLog"), /Crew change on Alpha 1: off Jo Bloggs \(Paramedic\); on Kim Lowe \(Paramedic\)/);
+  assert.match(await page.textContent("#controlLog"), /SITREP: Riverside Festival/, "a SITREP can go in the log");
+  await page.fill("#cdCrowd", "18000");
+  await page.fill("#cdTemp", "27");
+  await page.fill("#cdWeather", "Hot");
+  await page.click("#cdAdd");
+  assert.match(await page.textContent("#cdBody"), /18,000\s*27°C\s*Hot/);
+  await page.fill("#psDesc", "Girl aged 7, red coat");
+  await page.fill("#psSeen", "Main stage bar");
+  await page.fill("#psBy", "Mother");
+  await page.click("#psAdd");
+  await page.click(".tab[data-tab=cad]");
+  assert.match(await page.textContent("#alerts"), /Missing: Girl aged 7, red coat \(reported \d\d:\d\d\)\./);
+  await page.click(".tab[data-tab=log]");
+  await page.locator("#personList").getByLabel("Found where").fill("Info tent");
+  await page.getByRole("button", { name: "Found: Girl aged 7, red coat" }).click();
+  await page.locator("#personList").getByLabel("Handed to").fill("Mother, at the info tent");
+  await page.getByRole("button", { name: "Handed over: Girl aged 7, red coat" }).click();
+  assert.match(await page.textContent("#controlLog"), /Handed over: Girl aged 7, red coat to Mother, at the info tent/);
   await page.fill("#cas-p1", "2");
   await page.fill("#cas-p2", "3");
   await page.fill("#cas-p3", "10");
@@ -338,6 +404,13 @@ function unzip(buf) {
   eq(stats.police[0].ref, "POL-0412");
 
   await page.click(".tab[data-tab=report]");
+  const lastYear = path.join(require("os").tmpdir(), "cad-last-year.json");
+  fs.writeFileSync(lastYear, JSON.stringify({ format: "event-cad/cad", event: { name: "Riverside 2025", start: "2025-07-05T11:00", crowd: 18000 },
+    calls: [{ id: 1, received: "2025-07-05T12:00", patients: [{ age: "30", outcome: "Advice only" }] }] }));
+  await page.setInputFiles("#compareFile", lastYear);
+  await page.waitForFunction(() => /Riverside 2025/.test(document.getElementById("compareStatus").textContent));
+  await page.click("#shareReportBtn");
+  assert.match(await page.evaluate(() => window.__shared.name), /^Event-report-Riverside-Festival-2026-07-04\.pdf$/);
   assert.match(await page.textContent("#reportSummary"), /2 calls, 2 patients, 2 to hospital, 1 duplicate\. 0 still open/);
   const [report] = await Promise.all([page.waitForEvent("download"), page.click("#reportBtn")]);
   assert.match(report.suggestedFilename(), /^Event-report-Riverside-Festival-2026-07-04\.pdf$/);
@@ -346,7 +419,9 @@ function unzip(buf) {
     "17  Falls", "Category 1", "Radio", "Police involved", "Conveyed to hospital", "Royal Infirmary", "NHS-123", "NHS-999",
     "average wait 30 min", "1 h 09 min", "1 of 2 \\(50%\\)", "category 1 3 min, category 2 15 min", "Busiest locations",
     "POL-0412", "Off duty", "Major incident casualty counts", "From the casualty clearing station", "Draft, made", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
-    "North field, by the big wheel"]) {
+    "North field, by the big wheel", "ALCOHOL OR DRUGS INVOLVED", "Patient presentations", "Minor injury", "Patients by age",
+    "25 to 39", "60 and over", "Attendance and weather each hour", "18,000", "Crew changes", "Kim Lowe \\(Paramedic\\)",
+    "Lost and vulnerable persons", "Girl aged 7, red coat", "Compared with Riverside 2025", "CALLS ON THE SITE MAP"]) {
     assert.ok(reportText.includes(s), "report missing " + s);
   }
 
@@ -384,6 +459,20 @@ function unzip(buf) {
   eq(await page.isDisabled("#newCallBtn"), false);
   assert.match(await page.textContent("#controlLog"), /Event unlocked after being finalised/);
   assert.match(await page.textContent("#controlLog"), /Event finalised/);
+
+  /* ---- a handover to the next controller ---- */
+  await page.click(".tab[data-tab=cad]");
+  promptAnswer = "All quiet, no calls open";
+  await page.fill("#controller", "Kim Ray");
+  await page.press("#controller", "Tab");
+  await page.click(".tab[data-tab=log]");
+  assert.match(await page.textContent("#controlLog"), /Controller on duty: Kim Ray\. Handover: All quiet, no calls open/);
+
+  // Several days: the report splits the figures by day.
+  const days = await page.evaluate(() => CAD.stats(CAD.clean({ calls: [
+    { id: 1, received: "2026-07-04T22:00", patients: [{ age: "20" }] }, { id: 2, received: "2026-07-05T01:00" }] })).byDay
+    .map((d) => [d.day, d.calls, d.patients]));
+  assert.deepStrictEqual(days, [["2026-07-04", 1, 1], ["2026-07-05", 1, 0]]);
 
   /* ---- a walk-up, open calls most urgent first, the site map, and the backup keeping up ---- */
   await page.click(".tab[data-tab=cad]");

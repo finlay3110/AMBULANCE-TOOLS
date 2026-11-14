@@ -36,6 +36,13 @@
   .step-head { margin: 0 0 12px; font-size: 15px; }
   .backup { margin-top: 28px; }
   .backup p { margin: 0 0 4px; }
+  .saved-list { list-style: none; padding: 0; margin: 12px 0 0; }
+  .saved-list li { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0;
+    border-top: 1px solid var(--line); font-size: 14px; }
+  .saved-list li:first-child { border-top: 0; }
+  .saved-list .what { color: var(--ink-soft); }
+  .saved-list .when { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  @media (max-width: 700px) { .saved-list li { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -91,6 +98,11 @@
       <a class="btn primary" href="event-cad/index.html">Open Event CAD &rarr;</a>
     </section>
   </div>
+  <section class="card saved">
+    <h2>On this device</h2>
+    <p>What each tool has saved in this browser, and when it was last opened.</p>
+    <ul class="saved-list" id="savedList"></ul>
+  </section>
   <section class="card backup">
     <h2>Back up everything</h2>
     <p>Saved work lives only in this browser. Download one file with the saved work of every tool &mdash;
