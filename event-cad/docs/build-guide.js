@@ -27,7 +27,7 @@ const EXAMPLE = {
   company: { companyName: "Northern Event Medical Ltd", companyPhone: "01234 567890", cqcRegistered: true, cqcNumber: "1-234567890" },
   event: { name: "Riverside Summer Festival", venue: "Riverside Park", start: d("11:00"), end: d("23:00"),
     lead: "J. Smith, medical manager", control: "01234 567891, radio channel 2", crowd: 25000 },
-  settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 8, 2: 15, 3: 30 } },
+  settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 8, 2: 15, 3: 30 }, mapGrid: { cols: 8, rows: 5 } },
   controller: "Chris Lee", seq: 8,
   units: [
     { id: "u1", callsign: "Alpha 1", type: "Ambulance", reg: "AB12 CDE", at: "p1",
@@ -40,28 +40,28 @@ const EXAMPLE = {
       history: [{ kind: "unavailable", start: d("16:30"), reason: "Restocking" }] },
     { id: "u5", callsign: "Foot 2", type: "Foot team", at: "p1", staff: [{ name: "Ben Ford", grade: "EMT" }] },
     { id: "u6", callsign: "Cycle 1", type: "Cycle team", at: "p2", staff: [{ name: "Raj Dev", grade: "Paramedic" }] }],
-  places: [{ id: "p1", name: "Main stage", kind: "standby" }, { id: "p2", name: "North gate", kind: "standby" },
+  places: [{ id: "p1", name: "Main stage", kind: "standby", grid: "D2", w3w: "filled.count.soap" }, { id: "p2", name: "North gate", kind: "standby" },
     { id: "p3", name: "Main treatment centre", kind: "tc" }, { id: "p4", name: "Campsite C", kind: "standby" },
     { id: "p5", name: "Gate B", kind: "poi" }, { id: "p6", name: "Bar 2", kind: "poi" }, { id: "p7", name: "North TC", kind: "tc" }],
   hospitals: ["Royal Infirmary", "St Mary's Hospital"],
   hospitalStatus: { "St Mary's Hospital": { status: "pressure", note: "Long handover delays", since: d("15:40") } },
   calls: [
     { id: 1, received: d("12:04"), controller: "Chris Lee", source: "Radio", reportedBy: "Steward at gate B", place: "p5",
-      locText: "By the info tent", protocol: 17, category: 3, details: "Female tripped on a tent peg, painful left ankle.",
-      patients: [{ age: "34", sex: "Female", prf: "PRF-1001", outcome: "Treated and discharged on scene" }],
+      locText: "By the info tent", grid: "B2", protocol: 17, category: 3, details: "Female tripped on a tent peg, painful left ankle.",
+      patients: [{ age: "34", sex: "Female", prf: "PRF-1001", outcome: "Treated and discharged on scene", type: "Minor injury" }],
       units: [{ unit: "u4", assigned: d("12:05"), enroute: d("12:05"), onscene: d("12:09"), clear: d("12:31") }], closed: d("12:31") },
     { id: 2, received: d("14:02"), controller: "Chris Lee", source: "Radio", reportedBy: "Foot 2", place: "p1",
       locText: "Front of house, barrier 3", w3w: "filled.count.soap", grid: "D4", protocol: 10, category: 2,
       details: "Male 58, central chest pain radiating to the left arm, sweaty.",
-      patients: [{ age: "58", sex: "Male", prf: "PRF-1002", outcome: "Conveyed to hospital" }],
+      patients: [{ age: "58", sex: "Male", prf: "PRF-1002", outcome: "Conveyed to hospital", type: "Cardiac / chest pain" }],
       units: [{ unit: "u1", assigned: d("14:03"), enroute: d("14:03"), onscene: d("14:09"), moving: d("14:30"), dest: "hospital",
         hospital: "Royal Infirmary", blue: true, atmist: { a: "58", t: "Onset 13:50", m: "Chest pain at rest", i: "Nil",
           s: "HR 110, BP 150/90, SpO2 95%, ECG ST elevation V2-V4", tx: "Aspirin 300 mg, GTN" },
         eta: "15:00", passedTo: "ED nurse in charge", via: "nhs", nhsCad: "NHS-24871", atdest: d("14:52"), clear: d("15:20") }],
       log: [{ time: d("14:12"), text: "12-lead shows STEMI, pre-alert to follow", by: "Chris Lee" }], closed: d("15:20") },
     { id: 3, received: d("16:05"), controller: "Chris Lee", source: "Radio", reportedBy: "Security, campsite C", place: "p4",
-      locText: "Blue tent, row 12", protocol: 31, category: 1, details: "Male found unresponsive by friends.",
-      patients: [{ age: "24", sex: "Male", prf: "PRF-1003" }],
+      locText: "Blue tent, row 12", grid: "F4", protocol: 31, category: 1, details: "Male found unresponsive by friends.",
+      patients: [{ age: "24", sex: "Male", prf: "PRF-1003", type: "Intoxication", alcohol: true }],
       units: [{ unit: "u6", assigned: d("16:06"), onscene: d("16:09"), clear: d("16:35") },
         { unit: "u2", assigned: d("16:06"), enroute: d("16:06"), onscene: d("16:11"), moving: d("16:30"), dest: "hospital",
           hospital: "Royal Infirmary", blue: true, atmist: { a: "24", t: "Found 16:00", m: "Suspected overdose", i: "Nil obvious",
@@ -70,13 +70,18 @@ const EXAMPLE = {
       nhs: { requested: d("16:08"), cad: "NHS-25110", category: 1 },
       log: [{ time: d("16:12"), text: "Crew with patient, airway managed", by: "Chris Lee" }] },
     { id: 4, received: d("16:20"), controller: "Chris Lee", source: "Steward/Security", reportedBy: "Steward 14", place: "p5",
-      locText: "Lost child, aged 7, at the info tent", category: 3, flags: { vulnerable: true, safeguarding: true },
+      locText: "Lost child, aged 7, at the info tent", grid: "B2", category: 3, flags: { vulnerable: true, safeguarding: true },
       units: [{ unit: "u5", assigned: d("16:22"), enroute: d("16:22"), onscene: d("16:27") }] },
     { id: 5, received: d("16:33"), controller: "Chris Lee", source: "Radio", reportedBy: "Steward at bar 2", place: "p6",
-      protocol: 4, category: 3, details: "Male with a facial injury after an argument.", flags: { police: true },
+      grid: "E3", protocol: 4, category: 3, details: "Male with a facial injury after an argument.", flags: { police: true },
       policeRef: "Police log 0412" }],
   tc: [{ time: d("15:00"), place: "p3", count: 8, by: "Chris Lee" }, { time: d("15:00"), place: "p7", count: 3, by: "Chris Lee" },
     { time: d("16:00"), place: "p3", count: 6, notes: "Heat related", by: "Chris Lee" }],
+  conditions: [{ time: d("14:00"), crowd: 21000, temp: "26", weather: "Sunny", by: "Chris Lee" },
+    { time: d("15:00"), crowd: 23500, temp: "28", weather: "Hot", by: "Chris Lee" },
+    { time: d("16:00"), crowd: 24200, temp: "27", weather: "Hot", by: "Chris Lee" }],
+  persons: [{ id: 1, time: d("16:20"), desc: "Girl aged 7, red coat, blonde hair", lastSeen: "Main stage bar, 16:05",
+    reportedBy: "Mother, at the info tent", by: "Chris Lee" }],
   log: [{ time: d("11:00"), text: "Controller on duty: Chris Lee", by: "Chris Lee" },
     { time: d("11:30"), text: "Gates open", by: "Chris Lee" },
     { time: d("15:40"), text: "Hospital status: St Mary's Hospital under pressure (Long handover delays)", by: "Chris Lee" }]
@@ -144,10 +149,22 @@ async function capture(browser) {
   await page.getByRole("button", { name: "Break for Alpha 1" }).click();
   await shot(page.locator("#unitPanel"), "break-form");
   await page.locator("#unitPanel").getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Crew change: Alpha 1" }).click();
+  await page.locator("#unitPanel").getByLabel("Going off: Jo Bloggs, EMT").check();
+  await page.locator("#unitPanel").getByLabel("Coming on: name 1").fill("Kim Lowe");
+  await page.locator("#unitPanel").getByLabel("Clinical grade 1").fill("EMT");
+  await shot(page.locator("#unitPanel"), "crew-form");
+  await page.locator("#unitPanel").getByRole("button", { name: "Cancel" }).click();
+  await page.click("#sitrepBtn");
+  await shot(page.locator("#sitrepPanel"), "sitrep");
+  await page.click("#sitrepClose");
+  await shot(page.locator("#summaryStrip"), "summary");
 
   await page.click('[data-tab="tc"]');
   await shot(page.locator("#panel-tc .card").first(), "tc");
   await page.click('[data-tab="log"]');
+  await shot(page.locator("#conditionsCard"), "conditions");
+  await shot(page.locator("#personsCard"), "persons");
   await page.fill("#cas-p1", "2"); await page.fill("#cas-p2", "3"); await page.fill("#cas-p3", "9"); await page.fill("#cas-dead", "0");
   await page.click("#casAdd");
   await page.locator("#casResult").evaluate((e) => { e.hidden = true; });
@@ -171,7 +188,8 @@ async function capture(browser) {
     return file;
   };
   const files = {
-    report: await save(() => CadPDF.report(CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1")))).output("datauristring"),
+    report: await save(() => CadPDF.report(CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))),
+      JSON.parse(localStorage.getItem("event-cad/site-map"))).output("datauristring"),
       "sample-report.pdf"),
     call: await save(() => { const c = CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1")));
       return CadPDF.call(c, CAD.callById(c, 2)).output("datauristring"); }, "sample-call.pdf"),
@@ -194,7 +212,7 @@ async function capture(browser) {
 
   console.log("Rendering sample PDF pages:");
   try {
-    execFileSync("python3", [RENDER, SHOTS, files.report, "0", "pdf-report", files.call, "0", "pdf-call",
+    execFileSync("python3", [RENDER, SHOTS, files.report, "0", "pdf-report", files.report, "-1", "pdf-report-map", files.call, "0", "pdf-call",
       files.paper, "0", "pdf-paper-units", files.paper, "2", "pdf-paper-call"], { stdio: "inherit" });
   } catch (e) {
     console.warn("\n! Sample PDF pages were skipped: python3 with pypdfium2 is needed for those figures.\n");

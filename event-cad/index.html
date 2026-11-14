@@ -101,7 +101,9 @@
 
     <div class="card">
       <h2>Locations</h2>
-      <p class="hint">Points of interest, standby points and treatment centres (add as many as the event has). They are the choices for a
+      <p class="hint">Points of interest, standby points and treatment centres (add as many as the event has), each
+        with its site map grid reference and what3words address if you have them: they fill in on a call when you
+        pick the location. They are the choices for a
         call&rsquo;s location, where a unit takes a patient, and where it goes when it clears.</p>
       <div id="placeList"></div>
       <div class="actions"><button type="button" class="btn ghost small" id="addPlace">+ Add location</button></div>
@@ -149,6 +151,14 @@
       <p class="hint">A picture of the event&rsquo;s site map (JPEG or PNG). It shows on the CAD tab, to read grid
         references and locations, and prints in the paper fallback pack.</p>
       <div class="map-preview" id="mapPreview"></div>
+      <div class="grid map-grid">
+        <label class="field"><span>Grid squares across (A, B, C&hellip;)</span>
+          <input type="number" id="gridCols" min="0" max="26" inputmode="numeric" placeholder="e.g. 8"></label>
+        <label class="field"><span>Grid squares down (1, 2, 3&hellip;)</span>
+          <input type="number" id="gridRows" min="0" max="99" inputmode="numeric" placeholder="e.g. 5"></label>
+      </div>
+      <p class="hint grid-hint">With the grid set, you can click the map to fill in a call&rsquo;s grid reference, and
+        the report shows the calls on the map. Letters run across from the left, numbers down from the top.</p>
       <div class="actions">
         <button type="button" class="btn ghost small" id="mapBtn">Add or change the site map</button>
         <button type="button" class="btn ghost small" id="mapRemove" hidden>Remove the site map</button>
@@ -194,11 +204,26 @@
     <div class="cad-actions">
       <button type="button" class="btn primary big" id="newCallBtn">+ New call</button>
       <span class="walk-ups" id="walkUps"></span>
+      <button type="button" class="btn ghost" id="sitrepBtn">SITREP</button>
       <button type="button" class="btn methane" id="methaneBtn">METHANE</button>
     </div>
+    <div class="summary-strip" id="summaryStrip" aria-live="polite"></div>
     <p class="backup-line" id="backupLine" hidden></p>
     <div class="alerts" id="alerts" aria-live="polite"></div>
 
+    <div class="card sitrep" id="sitrepPanel" hidden>
+      <h2>Situation report</h2>
+      <div class="sitrep-bar">
+        <label class="field"><span>Covering</span>
+          <select id="sitrepPeriod"><option value="60">The last hour</option><option value="120">The last 2 hours</option>
+            <option value="0">The whole event</option></select></label>
+        <button type="button" class="btn primary small" id="sitrepCopy">Copy</button>
+        <button type="button" class="btn ghost small" id="sitrepLog">Add to the control log</button>
+        <button type="button" class="btn ghost small" id="sitrepClose">Close</button>
+      </div>
+      <textarea id="sitrepText" rows="9" readonly aria-label="Situation report"></textarea>
+      <p class="notice" id="sitrepResult" hidden></p>
+    </div>
     <div class="cad-layout">
       <div>
         <div class="card">
@@ -239,6 +264,11 @@
       </div>
     </div>
     <datalist id="hospitalList"></datalist>
+    <div class="map-pick" id="mapPick" hidden>
+      <div class="map-pick-bar"><span>Click the square the call is in.</span>
+        <button type="button" class="btn ghost small" id="mapPickClose">Close</button></div>
+      <img id="mapPickImg" alt="Site map: click a square">
+    </div>
   </section>
 
   <!-- ============ TREATMENT CENTRE ============ -->
@@ -311,6 +341,43 @@
       <div id="methaneList"></div>
     </div>
 
+    <div class="card" id="conditionsCard">
+      <h2>Attendance and weather</h2>
+      <p class="hint">Each hour, how many people are on site (from the gates) and the weather. The report shows the
+        patients seen in each hour and the rate per 1,000 people there.</p>
+      <div class="conditions-grid">
+        <label class="field"><span>Time</span><input type="datetime-local" id="cdTime"></label>
+        <label class="field"><span>People on site</span><input type="number" id="cdCrowd" min="0" inputmode="numeric" placeholder="e.g. 18000"></label>
+        <label class="field"><span>Temperature (&deg;C)</span><input type="text" id="cdTemp" inputmode="decimal" placeholder="e.g. 27"></label>
+        <label class="field"><span>Weather</span><input type="text" id="cdWeather" list="weatherList" placeholder="e.g. Sunny"></label>
+      </div>
+      <datalist id="weatherList"><option value="Sunny"></option><option value="Hot"></option><option value="Cloudy"></option>
+        <option value="Rain"></option><option value="Heavy rain"></option><option value="Windy"></option><option value="Cold"></option>
+        <option value="Thunderstorms"></option></datalist>
+      <div class="actions"><button type="button" class="btn primary" id="cdAdd">Record</button></div>
+      <p class="notice" id="cdResult" hidden></p>
+      <div class="table-wrap">
+        <table class="simple" id="cdTable" hidden><thead><tr><th>Time</th><th>People on site</th><th>Temperature</th>
+          <th>Weather</th><th>By</th></tr></thead><tbody id="cdBody"></tbody></table>
+      </div>
+    </div>
+
+    <div class="card" id="personsCard">
+      <h2>Lost and vulnerable persons</h2>
+      <p class="hint">Lost children and vulnerable adults, apart from the medical calls. While someone is missing they
+        stay in the alerts; record where they were found and who they were handed to.</p>
+      <div class="grid">
+        <label class="field span2"><span>Description</span><input type="text" id="psDesc" placeholder="e.g. Girl aged 7, red coat, blonde hair"></label>
+        <label class="field"><span>Name (if known)</span><input type="text" id="psName"></label>
+        <label class="field"><span>Last seen</span><input type="text" id="psSeen" placeholder="e.g. Main stage bar, 16:05"></label>
+        <label class="field"><span>Reported by</span><input type="text" id="psBy" placeholder="e.g. Mother, at the info tent"></label>
+        <label class="field"><span>Time reported</span><input type="datetime-local" id="psTime"></label>
+      </div>
+      <div class="actions"><button type="button" class="btn primary" id="psAdd">Add missing person</button></div>
+      <p class="notice" id="psResult" hidden></p>
+      <div id="personList"></div>
+    </div>
+
     <div class="card" id="casualtyCard">
       <h2>Major incident casualty count</h2>
       <p class="hint">Record the casualties by triage category as the numbers come in. Each count is timestamped, goes in
@@ -347,6 +414,7 @@
         <button type="button" class="btn primary big" id="reportBtn">Download report (PDF)</button>
         <button type="button" class="btn ghost big" id="zipBtn">Download call logs (.zip)</button>
         <button type="button" class="btn ghost big" id="csvBtn">Download calls (spreadsheet)</button>
+        <button type="button" class="btn ghost big" id="shareReportBtn" hidden>Share report</button>
       </div>
       <p class="hint csv-hint">The spreadsheet is a .csv file with one row per call, for Excel or Google Sheets: to
         compare events, or to send figures on.</p>
@@ -376,6 +444,18 @@
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
       <p class="notice" id="saveResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Compare with another event</h2>
+      <p class="hint">Choose the CAD file from another event &mdash; last year&rsquo;s, say &mdash; and the report shows
+        the main figures side by side. Only the figures are kept, not that event&rsquo;s calls.</p>
+      <p class="notice info" id="compareStatus"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="compareBtn">Choose a CAD file to compare with</button>
+        <button type="button" class="btn ghost" id="compareClear" hidden>Remove the comparison</button>
+        <input type="file" id="compareFile" accept="application/json,.json" hidden>
+      </div>
     </div>
 
     <div class="card">
