@@ -41,7 +41,9 @@ exported to a file when you want to keep it or move it.
   - Alerts: a call with no unit after a set time, a unit on scene with no update for
     a set time (welfare check), a break that has run over, and the hourly treatment
     centre count when it is due.
-- **Treatment centre:** the hourly count of patients in the centre, with notes.
+- **Treatment centre:** the hourly count of patients in each treatment centre, with notes. Add
+  as many treatment centres as the event has under Locations; each has its own count and its
+  own reminder when an hour has passed since its last count.
 - **Control log:** timestamped entries that are not calls, and **METHANE** messages
   for a major incident, each saved to the log and printed as its own PDF.
 - **Report:** the end-of-event report PDF, a zip with every call log (and METHANE
@@ -57,7 +59,7 @@ by category); calls per hour, by MPDS protocol, by category and by how they came
 in; the police, safeguarding and vulnerable person counts; outcomes; conveyances
 to hospital with pre-alerts and NHS CAD numbers; NHS ambulance requests and their
 waits; each unit's calls, time on calls, hospital turnaround, breaks and
-unavailable time; the treatment centre counts; the control log; and METHANE
+unavailable time; the treatment centre counts, centre by centre; the control log; and METHANE
 messages. Duplicate calls are kept in the call logs but left out of the figures.
 
 ## what3words

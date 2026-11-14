@@ -391,7 +391,7 @@
   function placeUsed(id) {
     return cad.calls.some(function (c) {
       return c.place === id || c.units.some(function (a) { return a.dest === id; });
-    });
+    }) || cad.tc.some(function (t) { return t.place === id; });
   }
   function renderPlaces() {
     var box = $("placeList");
@@ -407,7 +407,8 @@
       line.appendChild(kind);
       line.appendChild(btn("Remove", "ghost small", function () {
         if (placeUsed(p.id)) {
-          alert((p.name || "That location") + " is used on calls, so it can't be removed. Rename it instead.");
+          alert((p.name || "That location") + " is used on calls or treatment centre counts, so it can't be removed. " +
+            "Rename it instead.");
           return;
         }
         cad.places.splice(i, 1);
@@ -688,7 +689,12 @@
     renderCalls(list);
     renderAlerts(list);
     $("openCount").textContent = cad.calls.filter(function (c) { return !c.closed; }).length;
-    $("tcDue").hidden = !C.tcDue(cad, Date.now());
+    showTcDue();
+  }
+  function showTcDue() {
+    var due = C.tcDue(cad, Date.now());
+    $("tcDue").hidden = !due.length;
+    $("tcDue").textContent = C.tcDueText(due);
   }
 
   /* ---------------- the call sheet ---------------- */
@@ -1092,6 +1098,17 @@
 
   /* ================= TREATMENT CENTRE ================= */
   function renderTc() {
+    // With treatment centres set up, each count is for one of them: the first one due is picked.
+    var centres = C.tcCentres(cad), due = C.tcDue(cad, Date.now()), pickEl = $("tcPlace"), was = pickEl.value;
+    pickEl.innerHTML = "";
+    centres.forEach(function (p) {
+      var opt = el("option", "", p.name);
+      opt.value = p.id;
+      pickEl.appendChild(opt);
+    });
+    var first = centres.filter(function (p) { return due.indexOf(p.name) >= 0; })[0];
+    pickEl.value = centres.some(function (p) { return p.id === was; }) ? was : first ? first.id : centres.length ? centres[0].id : "";
+    $("tcPlaceField").hidden = !centres.length;
     var body = $("tcBody");
     body.innerHTML = "";
     $("tcEmpty").hidden = cad.tc.length > 0;
@@ -1099,12 +1116,14 @@
     cad.tc.slice().reverse().forEach(function (t) {
       var tr = el("tr");
       tr.appendChild(el("td", "", C.ukStamp(t.time)));
+      tr.appendChild(el("td", "", C.placeName(cad, t.place)));
       tr.appendChild(el("td", "num", String(t.count)));
       tr.appendChild(el("td", "", t.notes));
       tr.appendChild(el("td", "", t.by));
       var act = el("td");
       act.appendChild(btn("Delete", "ghost small", function () {
-        if (!confirm("Delete the count of " + t.count + " at " + C.hhmm(t.time) + "?")) return;
+        if (!confirm("Delete the count of " + t.count + " at " + C.hhmm(t.time) +
+          (t.place ? " for " + C.placeName(cad, t.place) : "") + "?")) return;
         cad.tc.splice(cad.tc.indexOf(t), 1);
         changed();
         renderTc();
@@ -1112,7 +1131,7 @@
       tr.appendChild(act);
       body.appendChild(tr);
     });
-    $("tcDue").hidden = !C.tcDue(cad, Date.now());
+    showTcDue();
   }
   $("tcAdd").addEventListener("click", function () {
     var n = Number($("tcCount").value);
@@ -1120,15 +1139,18 @@
       message("tcResult", "bad", "Enter how many patients are in the treatment centre now.");
       return;
     }
-    var t = { time: C.stamp($("tcTime").value) || C.now(), count: n, notes: $("tcNotes").value.trim(), by: cad.controller };
+    var t = { time: C.stamp($("tcTime").value) || C.now(), place: C.tcCentres(cad).length ? $("tcPlace").value : "",
+      count: n, notes: $("tcNotes").value.trim(), by: cad.controller };
     cad.tc.push(t);
     cad.tc.sort(C.byTime);
     $("tcCount").value = "";
     $("tcNotes").value = "";
     $("tcTime").value = C.now();
+    $("tcPlace").value = "";   // so the next centre due is picked
     changed();
     renderTc();
-    message("tcResult", "good", "Recorded " + n + (n === 1 ? " patient" : " patients") + " at " + C.hhmm(t.time) + ".");
+    message("tcResult", "good", "Recorded " + n + (n === 1 ? " patient" : " patients") +
+      (t.place ? " in " + C.placeName(cad, t.place) : "") + " at " + C.hhmm(t.time) + ".");
   });
 
   /* ================= CONTROL LOG AND METHANE ================= */

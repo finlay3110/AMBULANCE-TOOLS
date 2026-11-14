@@ -402,9 +402,10 @@
           u.breaks ? u.breaks + " (" + C.dur(u.breakMins) + ")" : "None", u.unavailMins ? C.dur(u.unavailMins) : "None"];
       }), empty: "No units." });
 
-    y = table(doc, y, { title: "Treatment centre: patients in the centre each hour", widths: [34, 26, 96, 30],
-      header: ["Time", "Patients", "Notes", "By"],
-      rows: cad.tc.map(function (t) { return [C.ukStamp(t.time), String(t.count), t.notes, t.by]; }), empty: "No counts recorded." });
+    y = table(doc, y, { title: "Treatment centres: patients in each centre, every hour", widths: [30, 40, 20, 66, 30],
+      header: ["Time", "Centre", "Patients", "Notes", "By"],
+      rows: cad.tc.map(function (t) { return [C.ukStamp(t.time), C.placeName(cad, t.place), String(t.count), t.notes, t.by]; }),
+      empty: "No counts recorded." });
 
     y = table(doc, y, { title: "Control log", widths: [30, 126, 30], header: ["Time", "Entry", "By"],
       rows: cad.log.map(function (e) { return [C.ukStamp(e.time), e.text, e.by]; }), empty: "No entries." });
