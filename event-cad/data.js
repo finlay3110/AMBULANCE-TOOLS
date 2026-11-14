@@ -202,7 +202,7 @@
       return true;
     });
     out.tc = arr(raw.tc).map(function (t) {
-      return { time: stamp(t.time), count: int(t.count, 0, 1000000), notes: str(t.notes), by: str(t.by) };
+      return { time: stamp(t.time), place: pid(t.place), count: int(t.count, 0, 1000000), notes: str(t.notes), by: str(t.by) };
     }).filter(function (t) { return t.time; });
     out.log = cleanLog(raw.log);
     out.methane = arr(raw.methane).map(function (m) {
@@ -288,12 +288,23 @@
   }
 
   /* ---------------- alerts ---------------- */
-  /* The treatment centre count is due once the event has run an hour without one. */
+  /* The treatment centres whose hourly count is due: an hour since their last count, or since
+     the event started. Each centre is counted on its own; with none set up, one count for the event. */
+  function tcCentres(cad) { return cad.places.filter(function (p) { return p.kind === "tc" && p.name.trim(); }); }
   function tcDue(cad, nowMs) {
-    var ev = cad.event, last = cad.tc.length ? cad.tc[cad.tc.length - 1].time : "";
-    if (ev.end && nowMs > ms(ev.end)) return false;
-    var from = last || ev.start;
-    return !!from && nowMs - ms(from) >= 3600000;
+    var ev = cad.event;
+    if (ev.end && nowMs > ms(ev.end)) return [];
+    var centres = tcCentres(cad), groups = centres.length ? centres : [{ id: null, name: "" }];
+    return groups.filter(function (g) {
+      var last = "";
+      cad.tc.forEach(function (t) { if (g.id === null || t.place === g.id) last = t.time; });   // oldest first
+      var from = last || ev.start;
+      return !!from && nowMs - ms(from) >= 3600000;
+    }).map(function (g) { return g.name; });
+  }
+  function tcDueText(names) {
+    return "Treatment centre count due" + (names.join("") ? ": " + names.join(", ") + "." :
+      ": record how many patients are in the centre now.");
   }
 
   function alerts(cad, nowMs) {
@@ -323,9 +334,8 @@
           text: (u.callsign || "A unit") + "’s break ended at " + hhmm(p.until) + "." });
       }
     });
-    if (tcDue(cad, nowMs)) {
-      out.push({ kind: "tc", text: "Treatment centre count due: record how many patients are in the centre now." });
-    }
+    var due = tcDue(cad, nowMs);
+    if (due.length) out.push({ kind: "tc", text: tcDueText(due) });
     return out;
   }
 
@@ -450,6 +460,6 @@
     byTime: byTime, blank: blank, newCall: newCall, newAssignment: newAssignment, clean: clean, setupOf: setupOf,
     unitById: unitById, placeById: placeById, callById: callById, placeName: placeName, protocolName: protocolName,
     callsignOf: callsignOf, callPlace: callPlace, destName: destName, lastStep: lastStep, finished: finished,
-    openPeriod: openPeriod, unitStatus: unitStatus, tcDue: tcDue, alerts: alerts, stats: stats, summary: summary
+    openPeriod: openPeriod, unitStatus: unitStatus, tcCentres: tcCentres, tcDue: tcDue, tcDueText: tcDueText, alerts: alerts, stats: stats, summary: summary
   };
 })(window);

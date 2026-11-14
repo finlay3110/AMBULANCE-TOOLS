@@ -98,7 +98,7 @@
 
     <div class="card">
       <h2>Locations</h2>
-      <p class="hint">Points of interest and standby points, and the treatment centre. They are the choices for a
+      <p class="hint">Points of interest, standby points and treatment centres (add as many as the event has). They are the choices for a
         call&rsquo;s location, where a unit takes a patient, and where it goes when it clears.</p>
       <div id="placeList"></div>
       <div class="actions"><button type="button" class="btn ghost small" id="addPlace">+ Add location</button></div>
@@ -199,9 +199,11 @@
     <p class="notice warn" id="tcDue" hidden>The hourly treatment centre count is due.</p>
     <div class="card">
       <h2>Treatment centre count</h2>
-      <p class="hint">Every hour, record how many patients are in the treatment centre. The CAD reminds you when an
-        hour has passed since the last count. The counts go in the report.</p>
+      <p class="hint">Every hour, record how many patients are in each treatment centre. The CAD reminds you when an
+        hour has passed since a centre&rsquo;s last count. Add treatment centres on the Setup tab, under Locations;
+        the counts go in the report.</p>
       <div class="grid">
+        <label class="field" id="tcPlaceField" hidden><span>Treatment centre</span><select id="tcPlace"></select></label>
         <label class="field"><span>Time</span><input type="datetime-local" id="tcTime"></label>
         <label class="field"><span>Patients in the centre now</span>
           <input type="number" id="tcCount" min="0" inputmode="numeric" placeholder="e.g. 6"></label>
@@ -214,7 +216,7 @@
       <h2>Counts so far</h2>
       <p class="empty" id="tcEmpty">No counts yet.</p>
       <div class="table-wrap">
-        <table class="simple" id="tcTable"><thead><tr><th>Time</th><th>Patients</th><th>Notes</th><th>By</th><th></th></tr></thead>
+        <table class="simple" id="tcTable"><thead><tr><th>Time</th><th>Centre</th><th>Patients</th><th>Notes</th><th>By</th><th></th></tr></thead>
           <tbody id="tcBody"></tbody></table>
       </div>
     </div>

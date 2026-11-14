@@ -74,7 +74,7 @@ function unzip(buf) {
   await page.fill("#evStart", "2026-07-04T11:00");
   await page.fill("#evEnd", "2026-07-04T23:00");
   await page.fill("#evCrowd", "20000");
-  for (const [name, kind] of [["Gate B", "poi"], ["Treatment centre", "tc"]]) {
+  for (const [name, kind] of [["Gate B", "poi"], ["Treatment centre", "tc"], ["North TC", "tc"]]) {
     await page.click("#addPlace");
     await page.locator(".place-line").last().getByLabel("Location name").fill(name);
     await page.locator(".place-line").last().getByLabel("Kind of location").selectOption(kind);
@@ -219,13 +219,20 @@ function unzip(buf) {
   eq(await footRow.locator(".badge").textContent(), "Available");
 
   /* ---- treatment centre, control log and METHANE ---- */
-  assert.match(await page.textContent("#alerts"), /Treatment centre count due/, "an hour into the event");
+  // Each treatment centre has its own hourly count and reminder.
+  assert.match(await page.textContent("#alerts"), /Treatment centre count due: Treatment centre, North TC\./, "an hour into the event");
   await page.click(".tab[data-tab=tc]");
+  eq(await page.locator("#tcPlace option:checked").textContent(), "Treatment centre", "the first centre due is picked");
   await page.fill("#tcCount", "12");
   await page.fill("#tcNotes", "Busy after the headliner");
   await page.click("#tcAdd");
-  assert.match(await page.textContent("#tcBody"), /12/);
-  eq(await page.isHidden("#tcDue"), true, "a count stops the reminder");
+  assert.match(await page.textContent("#tcResult"), /Recorded 12 patients in Treatment centre/);
+  assert.match(await page.textContent("#tcDue"), /^Treatment centre count due: North TC\.$/, "the other centre is still due");
+  eq(await page.locator("#tcPlace option:checked").textContent(), "North TC", "and is picked next");
+  await page.fill("#tcCount", "4");
+  await page.click("#tcAdd");
+  assert.match(await page.textContent("#tcBody"), /North TC\s*4/);
+  eq(await page.isHidden("#tcDue"), true, "a count for every centre stops the reminder");
   await page.click(".tab[data-tab=log]");
   await page.fill("#logText", "Gates open");
   await page.press("#logText", "Enter");
@@ -276,7 +283,7 @@ function unzip(buf) {
   const reportText = await pdfText(report);
   for (const s of ["EVENT REPORT", "Test Medical Ltd", "Riverside Festival", "20,000", "0.10", "12 min", "4.5 min",
     "17  Falls", "Category 1", "Radio", "Police involved", "Conveyed to hospital", "Royal Infirmary", "NHS-123", "NHS-999",
-    "average wait 30 min", "1 h 09 min", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "Gates open",
+    "average wait 30 min", "1 h 09 min", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
     "North field, by the big wheel"]) {
     assert.ok(reportText.includes(s), "report missing " + s);
   }
