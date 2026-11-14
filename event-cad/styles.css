@@ -134,3 +134,27 @@ table.board, table.simple { width: 100%; border-collapse: collapse; font-size: 1
 .site-map.zoomed img { position: fixed; inset: 0; z-index: 50; width: 100vw; height: 100vh; margin: 0; border-radius: 0;
   object-fit: contain; background: rgba(0, 0, 0, .88); cursor: zoom-out; }
 @media (max-width: 700px) { .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Finalised: everything outside the Report tab is locked. */
+fieldset.lockable { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.lockable:disabled input, fieldset.lockable:disabled select, fieldset.lockable:disabled textarea,
+fieldset.lockable:disabled .btn { opacity: .6; cursor: not-allowed; }
+
+/* Hospitals, phrases and casualty counts. */
+.hospital-status { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px;
+  align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.hospital-status:first-child { border-top: 0; }
+.hospital-status.divert strong { color: var(--danger); }
+.hospital-status.pressure strong { color: var(--warn-ink); }
+.hosp-warn { margin: 0; font-size: 13px; font-weight: 700; color: var(--danger); }
+.phrases { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.phrases .btn { padding: 5px 9px; font-size: 12px; }
+.casualty-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); gap: 10px; }
+.cas-note { grid-column: 1 / -1; }
+.casualty-latest { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+.csv-hint { margin: 10px 0 0; }
+@media (max-width: 700px) {
+  .hospital-status { grid-template-columns: 1fr 1fr; }
+  .hospital-status input { grid-column: 1 / -1; }
+  .casualty-grid { grid-template-columns: 1fr 1fr; }
+}

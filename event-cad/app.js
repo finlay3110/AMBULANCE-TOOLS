@@ -160,7 +160,7 @@
     document.querySelectorAll(".panel").forEach(function (p) { p.classList.toggle("active", p.id === "panel-" + name); });
     // The time boxes start at now each visit, so they never keep a time from earlier.
     if (name === "tc") { $("tcTime").value = C.now(); renderTc(); }
-    if (name === "log") $("logTime").value = C.now();
+    if (name === "log") { $("logTime").value = C.now(); $("casTime").value = C.now(); }
     if (name === "report") renderReportSummary();
     window.scrollTo(0, 0);
   }
@@ -225,6 +225,7 @@
   var EVENT_IDS = [["evName", "name"], ["evVenue", "venue"], ["evStart", "start"], ["evEnd", "end"], ["evLead", "lead"],
     ["evControl", "control"], ["evCrowd", "crowd"]];
   function fillSetup() {
+    $("phrases").value = cad.settings.phrases.join("\n");
     C.CATEGORIES.forEach(function (k) { $("target" + k[0]).value = cad.settings.targets[k[0]] || ""; });
     EVENT_IDS.forEach(function (f) { $(f[0]).value = cad.event[f[1]] || ""; });
     $("unassignedMins").value = cad.settings.unassignedMins;
@@ -253,6 +254,11 @@
       cad.settings.targets[k[0]] = n >= 1 && n <= 1440 ? n : 0;
       changed();
     });
+  });
+  $("phrases").addEventListener("input", function () {
+    cad.settings.phrases = $("phrases").value.split("\n").map(function (p) { return p.trim(); })
+      .filter(Boolean).slice(0, 20);
+    changed();
   });
   $("w3wKey").addEventListener("input", function () {
     try { localStorage.setItem(W3W_KEY, $("w3wKey").value.trim()); } catch (e) { /* asked again next time */ }
@@ -456,7 +462,42 @@
     });
     var list = $("hospitalList");
     list.innerHTML = "";
-    cad.hospitals.forEach(function (h) { if (h.trim()) { var o = el("option"); o.value = h; list.appendChild(o); } });
+    cad.hospitals.forEach(function (h) {
+      if (!h.trim()) return;
+      var o = el("option"), s = cad.hospitalStatus[h];
+      o.value = h;
+      if (s) o.label = s.status === "divert" ? "ON DIVERT" : "Under pressure";
+      list.appendChild(o);
+    });
+    renderHospitalStatus();
+  }
+
+  /* Each hospital's status, set on the CAD tab as it changes. */
+  function renderHospitalStatus() {
+    var box = $("hospitalStatusList"), names = cad.hospitals.filter(function (h) { return h.trim(); });
+    $("hospitalCard").hidden = !names.length;
+    box.innerHTML = "";
+    names.forEach(function (h) {
+      var s = cad.hospitalStatus[h] || { status: "", note: "" }, row = el("div", "hospital-status " + s.status);
+      row.appendChild(el("strong", "", h));
+      var status = pick(C.HOSPITAL_STATUS, s.status, function (v) {
+        if (v) cad.hospitalStatus[h] = { status: v, note: note.value.trim(), since: C.now() };
+        else delete cad.hospitalStatus[h];
+        cad.log.push({ time: C.now(), by: cad.controller, text: "Hospital status: " + h + " " +
+          (v === "divert" ? "on divert" : v === "pressure" ? "under pressure" : "back to normal") +
+          (v && note.value.trim() ? " (" + note.value.trim() + ")" : "") });
+        changed();
+        renderHospitals();
+        renderLog();
+      });
+      status.setAttribute("aria-label", "Status of " + h);
+      row.appendChild(status);
+      var note = textIn(s.note, function (v) { if (cad.hospitalStatus[h]) { cad.hospitalStatus[h].note = v; changed(); } },
+        "Note, e.g. ED full until 18:00");
+      note.setAttribute("aria-label", "Note on " + h);
+      row.appendChild(note);
+      box.appendChild(row);
+    });
   }
   $("addHospital").addEventListener("click", function () {
     cad.hospitals.push("");
@@ -499,6 +540,10 @@
       next.tc = [];
       next.log = [];
       next.methane = [];
+      next.casualties = [];
+      next.hospitalStatus = {};
+      next.finalised = "";
+      next.finalisedBy = "";
       next.units.forEach(function (u) { u.history = []; });
       next.controller = cad.controller;
       if (!next.company) next.company = cad.company;
@@ -922,9 +967,13 @@
       if (u.type === "Ambulance" || a.dest === "hospital") opts.push(["hospital", "Hospital"]);
       dest.appendChild(field("Moving patient to", pick(opts, a.dest, function (v) { a.dest = v; changed(); renderCall(); })));
       if (a.dest === "hospital") {
-        var hosp = textIn(a.hospital, function (v) { a.hospital = v; changed(); }, "e.g. Royal Infirmary");
+        var warn = el("p", "hosp-warn");
+        var showWarn = function () { warn.textContent = C.hospitalWarning(cad, a.hospital); warn.hidden = !warn.textContent; };
+        var hosp = textIn(a.hospital, function (v) { a.hospital = v; changed(); showWarn(); }, "e.g. Royal Infirmary");
         hosp.setAttribute("list", "hospitalList");
         dest.appendChild(field("Hospital", hosp));
+        showWarn();
+        dest.appendChild(warn);
         dest.appendChild(tick("Blue light / pre-alert", a.blue, function (v) { a.blue = v; changed(); renderCall(); }));
         if (a.blue) {
           var pre = el("div", "grid prealert");
@@ -1079,6 +1128,17 @@
     if (!c.log.length) list.appendChild(el("p", "empty", "No updates yet."));
     c.log.forEach(function (e) { list.appendChild(logLine(e)); });
     lg2.appendChild(list);
+    if (cad.settings.phrases.length) {
+      var quick = el("div", "phrases");
+      cad.settings.phrases.forEach(function (p) {
+        quick.appendChild(btn(p, "ghost small", function () {
+          c.log.push({ time: C.now(), text: p, by: cad.controller });
+          changed();
+          renderCall();
+        }, "Log: " + p));
+      });
+      lg2.appendChild(quick);
+    }
     var addRow = el("div", "add-row"), entry = textIn("", function () {}, "Add an update, e.g. Patient alert and talking");
     entry.id = "callLogInput";
     entry.setAttribute("aria-label", "Call log entry");
@@ -1227,6 +1287,8 @@
     $("mtTime").value = C.now();
     MT.forEach(function (k) { if (k !== "m") $("mt-" + k).value = ""; });
     $("mt-m").value = "Declared";
+    var last = cad.casualties[cad.casualties.length - 1];
+    if (last) $("mt-n").value = casualtyText(last) + " (count at " + C.hhmm(last.time) + ")";
     $("mtPassed").value = "";
     $("methaneError").hidden = true;
     $("methaneCard").scrollIntoView();
@@ -1447,7 +1509,91 @@
     showBackup();
   });
 
+  /* ================= MAJOR INCIDENT CASUALTY COUNT ================= */
+  function casualtyText(c) {
+    return C.TRIAGE.map(function (t) { return t[1] + " " + c[t[0]]; }).join(", ") + "; total " +
+      C.TRIAGE.reduce(function (n, t) { return n + c[t[0]]; }, 0);
+  }
+  function renderCasualties() {
+    var body = $("casBody"), last = cad.casualties[cad.casualties.length - 1];
+    $("casualtyLatest").hidden = !last;
+    if (last) $("casualtyLatest").textContent = "Latest, at " + C.hhmm(last.time) + ": " + casualtyText(last) + ".";
+    $("casTable").hidden = !cad.casualties.length;
+    body.innerHTML = "";
+    cad.casualties.slice().reverse().forEach(function (c) {
+      var tr = el("tr");
+      tr.appendChild(el("td", "", C.ukStamp(c.time)));
+      C.TRIAGE.forEach(function (t) { tr.appendChild(el("td", "num", String(c[t[0]]))); });
+      tr.appendChild(el("td", "num", String(C.TRIAGE.reduce(function (n, t) { return n + c[t[0]]; }, 0))));
+      tr.appendChild(el("td", "", c.note));
+      tr.appendChild(el("td", "", c.by));
+      body.appendChild(tr);
+    });
+  }
+  $("casAdd").addEventListener("click", function () {
+    var c = { time: C.stamp($("casTime").value) || C.now(), note: $("casNote").value.trim(), by: cad.controller }, ok = false;
+    C.TRIAGE.forEach(function (t) {
+      var v = $("cas-" + t[0]).value, n = Number(v);
+      c[t[0]] = v !== "" && n >= 0 && Math.floor(n) === n ? n : 0;
+      if (v !== "") ok = true;
+    });
+    if (!ok) { message("casResult", "bad", "Enter at least one number."); return; }
+    cad.casualties.push(c);
+    cad.casualties.sort(C.byTime);
+    cad.log.push({ time: c.time, by: cad.controller, text: "Casualty count: " + casualtyText(c) + (c.note ? " (" + c.note + ")" : "") });
+    cad.log.sort(C.byTime);
+    C.TRIAGE.forEach(function (t) { $("cas-" + t[0]).value = ""; });
+    $("casNote").value = "";
+    $("casTime").value = C.now();
+    changed();
+    renderCasualties();
+    renderLog();
+    message("casResult", "good", "Recorded at " + C.hhmm(c.time) + ": " + casualtyText(c) + ".");
+  });
+
+  /* ================= FINALISE ================= */
+  /* A finalised event is locked: every tab but the Report is disabled as one. */
+  function applyLock() {
+    var locked = !!cad.finalised;
+    $("lockable").disabled = locked;
+    $("lockBanner").hidden = !locked;
+    $("lockBanner").textContent = locked ? "Finalised " + C.ukStamp(cad.finalised) + (cad.finalisedBy ? " by " + cad.finalisedBy : "") +
+      ". The CAD is locked: the report and call logs are final. Unlock on the Report tab to change anything." : "";
+    $("finaliseBtn").hidden = locked;
+    $("unlockBtn").hidden = !locked;
+    $("finalStatus").className = "notice " + (locked ? "good" : "info");
+    $("finalStatus").textContent = locked ? "Finalised " + C.ukStamp(cad.finalised) + (cad.finalisedBy ? " by " + cad.finalisedBy : "") + "."
+      : "Not finalised: the report is a draft.";
+  }
+  $("finaliseBtn").addEventListener("click", function () {
+    var open = cad.calls.filter(function (c) { return !c.closed; }).length;
+    if (!confirm((open ? open + (open === 1 ? " call is" : " calls are") + " still open. " : "") +
+      "Finalise the event? The CAD is locked until you unlock it.")) return;
+    cad.finalised = C.now();
+    cad.finalisedBy = cad.controller;
+    cad.log.push({ time: cad.finalised, by: cad.controller, text: "Event finalised" + (open ? " with " + open + " calls open" : "") });
+    changed();
+    renderLog();
+    applyLock();
+    renderReportSummary();
+  });
+  $("unlockBtn").addEventListener("click", function () {
+    if (!confirm("Unlock the CAD? The report will no longer be final, and the unlock goes in the control log.")) return;
+    cad.finalised = "";
+    cad.finalisedBy = "";
+    cad.log.push({ time: C.now(), by: cad.controller, text: "Event unlocked after being finalised" });
+    changed();
+    renderLog();
+    applyLock();
+    renderReportSummary();
+  });
+
   /* ================= REPORT ================= */
+  $("csvBtn").addEventListener("click", function () {
+    var name = "Calls-" + fileBase() + ".csv";
+    download(new Blob(["\ufeff" + C.csv(cad)], { type: "text/csv" }), name);   // the mark tells Excel it is UTF-8
+    message("reportResult", "good", "Downloaded " + name + " with " + cad.calls.length + (cad.calls.length === 1 ? " call." : " calls."));
+  });
   function renderReportSummary() {
     var s = C.stats(cad);
     $("reportSummary").textContent = s.calls + (s.calls === 1 ? " call" : " calls") + ", " + s.patients +
@@ -1503,6 +1649,10 @@
     cad.tc = [];
     cad.log = [];
     cad.methane = [];
+    cad.casualties = [];
+    cad.hospitalStatus = {};
+    cad.finalised = "";
+    cad.finalisedBy = "";
     cad.units.forEach(function (u) { u.history = []; });
     current = 0;
     save();
@@ -1517,6 +1667,8 @@
     renderSetup();
     renderWalkUps();
     renderMap();
+    renderCasualties();
+    applyLock();
     renderTc();
     renderLog();
     renderMethane();

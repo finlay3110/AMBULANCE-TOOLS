@@ -96,6 +96,7 @@ function unzip(buf) {
   await page.click("#addHospital");
   await page.getByLabel("Hospital name").fill("Royal Infirmary");
   await page.fill("#w3wKey", "TESTKEY");
+  await page.fill("#phrases", "Patient stable\nPatient conveyed\nPolice on scene");
   await page.fill("#target1", "3");
   await page.fill("#target2", "15");
   await page.setInputFiles("#mapFile", { name: "map.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
@@ -166,11 +167,21 @@ function unzip(buf) {
   await page.getByRole("button", { name: "Welfare check done: Alpha 1 OK" }).click();
   assert.doesNotMatch(await page.textContent("#alerts"), /welfare/);
   assert.match(await sheet.locator(".log-list").textContent(), /Welfare check: Alpha 1 OK/);
+  await sheet.getByRole("button", { name: "Log: Police on scene" }).click();
+  assert.match(await sheet.locator(".log-list").textContent(), /Police on scene\s*Sam Lee/, "a quick phrase is logged in one tap");
+
+  // The receiving hospital goes on divert: a warning wherever a crew is sent there.
+  await page.getByLabel("Note on Royal Infirmary").fill("ED full");
+  await page.getByLabel("Status of Royal Infirmary").selectOption("divert");
+  assert.match(await page.textContent("#alerts"), /Royal Infirmary is ON DIVERT \(since 12:33\): ED full\./);
 
   await later("02:00");
   await sheet.getByRole("button", { name: "Moving patient: Alpha 1" }).click();
   await sheet.getByLabel("Moving patient to").selectOption("hospital");
   await sheet.getByLabel("Hospital", { exact: true }).fill("Royal Infirmary");
+  assert.match(await sheet.locator(".hosp-warn").textContent(), /Royal Infirmary is ON DIVERT/);
+  await page.getByLabel("Status of Royal Infirmary").selectOption("");
+  assert.doesNotMatch(await page.textContent("#alerts"), /DIVERT/);
   await sheet.getByLabel("Blue light / pre-alert").check();
   const pre = sheet.locator(".prealert");
   await pre.getByLabel("Age").fill("34");
@@ -204,6 +215,7 @@ function unzip(buf) {
 
   await page.click("#newCallBtn");
   await sheet.getByLabel("MPDS protocol").selectOption("9");
+  await sheet.getByLabel("Details").fill("=HYPERLINK(\"x\") collapsed by the bar");
   await sheet.getByLabel("Category", { exact: true }).selectOption("1");
   await sheet.getByRole("button", { name: "+ Add patient" }).click();
   await sheet.locator(".patient-row").getByLabel("Age").fill("60");
@@ -273,7 +285,18 @@ function unzip(buf) {
   assert.match(await page.textContent("#controlLog"), /Controller on duty: Sam Lee/);
   assert.match(await page.textContent("#controlLog"), /Gates open/);
   await page.click(".tab[data-tab=cad]");
+  await page.click(".tab[data-tab=log]");
+  await page.fill("#cas-p1", "2");
+  await page.fill("#cas-p2", "3");
+  await page.fill("#cas-p3", "10");
+  await page.fill("#casNote", "From the casualty clearing station");
+  await page.click("#casAdd");
+  assert.match(await page.textContent("#casualtyLatest"), /P1 2, P2 3, P3 10, Dead 0; total 15/);
+  assert.match(await page.textContent("#controlLog"), /Casualty count: P1 2, P2 3, P3 10, Dead 0; total 15/);
+  await page.click(".tab[data-tab=cad]");
   await page.click("#methaneBtn");
+  assert.match(await page.inputValue("#mt-n"), /^P1 2, P2 3, P3 10, Dead 0; total 15 \(count at \d\d:\d\d\)$/,
+    "the latest casualty count fills in N");
   await page.fill("#mt-e", "North field, by the big wheel");
   await page.fill("#mt-n", "Five casualties, two serious");
   await page.fill("#mtPassed", "NHS ambulance control");
@@ -322,7 +345,7 @@ function unzip(buf) {
   for (const s of ["EVENT REPORT", "Test Medical Ltd", "Riverside Festival", "20,000", "0.10", "12 min", "4.5 min",
     "17  Falls", "Category 1", "Radio", "Police involved", "Conveyed to hospital", "Royal Infirmary", "NHS-123", "NHS-999",
     "average wait 30 min", "1 h 09 min", "1 of 2 \\(50%\\)", "category 1 3 min, category 2 15 min", "Busiest locations",
-    "POL-0412", "Off duty", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
+    "POL-0412", "Off duty", "Major incident casualty counts", "From the casualty clearing station", "Draft, made", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
     "North field, by the big wheel"]) {
     assert.ok(reportText.includes(s), "report missing " + s);
   }
@@ -338,6 +361,29 @@ function unzip(buf) {
     assert.ok(call1.includes(s), "call 001's log missing " + s);
   }
   assert.ok(files["Call-002.pdf"].toString("latin1").includes("Duplicate call"));
+
+  /* ---- the calls as a spreadsheet ---- */
+  const [csvFile] = await Promise.all([page.waitForEvent("download"), page.click("#csvBtn")]);
+  const csv = fs.readFileSync(await csvFile.path(), "utf8");
+  assert.ok(csv.startsWith("\ufeffCall,Received,Controller,How it came in"), "a UTF-8 spreadsheet with a header row");
+  const lines = csv.trim().split("\r\n");
+  eq(lines.length, 4, "a header and a row for each call");
+  assert.match(lines[1], /^001,04\/07\/2026 12:00,Sam Lee,Radio,Steward at gate B,Gate B,/);
+  assert.match(lines[1], /POL-0412/);
+  assert.match(lines[1], /,12,Royal Infirmary,Yes,/, "12 minutes to scene, conveyed on blue lights");
+  assert.match(lines[3], /"'=HYPERLINK\(""x""\) collapsed by the bar"/, "a typed formula is never run by a spreadsheet");
+
+  /* ---- finalise and unlock ---- */
+  await page.click("#finaliseBtn");
+  assert.match(await page.textContent("#lockBanner"), /^Finalised 04\/07\/2026 \d\d:\d\d by Sam Lee\. The CAD is locked/);
+  eq(await page.isDisabled("#newCallBtn"), true, "nothing can change once finalised");
+  eq(await page.isDisabled("#tcAdd"), true);
+  const [finalReport] = await Promise.all([page.waitForEvent("download"), page.click("#reportBtn")]);
+  assert.ok((await pdfText(finalReport)).includes("FINAL, finalised"), "the report says it is final");
+  await page.click("#unlockBtn");
+  eq(await page.isDisabled("#newCallBtn"), false);
+  assert.match(await page.textContent("#controlLog"), /Event unlocked after being finalised/);
+  assert.match(await page.textContent("#controlLog"), /Event finalised/);
 
   /* ---- a walk-up, open calls most urgent first, the site map, and the backup keeping up ---- */
   await page.click(".tab[data-tab=cad]");
