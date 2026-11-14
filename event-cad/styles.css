@@ -1,0 +1,118 @@
+/* Additions to the Bag Tracker's styles: the CAD and its call sheet. */
+main { max-width: 1280px; }
+.notice.warn { background: var(--warn-bg); color: var(--warn-ink-strong); border: 1px solid var(--warn-line); }
+.sub-head { margin-top: 22px !important; }
+.crowd-hint, .key-hint { margin: 12px 0 0; }
+.key-hint a { color: var(--accent); }
+
+/* Setup lists. */
+.dm-import { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+.dm-import .field { flex: 1 1 260px; }
+.unit-edit { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.unit-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 10px; align-items: end; }
+.staff-line, .place-line { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; align-items: center; }
+.hospital-line { grid-template-columns: minmax(0, 1fr) auto; }
+.add-staff { margin-top: 10px; }
+.btn.del { color: var(--danger); }
+
+/* The CAD screen. */
+.cad-bar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.clock { font: 700 30px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 1px; min-width: 150px; }
+.cad-bar .controller, .cad-bar .search { flex: 1 1 200px; }
+.btn.methane { background: var(--danger); color: #fff; }
+.btn.methane:hover { filter: brightness(1.1); }
+.alerts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.alerts:empty { display: none; }
+.alert { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0; }
+.alert > span { flex: 1 1 260px; font-weight: 600; }
+.cad-layout { display: grid; gap: 0 18px; }
+@media (min-width: 1000px) { .cad-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+
+.table-wrap { overflow-x: auto; }
+table.board, table.simple { width: 100%; border-collapse: collapse; font-size: 14px; }
+.board th, .simple th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 6px;
+  border-bottom: 1px solid var(--line); }
+.board td, .simple td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.board small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.simple td.num { font-weight: 700; }
+.board-actions { white-space: nowrap; }
+.board-actions .btn + .btn { margin-left: 4px; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: var(--soft-2); color: var(--ink-soft); white-space: nowrap; }
+/* Status colours: see-through, so they read in the light and dark themes. */
+.st-available .badge, .badge.open { background: var(--good-bg); color: var(--good-ink); }
+.st-assigned .badge, .st-enroute .badge { background: rgba(37, 99, 235, .16); color: var(--ink); }
+.st-onscene .badge { background: var(--danger-bg); color: var(--danger); }
+.st-moving .badge, .st-atdest .badge { background: rgba(126, 34, 206, .16); color: var(--ink); }
+.st-breakover .badge { background: var(--warn-bg); color: var(--warn-ink-strong); }
+.st-breakover td { background: var(--warn-bg); }
+.unit-panel { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.unit-panel h3 { margin: 0 0 10px; font-size: 14px; }
+
+.call-list { display: flex; flex-direction: column; gap: 6px; }
+.call-item { appearance: none; text-align: left; width: 100%; font: inherit; color: var(--ink); cursor: pointer;
+  border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; background: var(--card);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.call-item:hover { background: var(--soft); }
+.call-item.current { border-color: var(--accent); }
+.call-item.overdue { border-left-color: var(--warn-ink); background: var(--warn-bg); }
+.call-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.call-what, .call-units { font-size: 13px; color: var(--ink-soft); }
+.cat { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--soft-2); }
+.cat1 { background: var(--danger); color: #fff; }
+.cat2 { background: var(--danger-bg); color: var(--danger); }
+.cat3 { background: var(--warn-bg); color: var(--warn-ink-strong); }
+.tag { font-size: 12px; color: var(--muted); }
+.closed-calls { margin-top: 12px; }
+.closed-calls summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+
+/* The call sheet. */
+.call-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.call-head h2 { margin: 0; flex: 1; font-size: 20px; }
+.badge.closed { background: var(--soft-2); }
+.call-section h3 { margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.flag-row { display: flex; gap: 8px 18px; flex-wrap: wrap; margin-top: 12px; }
+.dup-field { margin-top: 12px; max-width: 340px; }
+.patient-row { display: grid; grid-template-columns: 80px 130px minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 8px;
+  align-items: end; margin-bottom: 10px; }
+.assign-row, .add-row { display: flex; gap: 8px; align-items: center; }
+.assign-row select, .add-row input { flex: 1; }
+.assignment { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.assign-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; align-items: stretch; }
+.step.done { display: inline-flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700;
+  color: var(--good-ink); background: var(--good-bg); border: 1px solid var(--good-line); border-radius: 8px; padding: 4px 6px; }
+.step.done input { padding: 2px 4px; font-size: 12px; width: auto; background: var(--card); }
+.chip-time { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: 15px; font-weight: 700;
+  color: var(--ink); cursor: pointer; text-align: left; text-decoration: underline dotted; text-underline-offset: 3px; }
+.step.stood { color: var(--ink-soft); background: var(--soft-2); border-color: var(--line); }
+.step-btn.stand { color: var(--danger); }
+.back-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.back-row .field { flex: 1 1 220px; }
+.dest { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.prealert { padding: 10px; border-radius: 8px; background: var(--soft); }
+.span-all { grid-column: 1 / -1; margin: 0; font-weight: 700; }
+.w3w-help { display: flex; flex-direction: column; gap: 4px; font-size: 12px; margin-top: 2px; }
+.w3w-suggest { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.w3w-link { color: var(--accent); font-weight: 600; }
+.log-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
+.log-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding: 4px 0;
+  border-bottom: 1px solid var(--line); }
+.log-line time { font-weight: 700; font-variant-numeric: tabular-nums; }
+.log-line .by { color: var(--muted); font-size: 12px; }
+
+/* Control log and METHANE. */
+.log-add { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.log-add .field { flex: 0 1 220px; }
+.log-add .log-text { flex: 1 1 300px; }
+.methane-form { margin-top: 14px; }
+.methane-row { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.methane-row span { flex: 1 1 200px; }
+
+@media (max-width: 700px) {
+  .patient-row { grid-template-columns: 1fr 1fr; }
+  .staff-line, .place-line { grid-template-columns: 1fr 1fr; }
+  .staff-line .btn, .place-line .btn { grid-column: 1 / -1; }
+  .clock { font-size: 24px; }
+  .cad-bar .btn.big { flex: 1; }
+}

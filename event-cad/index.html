@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Event CAD</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="theme-color" content="#12212f">
+<script>
+  /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("../sw.js").catch(function () {});
+</script>
+<link rel="stylesheet" href="../bag-tracker/styles.css">
+<link rel="stylesheet" href="styles.css">
+<script src="../theme.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="cross" aria-hidden="true">+</span>
+    <div>
+      <h1>Event CAD</h1>
+      <p>Calls, units and the event report for event medical control</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn ghost" href="../index.html">&larr; All tools</a>
+    <button type="button" class="btn ghost" id="themeBtn" aria-live="polite">Theme: auto</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="setup" aria-selected="true">1. Setup</button>
+  <button class="tab" role="tab" data-tab="cad" aria-selected="false">2. CAD <span class="pill" id="openCount">0</span></button>
+  <button class="tab" role="tab" data-tab="tc" aria-selected="false">3. Treatment centre</button>
+  <button class="tab" role="tab" data-tab="log" aria-selected="false">4. Control log</button>
+  <button class="tab" role="tab" data-tab="report" aria-selected="false">5. Report</button>
+</nav>
+
+<main>
+  <p class="notice bad" id="saveWarn" hidden>This browser could not save the last change (its storage may be full,
+    or this is a private window). Export the CAD from the Report tab now so nothing is lost.</p>
+
+  <!-- ============ SETUP ============ -->
+  <section class="panel active" id="panel-setup" role="tabpanel">
+    <div class="card">
+      <h2>Company</h2>
+      <p class="hint">Printed at the top of the call logs and the report. Comes from your company profile.</p>
+      <div class="company-summary" id="companySummary"></div>
+      <div class="actions company-actions">
+        <button type="button" class="btn ghost small" id="companyUseBtn" hidden>Use saved company profile</button>
+        <button type="button" class="btn ghost small" id="companyImportBtn">Import company details</button>
+        <a class="btn ghost small" href="../company-profile/index.html">Create or edit your company profile</a>
+        <input type="file" id="companyFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="companyResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Event</h2>
+      <div class="grid">
+        <label class="field"><span>Event name</span><input type="text" id="evName" placeholder="e.g. Riverside Festival"></label>
+        <label class="field"><span>Venue</span><input type="text" id="evVenue" placeholder="e.g. Riverside Park"></label>
+        <label class="field"><span>Starts</span><input type="datetime-local" id="evStart"></label>
+        <label class="field"><span>Ends</span><input type="datetime-local" id="evEnd"></label>
+        <label class="field"><span>Event lead</span><input type="text" id="evLead" placeholder="e.g. J. Smith, medical manager"></label>
+        <label class="field"><span>Control contact</span><input type="text" id="evControl" placeholder="e.g. 07700 900123, radio channel 2"></label>
+        <label class="field"><span>Crowd size</span><input type="number" id="evCrowd" min="0" inputmode="numeric" placeholder="e.g. 20000"></label>
+      </div>
+      <p class="hint crowd-hint">The crowd size gives the report&rsquo;s patients and hospital transfers per 1,000 attendees.</p>
+    </div>
+
+    <div class="card">
+      <h2>Staffing</h2>
+      <p class="hint">Each unit and its callsign, with the staff on it. Ambulances can take patients to hospital.
+        <strong>Starts at</strong> is the standby point the unit is at when the event begins.</p>
+      <div class="dm-import" id="dmRow" hidden>
+        <label class="field"><span>Load units from Deployment Maker</span><select id="dmPick"></select></label>
+        <button type="button" class="btn ghost small" id="dmLoad">Load units</button>
+      </div>
+      <div id="unitList"></div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="addUnit">+ Add unit</button>
+        <button type="button" class="btn ghost small" id="dmFileBtn">Load units from a Deployment Maker file</button>
+        <input type="file" id="dmFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="dmResult" hidden></p>
+    </div>
+    <datalist id="grades">
+      <option value="First responder"></option><option value="FREC 3"></option>
+      <option value="Emergency care assistant"></option><option value="FREC 4"></option><option value="AAP"></option>
+      <option value="EMT"></option><option value="FREUC 5"></option><option value="Paramedic"></option>
+      <option value="APP (advanced paramedic)"></option><option value="Nurse"></option><option value="Doctor"></option>
+    </datalist>
+
+    <div class="card">
+      <h2>Locations</h2>
+      <p class="hint">Points of interest and standby points, and the treatment centre. They are the choices for a
+        call&rsquo;s location, where a unit takes a patient, and where it goes when it clears.</p>
+      <div id="placeList"></div>
+      <div class="actions"><button type="button" class="btn ghost small" id="addPlace">+ Add location</button></div>
+      <h2 class="sub-head">Hospitals</h2>
+      <p class="hint">The hospitals ambulances may take patients to.</p>
+      <div id="hospitalRows"></div>
+      <div class="actions"><button type="button" class="btn ghost small" id="addHospital">+ Add hospital</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Alerts and what3words</h2>
+      <div class="grid">
+        <label class="field"><span>Alert when a call has no unit after (minutes)</span>
+          <input type="number" id="unassignedMins" min="1" max="600" inputmode="numeric"></label>
+        <label class="field"><span>Welfare check when a unit on scene has no update for (minutes)</span>
+          <input type="number" id="onSceneMins" min="1" max="600" inputmode="numeric"></label>
+        <label class="field span2"><span>what3words API key (optional)</span>
+          <input type="password" id="w3wKey" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
+      </div>
+      <p class="hint key-hint">With a key, the CAD suggests real what3words addresses as you type one, to catch
+        misheard words. A free key from <a href="https://developer.what3words.com/public-api" target="_blank"
+        rel="noopener">what3words&rsquo; developer site</a> is enough. The key stays on this device: it is not in any
+        export or backup. Without a key, addresses are still recorded, with a link to see them on the map.</p>
+    </div>
+
+    <div class="card">
+      <h2>Paper fallback pack</h2>
+      <p class="hint">Print this before the event, in case the laptop fails: a unit status sheet with your callsigns,
+        a call list, a blank call sheet and METHANE form to copy, and your locations, hospitals and the MPDS
+        protocols.</p>
+      <div class="actions"><button type="button" class="btn ghost" id="paperBtn">Download paper fallback pack (PDF)</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Save the setup</h2>
+      <p class="hint">Save the company, event, staffing, locations and alerts as a file, to reuse or to set up another
+        device. Importing a setup replaces this one, before any calls are logged.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="setupExport">Export setup (.json)</button>
+        <button type="button" class="btn ghost" id="setupImport">Import setup (.json)</button>
+        <input type="file" id="setupFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="setupResult" hidden></p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn primary" data-goto="cad">Next: CAD &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ============ CAD ============ -->
+  <section class="panel" id="panel-cad" role="tabpanel">
+    <div class="cad-bar">
+      <span class="clock" id="clock" aria-label="Time now">--:--:--</span>
+      <label class="field controller"><span>Controller on duty</span>
+        <input type="text" id="controller" placeholder="Your name"></label>
+      <label class="field search"><span>Search calls</span>
+        <input type="search" id="search" placeholder="Call number, callsign, place&hellip;"></label>
+      <button type="button" class="btn methane" id="methaneBtn">METHANE</button>
+      <button type="button" class="btn primary big" id="newCallBtn">+ New call</button>
+    </div>
+    <div class="alerts" id="alerts" aria-live="polite"></div>
+
+    <div class="cad-layout">
+      <div>
+        <div class="card">
+          <h2>Units</h2>
+          <div class="table-wrap">
+            <table class="board">
+              <thead><tr><th>Unit</th><th>Status</th><th>Where</th><th></th></tr></thead>
+              <tbody id="boardBody"></tbody>
+            </table>
+          </div>
+          <div class="unit-panel" id="unitPanel" hidden></div>
+        </div>
+        <div class="card">
+          <h2>Open calls</h2>
+          <div class="call-list" id="callList"></div>
+          <details class="closed-calls">
+            <summary>Closed calls (<span id="closedCount">0</span>)</summary>
+            <div class="call-list" id="closedList"></div>
+          </details>
+        </div>
+      </div>
+      <div>
+        <div class="card" id="callEmpty">
+          <h2>Call sheet</h2>
+          <p class="hint">Press <strong>+ New call</strong>, or pick a call from the list.</p>
+        </div>
+        <div class="card call-sheet" id="callSheet" hidden></div>
+      </div>
+    </div>
+    <datalist id="hospitalList"></datalist>
+  </section>
+
+  <!-- ============ TREATMENT CENTRE ============ -->
+  <section class="panel" id="panel-tc" role="tabpanel">
+    <p class="notice warn" id="tcDue" hidden>The hourly treatment centre count is due.</p>
+    <div class="card">
+      <h2>Treatment centre count</h2>
+      <p class="hint">Every hour, record how many patients are in the treatment centre. The CAD reminds you when an
+        hour has passed since the last count. The counts go in the report.</p>
+      <div class="grid">
+        <label class="field"><span>Time</span><input type="datetime-local" id="tcTime"></label>
+        <label class="field"><span>Patients in the centre now</span>
+          <input type="number" id="tcCount" min="0" inputmode="numeric" placeholder="e.g. 6"></label>
+        <label class="field span2"><span>Notes</span><input type="text" id="tcNotes" placeholder="Optional"></label>
+      </div>
+      <div class="actions"><button type="button" class="btn primary" id="tcAdd">Record count</button></div>
+      <p class="notice" id="tcResult" hidden></p>
+    </div>
+    <div class="card">
+      <h2>Counts so far</h2>
+      <p class="empty" id="tcEmpty">No counts yet.</p>
+      <div class="table-wrap">
+        <table class="simple" id="tcTable"><thead><tr><th>Time</th><th>Patients</th><th>Notes</th><th>By</th><th></th></tr></thead>
+          <tbody id="tcBody"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTROL LOG ============ -->
+  <section class="panel" id="panel-log" role="tabpanel">
+    <div class="card">
+      <h2>Control log</h2>
+      <p class="hint">Anything that is not a call, such as &ldquo;Gates open&rdquo; or &ldquo;Spoke to police
+        silver&rdquo;. Each entry is timestamped and printed in the report.</p>
+      <div class="log-add">
+        <label class="field"><span>Time</span><input type="datetime-local" id="logTime"></label>
+        <label class="field log-text"><span>Entry</span><input type="text" id="logText" placeholder="What happened"></label>
+        <button type="button" class="btn primary" id="logAdd">Add to log</button>
+      </div>
+      <p class="notice" id="logResult" hidden></p>
+      <div class="log-list" id="controlLog"></div>
+    </div>
+
+    <div class="card" id="methaneCard">
+      <h2>METHANE message</h2>
+      <p class="hint">For a major incident, declared or on standby. Saved messages go in the control log and the
+        report, and each prints as its own PDF.</p>
+      <div class="actions"><button type="button" class="btn methane" id="methaneNew">New METHANE message</button></div>
+      <div class="methane-form" id="methaneForm" hidden>
+        <div class="grid">
+          <label class="field"><span>Time</span><input type="datetime-local" id="mtTime"></label>
+          <label class="field"><span>M &ndash; Major incident</span>
+            <select id="mt-m"><option>Declared</option><option>Standby</option></select></label>
+          <label class="field span2"><span>E &ndash; Exact location</span><textarea id="mt-e" rows="2"></textarea></label>
+          <label class="field span2"><span>T &ndash; Type of incident</span><textarea id="mt-t" rows="2"></textarea></label>
+          <label class="field span2"><span>H &ndash; Hazards, present and possible</span><textarea id="mt-h" rows="2"></textarea></label>
+          <label class="field span2"><span>A &ndash; Access, routes in and out</span><textarea id="mt-a" rows="2"></textarea></label>
+          <label class="field span2"><span>N &ndash; Number and type of casualties</span><textarea id="mt-n" rows="2"></textarea></label>
+          <label class="field span2"><span>E &ndash; Emergency services, present and needed</span><textarea id="mt-e2" rows="2"></textarea></label>
+          <label class="field span2"><span>Passed to</span><input type="text" id="mtPassed" placeholder="e.g. NHS ambulance control, police control"></label>
+        </div>
+        <p class="error" id="methaneError" hidden></p>
+        <div class="actions">
+          <button type="button" class="btn primary" id="methaneSave">Save METHANE message</button>
+          <button type="button" class="btn ghost" id="methaneCancel">Cancel</button>
+        </div>
+      </div>
+      <div id="methaneList"></div>
+    </div>
+  </section>
+
+  <!-- ============ REPORT ============ -->
+  <section class="panel" id="panel-report" role="tabpanel">
+    <div class="card">
+      <h2>End-of-event report</h2>
+      <p class="hint">An A4 PDF with the calls and response times, outcomes and conveyances, NHS ambulance requests,
+        unit workload, the treatment centre counts, the control log and any METHANE messages. Duplicate calls are
+        left out of the figures.</p>
+      <p class="notice info" id="reportSummary"></p>
+      <div class="actions">
+        <button type="button" class="btn primary big" id="reportBtn">Download report (PDF)</button>
+        <button type="button" class="btn ghost big" id="zipBtn">Download call logs (.zip)</button>
+      </div>
+      <p class="notice" id="reportResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Save the whole CAD</h2>
+      <p class="hint">Everything is kept in this browser only. Export the CAD to keep it, or to carry on from another
+        laptop: import the file there. <strong>Back up everything</strong> on the home page includes it too.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="exportBtn">Export CAD (.json)</button>
+        <button type="button" class="btn ghost" id="importBtn">Import CAD (.json)</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="notice" id="saveResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Start a new event</h2>
+      <p class="hint">Clears the calls, counts, control log, METHANE messages and breaks. The company, staffing,
+        locations and alerts are kept. Export the CAD first if you want to keep this event.</p>
+      <div class="actions"><button type="button" class="btn ghost" id="newEventBtn">Start a new event</button></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="foot-line"><strong>Provided as is, with no warranty.</strong> This tool records what you type &mdash;
+    it does not triage or dispatch. Follow your organisation&rsquo;s control room procedures. Everything stays on
+    this device. <a href="../disclaimer.html">Read the disclaimer</a>.</p>
+</footer>
+
+<script src="../vendor/jspdf.umd.min.js"></script>
+<script src="../shared.js"></script>
+<script src="data.js"></script>
+<script src="zip.js"></script>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

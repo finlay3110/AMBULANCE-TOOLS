@@ -10,7 +10,8 @@
     ["drug-bag-tracker/", "Drug Bag Tracker"],
     ["bag-tracker/", "Bag Tracker"],
     ["deployment-maker/", "Deployment Maker"],
-    ["vehicle-check/", "Vehicle Check"]
+    ["vehicle-check/", "Vehicle Check"],
+    ["event-cad/", "Event CAD"]
   ];
   var $ = function (id) { return document.getElementById(id); };
 
