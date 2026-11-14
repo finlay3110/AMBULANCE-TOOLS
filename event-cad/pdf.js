@@ -348,7 +348,8 @@
     var y = masthead(doc, cad, "EVENT REPORT", "EVENT DATE", dates);
     y = strip(doc, y, [["Event", ev.name], ["Venue", ev.venue], ["Starts", C.ukStamp(ev.start)], ["Ends", C.ukStamp(ev.end)]]);
     y = strip(doc, y, [["Event lead", ev.lead], ["Control contact", ev.control],
-      ["Crowd size", ev.crowd ? ev.crowd.toLocaleString("en-GB") : ""], ["Report made", C.ukStamp(C.now())]]);
+      ["Crowd size", ev.crowd ? ev.crowd.toLocaleString("en-GB") : ""],
+      ["Report", cad.finalised ? "FINAL, finalised " + C.ukStamp(cad.finalised) : "Draft, made " + C.ukStamp(C.now())]]);
 
     y = heading(doc, y, "Summary");
     y = strip(doc, y, [["Calls", String(s.calls)], ["Patients", String(s.patients)], ["To hospital", String(s.toHospital)],
@@ -426,9 +427,18 @@
     y = table(doc, y, { title: "Control log", widths: [30, 126, 30], header: ["Time", "Entry", "By"],
       rows: cad.log.map(function (e) { return [C.ukStamp(e.time), e.text, e.by]; }), empty: "No entries." });
 
-    table(doc, y, { title: "METHANE messages", widths: [28, 26, 52, 46, 34],
+    y = table(doc, y, { title: "METHANE messages", widths: [28, 26, 52, 46, 34],
       header: ["Time", "Major incident", "Exact location", "Casualties", "Passed to"],
       rows: cad.methane.map(function (m) { return [C.ukStamp(m.time), m.m, m.e, m.n, m.passedTo]; }), empty: "None." });
+
+    if (cad.casualties.length) {
+      table(doc, y, { title: "Major incident casualty counts", widths: [30, 14, 14, 14, 14, 16, 54, 30],
+        header: ["Time", "P1", "P2", "P3", "Dead", "Total", "Note", "By"],
+        rows: cad.casualties.map(function (c) {
+          return [C.ukStamp(c.time)].concat(C.TRIAGE.map(function (t) { return String(c[t[0]]); }),
+            [String(C.TRIAGE.reduce(function (n, t) { return n + c[t[0]]; }, 0)), c.note, c.by]);
+        }) });
+    }
 
     return footers(doc, ["Event report", txt(ev.name)].filter(Boolean).join("  ·  "));
   }

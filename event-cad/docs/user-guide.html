@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Event CAD — user guide</title>
+<style>
+  @page { size: A4; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: #16202c; background: #fff;
+    font: 10.5pt/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1, h2, h3 { line-height: 1.25; }
+  h2 {
+    font-size: 17pt; margin: 0 0 4mm; padding-bottom: 2mm;
+    border-bottom: 2px solid #0b6b3a; color: #0b6b3a;
+  }
+  h3 { font-size: 12pt; margin: 6mm 0 2mm; }
+  h4 { font-size: 10.5pt; margin: 4mm 0 1mm; }
+  p, ul, ol { margin: 0 0 3mm; }
+  ul, ol { padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+  a { color: #0b6b3a; }
+  code { background: #eef2f6; padding: 0 1mm; border-radius: 2px; font-size: 9.5pt; }
+
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  section { page-break-inside: auto; }
+  h2, h3, h4 { page-break-after: avoid; }
+  figure { page-break-inside: avoid; margin: 3mm 0 5mm; }
+  /* Capped so a tall screenshot never outgrows the page it belongs on. */
+  figure img {
+    max-width: 100%; max-height: 168mm; width: auto; height: auto;
+    border: 1px solid #ccd4dc; border-radius: 3px; display: block; margin: 0 auto;
+  }
+  figure img.plain { border: 0; }
+  figcaption { font-size: 8.5pt; color: #5d6b7a; margin-top: 1.5mm; }
+  .two { display: flex; gap: 4mm; }
+  .two figure { flex: 1; margin-top: 0; }
+  .narrow { max-width: 62%; margin-left: auto; margin-right: auto; }
+  /* Landscape figures: shorter so a pair still shares a page with its text. */
+  .compact img { max-height: 104mm; }
+  /* Tall portrait cards: capped so text still shares the page with them. */
+  .tall img { max-height: 132mm; }
+  /* Sample PDF pages: small enough for two sheets, with their text, on one page. */
+  .sheet img { max-height: 98mm; }
+  .sheet.wide img { max-height: 82mm; }
+
+  /* cover */
+  /* Flows from the top: centring it clipped the content when it grew. */
+  .cover { padding-top: 4mm; }
+  .cover .mark {
+    width: 22mm; height: 22mm; border-radius: 5mm; background: #0b6b3a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30pt; font-weight: 700; margin-bottom: 8mm;
+  }
+  .cover h1 { font-size: 30pt; margin: 0 0 2mm; letter-spacing: -0.3pt; }
+  .cover .sub { font-size: 13pt; color: #5d6b7a; margin: 0 0 10mm; }
+  .cover dl { display: grid; grid-template-columns: 32mm 1fr; gap: 1.5mm 4mm; font-size: 10pt; margin: 0; }
+  .cover dt { color: #5d6b7a; }
+  .cover dd { margin: 0; font-weight: 600; }
+
+  .callout {
+    border: 1px solid #ecd396; background: #fdf3dd; color: #6f4a00;
+    border-radius: 3px; padding: 3.5mm 4mm; margin: 4mm 0;
+  }
+  .callout.stop { border-color: #f3c3c0; background: #fdeceb; color: #8f2a22; }
+  .callout.info { border-color: #cfd8e2; background: #f2f5f8; color: #2f4055; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout, table, .steps li { page-break-inside: avoid; }
+  .callout strong { color: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.5pt; }
+  th, td { border: 1px solid #ccd4dc; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f2f5f8; }
+
+  .steps { counter-reset: step; padding: 0; list-style: none; }
+  .steps li { counter-increment: step; position: relative; padding-left: 8mm; margin-bottom: 2.5mm; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0.3mm;
+    width: 5.5mm; height: 5.5mm; border-radius: 50%; background: #0b6b3a; color: #fff;
+    font-size: 8pt; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .toc { list-style: none; padding: 0; }
+  .toc li { border-bottom: 1px dotted #ccd4dc; padding: 1.8mm 0; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page cover">
+  <div class="mark">+</div>
+  <h1>Event CAD</h1>
+  <p class="sub">Calls, units and the event report for event medical control</p>
+  <dl>
+    <dt>Guide for</dt><dd>Controllers running event medical control, and event leads setting it up</dd>
+    <dt>Runs on</dt><dd>One laptop in a web browser. Chrome or Edge for the live backup file.</dd>
+    <dt>Licence</dt><dd>MIT &mdash; provided as is, with no warranty</dd>
+  </dl>
+  <div class="callout stop" style="margin-top:10mm">
+    <p><strong>It records; it does not dispatch.</strong> The CAD keeps a record of what you type. It does not
+    triage, prioritise or send anyone. Follow your organisation&rsquo;s control room procedures, and keep the
+    paper fallback pack to hand.</p>
+  </div>
+  <ul class="toc" style="margin-top:9mm">
+    <li>1. What it does</li>
+    <li>2. Before the event: setup</li>
+    <li>3. Running control: the CAD screen</li>
+    <li>4. A call from start to finish</li>
+    <li>5. Units: status, breaks and off duty</li>
+    <li>6. Treatment centres, the control log and major incidents</li>
+    <li>7. After the event</li>
+    <li>8. Keeping the CAD safe</li>
+    <li>9. Troubleshooting</li>
+  </ul>
+</div>
+
+<div class="page">
+  <section>
+    <h2>1. What it does</h2>
+    <p>The Event CAD is a computer-aided dispatch log for event medical control. On one laptop it keeps every call
+      (where, what, who was sent and when they got there), where each unit is, the treatment centre counts and the
+      control log. At the end it makes the event report, every call log as a PDF, and a spreadsheet of the calls.</p>
+    <ol class="steps">
+      <li><strong>Setup</strong> &mdash; the company, the event, the staffing, the locations and hospitals. Done
+        before the event, and saved to reuse.</li>
+      <li><strong>CAD</strong> &mdash; the live screen: calls, units and alerts.</li>
+      <li><strong>Treatment centre</strong> &mdash; the hourly count of patients in each centre.</li>
+      <li><strong>Control log</strong> &mdash; everything that is not a call, METHANE messages and casualty counts.</li>
+      <li><strong>Report</strong> &mdash; the report, the call logs, the spreadsheet, backups and finalising.</li>
+    </ol>
+    <div class="callout info"><p><strong>Everything stays on the laptop.</strong> There is no account and nothing
+      is uploaded. That also means the laptop holds the only copy: see <strong>8. Keeping the CAD safe</strong>
+      before the event starts.</p></div>
+  </section>
+  <section>
+    <h2>2. Before the event: setup</h2>
+    <p>Set up your <strong>Company Profile</strong> first (Step 1 on the home page): the CAD picks it up by itself.
+      Then, on the <b>Setup</b> tab:</p>
+    <figure><img src="build/shots/setup-event.png" alt="The event card"><figcaption>The event. The crowd size gives
+      the report&rsquo;s patients and hospital transfers per 1,000 attendees.</figcaption></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Staffing</h3>
+    <p>Each unit has a callsign, a type and the staff on it. Only an <b>Ambulance</b> can take a patient to
+      hospital. <b>Starts at</b> is the standby point it is at when the event begins.</p>
+    <p>If you planned the event in <strong>Deployment Maker</strong>, load the units from there: the deployment
+      open in Deployment Maker, a saved plan, or a Deployment Maker file. Their locations become standby points.
+      Deployment Maker only knows which units are ambulances, so set the type of the others.</p>
+    <figure class="tall"><img src="build/shots/setup-staffing.png" alt="The staffing card"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Locations and hospitals</h3>
+    <p>Add the standby points, points of interest and treatment centres (as many as the event has), and the
+      hospitals ambulances may go to. They become the choices on every call.</p>
+    <figure class="compact"><img src="build/shots/setup-locations.png" alt="The locations card"></figure>
+    <h3>Alerts, targets, phrases and the site map</h3>
+    <ul>
+      <li><b>Alerts</b>: how long a call can wait without a unit, and how long a unit can be on scene without an update
+        before the CAD asks for a welfare check.</li>
+      <li><b>Response time targets</b>: minutes from the call to the first unit on scene, per category. Leave blank
+        for none.</li>
+      <li><b>what3words key</b> (optional): a free key from what3words lets the CAD suggest real addresses as you type
+        one. It stays on this laptop.</li>
+      <li><b>Quick log phrases</b>: updates you log often, one per line; each becomes a one-tap button on every call.</li>
+      <li><b>Site map</b>: a picture of the event&rsquo;s site map, shown on the CAD tab.</li>
+    </ul>
+    <figure class="compact"><img src="build/shots/setup-alerts.png" alt="Alerts, targets and what3words"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Print the paper fallback pack</h3>
+    <p><b>Download paper fallback pack</b> prints a unit status sheet with your callsigns, a call list, a blank
+      call sheet and METHANE form to copy, the site map, and your locations, hospitals and the MPDS protocols.
+      If the laptop fails, control carries on with a pen.</p>
+    <div class="two">
+      <figure class="sheet"><img src="build/shots/pdf-paper-units.png" alt="Unit status sheet"><figcaption>The unit status sheet.</figcaption></figure>
+      <figure class="sheet"><img src="build/shots/pdf-paper-call.png" alt="Blank call sheet"><figcaption>A blank call sheet.</figcaption></figure>
+    </div>
+    <p><b>Export setup</b> saves all of this as a file, to reuse for the next event at the same venue or to set up
+      another laptop.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>3. Running control: the CAD screen</h2>
+    <figure><img src="build/shots/cad-screen.png" alt="The CAD screen"><figcaption>The CAD tab: the clock, the
+      controller on duty, search, new calls and walk-ups, METHANE, the live backup line, alerts, units and open
+      calls on the left, and the call sheet on the right.</figcaption></figure>
+    <ul>
+      <li><b>Controller on duty</b>: type your name at the start of your shift. It goes on every call and log entry,
+        and the change is logged.</li>
+      <li><b>Alerts</b> (amber): a call with no unit, a call past its target with no unit on scene, a welfare check,
+        a break that has run over, a hospital on divert, and the hourly treatment centre count.</li>
+      <li><b>Open calls</b> are listed category 1 first, then oldest. Closed calls are underneath. <b>Search</b>
+        finds a call by number, callsign, place, PRF, NHS CAD number or any text.</li>
+      <li><b>Site map</b>: open it under the open calls; click it for full screen, and click again (or press Escape)
+        to close.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>4. A call from start to finish</h2>
+    <ol class="steps">
+      <li><strong>+ New call</strong> starts a call, numbered and timed. For someone who walks into a treatment
+        centre, use that centre&rsquo;s <strong>+ Walk-up</strong> button instead.</li>
+      <li><strong>Who and where</strong>: how it came in, who reported it, the point of interest, a description,
+        the what3words address (with a link to the map) and the site map grid reference.</li>
+      <li><strong>What</strong>: the MPDS protocol, the category, the details, and the police, safeguarding and lost
+        or vulnerable person ticks. With police involved, add their reference. A second report of the same incident
+        is marked <b>Duplicate of</b> the first: it is kept but left out of the figures.</li>
+      <li><strong>Patients</strong>: age, sex and PRF number for each.</li>
+      <li><strong>Units</strong>: choose a unit and <b>Assign</b>, then tap each step as the crew report it.</li>
+      <li><strong>Close</strong> the call once its units are clear and each patient has an outcome.</li>
+    </ol>
+    <figure class="tall"><img src="build/shots/call-sheet.png" alt="A call sheet"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>Units on a call</h3>
+    <p>Each unit moves through <b>Assigned, En route, On scene, Moving patient, At destination, Clear</b>, or
+      <b>Stood down</b> at any point. Tap a step when the crew report it; the time is recorded. A time logged late
+      can be corrected: click it.</p>
+    <p><b>Moving patient</b> asks where to. An ambulance can go to <b>Hospital</b>: choose the hospital (a hospital on
+      divert shows a warning), and tick <b>Blue light / pre-alert</b> for the ATMIST pre-alert, its ETA, who it was
+      passed to, and whether it went direct or via NHS ambulance control, with their CAD number.</p>
+    <p><b>When clear or stood down, goes to</b> sets the standby point the unit goes back to.</p>
+    <figure class="tall"><img src="build/shots/call-units.png" alt="Units on a call"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>NHS ambulances, the call log and closing</h3>
+    <p>When an NHS ambulance is asked for, tap <b>NHS ambulance requested</b>, then fill in their CAD number and
+      category, and tap <b>Now</b> when the crew arrive and when the patient is handed over. The report shows how
+      long each one took.</p>
+    <p>Every call has its own log: type an update and press Enter, or tap a quick phrase.</p>
+    <figure class="compact"><img src="build/shots/call-log.png" alt="The call log"></figure>
+    <p>A call closes once every unit on it is clear or stood down and each patient has an outcome (or the call has
+      one, when there was no patient). A closed call can be reopened.</p>
+  </section>
+  <section>
+    <h2>5. Units: status, breaks and off duty</h2>
+    <p>The unit board shows each unit&rsquo;s status, where it is and since when. For a unit not on a call:</p>
+    <ul>
+      <li><b>Break</b>: a length or a finish time. The board counts down, and beeps and turns amber when the break is
+        over. <b>Back from break</b> ends it.</li>
+      <li><b>Unavailable</b>: with a reason, such as a vehicle defect or restocking. <b>Available</b> ends it.</li>
+      <li><b>Off duty</b>: a unit that has not started yet or has finished. <b>On duty</b> brings it back.</li>
+    </ul>
+    <p>You can still assign a unit that is on a break, unavailable or off duty: the CAD asks first, and that ends the
+      break or the time off.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <figure class="compact"><img src="build/shots/board.png" alt="The unit board"><figcaption>The unit board.</figcaption></figure>
+    <figure class="compact"><img src="build/shots/break-form.png" alt="Starting a break"><figcaption>Starting a break.</figcaption></figure>
+    <h3>Hospitals</h3>
+    <p>When a hospital goes on divert or is under pressure, set it in the <b>Hospitals</b> card on the CAD tab, with
+      a note. Crews sent there show a warning, a hospital on divert shows in the alerts, and each change goes in the
+      control log.</p>
+    <figure class="compact"><img src="build/shots/hospitals.png" alt="Hospital status"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>6. Treatment centres, the control log and major incidents</h2>
+    <p>Every hour, on the <b>Treatment centre</b> tab, record how many patients are in each centre. The CAD reminds
+      you when a centre&rsquo;s count is due, and picks the next centre due for you.</p>
+    <figure class="compact"><img src="build/shots/tc.png" alt="Treatment centre counts"></figure>
+    <p>The <b>Control log</b> tab is for everything that is not a call: &ldquo;Gates open&rdquo;, &ldquo;Spoke to
+      police silver&rdquo;. Controller changes, hospital statuses, METHANE messages and casualty counts are logged
+      there by themselves.</p>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>A major incident</h3>
+    <p><b>METHANE</b> (on the CAD tab, or the Control log tab) opens the form: Major incident declared or standby,
+      Exact location, Type, Hazards, Access, Number of casualties and Emergency services. Saved messages go in the
+      control log and the report, and each prints as its own PDF.</p>
+    <figure class="tall"><img src="build/shots/methane.png" alt="The METHANE form"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <p>As casualty numbers come in, record them by triage category in <b>Major incident casualty count</b>. Each
+      count is timestamped and logged, and the latest fills in the &ldquo;N&rdquo; of the next METHANE message.</p>
+    <figure class="compact"><img src="build/shots/casualties.png" alt="Casualty count"></figure>
+  </section>
+  <section>
+    <h2>7. After the event</h2>
+    <ol class="steps">
+      <li>Close the calls still open.</li>
+      <li><strong>Finalise the event</strong> on the Report tab. The CAD is locked, so nothing can change, and the
+        report is marked final. <b>Unlock</b> asks first and is logged.</li>
+      <li>Download the <strong>report</strong>, the <strong>call logs</strong> (a zip with each call as its own PDF)
+        and, if you want the figures in Excel, the <strong>spreadsheet</strong> of calls.</li>
+      <li><strong>Export CAD</strong> to keep the whole event as one file.</li>
+      <li>For the next event, <strong>Start a new event</strong>: the calls and logs are cleared, the setup is kept.</li>
+    </ol>
+    <figure class="compact"><img src="build/shots/report-card.png" alt="The report card"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h3>The report</h3>
+    <p>The calls, patients and conveyances, with rates per 1,000 attendees; response times overall and by category,
+      with how many met their target; calls by hour, protocol, category, source and location; outcomes; conveyances
+      and pre-alerts; NHS ambulance waits; each unit&rsquo;s workload, breaks and time on and off duty; the treatment
+      centre counts; the control log; METHANE messages and casualty counts. Duplicate calls are left out of the
+      figures.</p>
+    <div class="two">
+      <figure class="sheet"><img src="build/shots/pdf-report.png" alt="The report, first page"><figcaption>The report, first page.</figcaption></figure>
+      <figure class="sheet"><img src="build/shots/pdf-call.png" alt="A call log"><figcaption>A call log from the zip.</figcaption></figure>
+    </div>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>8. Keeping the CAD safe</h2>
+    <p>The CAD is saved in this browser on this laptop as you go. To make sure a lost or broken laptop never loses the
+      event:</p>
+    <ul>
+      <li><b>Live backup file</b> (Chrome or Edge): on the Report tab, <b>Choose live backup file</b> once &mdash; on
+        the laptop or a USB stick &mdash; and the CAD writes a copy into it after every change. The line under the
+        CAD buttons says when it last saved. After the browser restarts, press <b>Reconnect</b>.</li>
+      <li><b>Export CAD</b> at any time saves a copy you choose. <b>Import CAD</b> on any laptop carries on from it,
+        live backup files included.</li>
+      <li>Use one browser tab for the CAD. Do not use a private window: it forgets everything when closed.</li>
+      <li>Keep the <b>paper fallback pack</b> printed in control.</li>
+    </ul>
+    <figure class="compact"><img src="build/shots/backup-card.png" alt="The live backup file"></figure>
+  </section>
+</div>
+
+<div class="page">
+  <section>
+    <h2>9. Troubleshooting</h2>
+    <table>
+      <tr><th>Problem</th><th>What to do</th></tr>
+      <tr><td>&ldquo;This browser could not save the last change&rdquo;</td><td>Storage is full or this is a private
+        window. Export the CAD at once, then carry on in a normal Chrome or Edge window and import it there.</td></tr>
+      <tr><td>The live backup has stopped</td><td>Press <b>Reconnect</b> on the Report tab, or choose the file again.</td></tr>
+      <tr><td>No live backup button</td><td>The browser cannot write to files. Use Chrome or Edge on a laptop, or
+        export the CAD often.</td></tr>
+      <tr><td>what3words suggestions do not appear</td><td>They need the key in Setup and an internet connection.
+        Without them the address is still recorded, with a link to the map.</td></tr>
+      <tr><td>No beep when a break ends</td><td>Browsers only play sound once the page has been clicked. The amber
+        alert still shows.</td></tr>
+      <tr><td>Everything is greyed out</td><td>The event is finalised. Unlock it on the Report tab.</td></tr>
+      <tr><td>A unit can&rsquo;t be removed in Setup</td><td>It has been on calls. Rename it instead.</td></tr>
+    </table>
+    <div class="callout"><p><strong>Provided as is, with no warranty.</strong> This tool records what you type. It
+      does not triage or dispatch, and the MPDS protocol names are for recording only. Check them against your own
+      card set and follow your organisation&rsquo;s procedures.</p></div>
+  </section>
+</div>
+
+</body>
+</html>

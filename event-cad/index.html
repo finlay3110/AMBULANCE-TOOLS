@@ -44,6 +44,9 @@
   <p class="notice bad" id="saveWarn" hidden>This browser could not save the last change (its storage may be full,
     or this is a private window). Export the CAD from the Report tab now so nothing is lost.</p>
 
+  <p class="notice info" id="lockBanner" hidden></p>
+  <!-- Everything but the Report tab: disabled as one when the event is finalised. -->
+  <fieldset class="lockable" id="lockable">
   <!-- ============ SETUP ============ -->
   <section class="panel active" id="panel-setup" role="tabpanel">
     <div class="card">
@@ -106,6 +109,12 @@
       <p class="hint">The hospitals ambulances may take patients to.</p>
       <div id="hospitalRows"></div>
       <div class="actions"><button type="button" class="btn ghost small" id="addHospital">+ Add hospital</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Quick log phrases</h2>
+      <p class="hint">Updates you log often, one per line. Each becomes a one-tap button on every call&rsquo;s log.</p>
+      <label class="field"><span>Phrases</span><textarea id="phrases" rows="6"></textarea></label>
     </div>
 
     <div class="card">
@@ -202,6 +211,12 @@
           </div>
           <div class="unit-panel" id="unitPanel" hidden></div>
         </div>
+        <div class="card" id="hospitalCard" hidden>
+          <h2>Hospitals</h2>
+          <p class="hint">Mark a hospital on divert or under pressure: it shows as a warning when a crew is sent there,
+            and the change goes in the control log.</p>
+          <div id="hospitalStatusList"></div>
+        </div>
         <div class="card">
           <h2>Open calls</h2>
           <div class="call-list" id="callList"></div>
@@ -295,7 +310,30 @@
       </div>
       <div id="methaneList"></div>
     </div>
+
+    <div class="card" id="casualtyCard">
+      <h2>Major incident casualty count</h2>
+      <p class="hint">Record the casualties by triage category as the numbers come in. Each count is timestamped, goes in
+        the control log and the report, and fills in the &ldquo;N&rdquo; of the next METHANE message.</p>
+      <p class="casualty-latest" id="casualtyLatest" hidden></p>
+      <div class="casualty-grid">
+        <label class="field"><span>Time</span><input type="datetime-local" id="casTime"></label>
+        <label class="field"><span>P1 (immediate)</span><input type="number" id="cas-p1" min="0" inputmode="numeric"></label>
+        <label class="field"><span>P2 (urgent)</span><input type="number" id="cas-p2" min="0" inputmode="numeric"></label>
+        <label class="field"><span>P3 (delayed)</span><input type="number" id="cas-p3" min="0" inputmode="numeric"></label>
+        <label class="field"><span>Dead</span><input type="number" id="cas-dead" min="0" inputmode="numeric"></label>
+        <label class="field cas-note"><span>Note</span><input type="text" id="casNote" placeholder="Optional, e.g. from the casualty clearing station"></label>
+      </div>
+      <div class="actions"><button type="button" class="btn primary" id="casAdd">Record casualty count</button></div>
+      <p class="notice" id="casResult" hidden></p>
+      <div class="table-wrap">
+        <table class="simple" id="casTable" hidden><thead><tr><th>Time</th><th>P1</th><th>P2</th><th>P3</th><th>Dead</th>
+          <th>Total</th><th>Note</th><th>By</th></tr></thead><tbody id="casBody"></tbody></table>
+      </div>
+    </div>
   </section>
+
+  </fieldset>
 
   <!-- ============ REPORT ============ -->
   <section class="panel" id="panel-report" role="tabpanel">
@@ -308,7 +346,10 @@
       <div class="actions">
         <button type="button" class="btn primary big" id="reportBtn">Download report (PDF)</button>
         <button type="button" class="btn ghost big" id="zipBtn">Download call logs (.zip)</button>
+        <button type="button" class="btn ghost big" id="csvBtn">Download calls (spreadsheet)</button>
       </div>
+      <p class="hint csv-hint">The spreadsheet is a .csv file with one row per call, for Excel or Google Sheets: to
+        compare events, or to send figures on.</p>
       <p class="notice" id="reportResult" hidden></p>
     </div>
 
@@ -338,8 +379,20 @@
     </div>
 
     <div class="card">
+      <h2>Finalise the event</h2>
+      <p class="hint">When the event is over, finalise it: the CAD is locked so the calls, logs and counts can&rsquo;t
+        change, and the report is marked final. Unlocking asks first and goes in the control log.</p>
+      <p class="notice" id="finalStatus"></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="finaliseBtn">Finalise the event</button>
+        <button type="button" class="btn ghost" id="unlockBtn" hidden>Unlock</button>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Start a new event</h2>
-      <p class="hint">Clears the calls, counts, control log, METHANE messages and breaks. The company, staffing,
+      <p class="hint">Clears the calls, counts, control log, METHANE messages, casualty counts, hospital statuses and
+        breaks, and unlocks the CAD. The company, staffing,
         locations and alerts are kept. Export the CAD first if you want to keep this event.</p>
       <div class="actions"><button type="button" class="btn ghost" id="newEventBtn">Start a new event</button></div>
     </div>
@@ -349,7 +402,8 @@
 <footer class="foot">
   <p class="foot-line"><strong>Provided as is, with no warranty.</strong> This tool records what you type &mdash;
     it does not triage or dispatch. Follow your organisation&rsquo;s control room procedures. Everything stays on
-    this device. <a href="../disclaimer.html">Read the disclaimer</a>.</p>
+    this device. <a href="../disclaimer.html">Read the disclaimer</a> &middot;
+    <a href="Event-CAD-User-Guide.pdf" target="_blank" rel="noopener">User guide (PDF)</a>.</p>
 </footer>
 
 <script src="../vendor/jspdf.umd.min.js"></script>

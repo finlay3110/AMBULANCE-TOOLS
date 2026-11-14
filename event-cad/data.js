@@ -48,6 +48,12 @@
     ["a", "Access", "Routes in and out, rendezvous point"], ["n", "Number of casualties", "How many, and how badly hurt"],
     ["e2", "Emergency services", "Present, and needed"]];
 
+  // One-tap updates for a call's log; edited in Setup.
+  var PHRASES = ["Crew on scene, assessing", "Patient stable", "Patient conveyed", "Crew request backup",
+    "Police requested", "Security requested", "Patient refused care", "Crew clear, returning to standby"];
+  var HOSPITAL_STATUS = [["", "Normal"], ["pressure", "Under pressure"], ["divert", "On divert"]];
+  var TRIAGE = [["p1", "P1"], ["p2", "P2"], ["p3", "P3"], ["dead", "Dead"]];
+
   /* ---------------- times: local "YYYY-MM-DDTHH:MM", as a datetime-local box gives it ---------------- */
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function local(d) {
@@ -83,9 +89,12 @@
       company: null,
       event: { name: "", venue: "", start: "", end: "", lead: "", control: "", crowd: 0 },
       units: [], places: [], hospitals: [],
-      settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },   // 0: no target
+      settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },   // 0: no target
+        phrases: PHRASES.slice() },
       controller: "",
-      calls: [], tc: [], log: [], methane: [],
+      calls: [], tc: [], log: [], methane: [], casualties: [],
+      hospitalStatus: {},          // by hospital name: { status, note, since }
+      finalised: "", finalisedBy: "",   // set once the event is locked
       seq: 0   // the last number used for a unit or place id
     };
   }
@@ -168,6 +177,20 @@
     out.settings.unassignedMins = int(s.unassignedMins, 1, 600) || 5;
     out.settings.onSceneMins = int(s.onSceneMins, 1, 600) || 20;
     CATEGORIES.forEach(function (k) { out.settings.targets[k[0]] = int(isObj(s.targets) ? s.targets[k[0]] : 0, 0, 1440); });
+    if (Array.isArray(s.phrases)) {
+      out.settings.phrases = s.phrases.filter(function (p) { return typeof p === "string" && p.trim(); })
+        .map(function (p) { return p.trim(); }).slice(0, 20);
+    }
+    out.finalised = stamp(raw.finalised);
+    out.finalisedBy = str(raw.finalisedBy);
+    if (isObj(raw.hospitalStatus)) {
+      Object.keys(raw.hospitalStatus).forEach(function (name) {
+        var h = raw.hospitalStatus[name];
+        if (isObj(h) && oneOf(h.status, ["pressure", "divert"])) {
+          out.hospitalStatus[name] = { status: h.status, note: str(h.note), since: stamp(h.since) };
+        }
+      });
+    }
     out.controller = str(raw.controller);
     out.seq = int(raw.seq, 0, 1e9);
     // Ids must be unique: a missing or repeated one gets a new number.
@@ -211,8 +234,13 @@
       METHANE.forEach(function (f) { x[f[0]] = str(m[f[0]]); });
       return x;
     }).filter(function (m) { return m.time; });
+    out.casualties = arr(raw.casualties).map(function (c) {
+      var x = { time: stamp(c.time), note: str(c.note), by: str(c.by) };
+      TRIAGE.forEach(function (t) { x[t[0]] = int(c[t[0]], 0, 100000); });
+      return x;
+    }).filter(function (c) { return c.time; });
     // Oldest first: the hourly count and the alerts read the latest entry from the end.
-    [out.tc, out.log, out.methane].forEach(function (list) { list.sort(byTime); });
+    [out.tc, out.log, out.methane, out.casualties].forEach(function (list) { list.sort(byTime); });
     return out;
   }
   function byTime(a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; }
@@ -289,6 +317,16 @@
     return { code: "available", label: "Available", since: "", where: placeName(cad, unit.at) };
   }
 
+  /* A warning for a hospital that is on divert or under pressure, or "". */
+  function hospitalWarning(cad, name) {
+    var key = String(name || "").trim().toLowerCase(), found = "";
+    Object.keys(cad.hospitalStatus).forEach(function (h) { if (h.trim().toLowerCase() === key && key) found = h; });
+    if (!found) return "";
+    var s = cad.hospitalStatus[found];
+    return found + " is " + (s.status === "divert" ? "ON DIVERT" : "under pressure") + (s.since ? " (since " + hhmm(s.since) + ")" : "") +
+      (s.note ? ": " + s.note : "") + ".";
+  }
+
   /* ---------------- alerts ---------------- */
   /* The treatment centres whose hourly count is due: an hour since their last count, or since
      the event started. Each centre is counted on its own; with none set up, one count for the event. */
@@ -339,6 +377,9 @@
         out.push({ kind: "breakover", unit: u.id, key: u.id + p.start,
           text: (u.callsign || "A unit") + "’s break ended at " + hhmm(p.until) + "." });
       }
+    });
+    Object.keys(cad.hospitalStatus).forEach(function (h) {
+      if (cad.hospitalStatus[h].status === "divert") out.push({ kind: "hospital", text: hospitalWarning(cad, h) });
     });
     var due = tcDue(cad, nowMs);
     if (due.length) out.push({ kind: "tc", text: tcDueText(due) });
@@ -477,10 +518,46 @@
     };
   }
 
+  /* ---------------- the calls as a spreadsheet ---------------- */
+  function csvCell(v) {
+    var s = v === undefined || v === null ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;   // never read as a formula by a spreadsheet
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csv(cad) {
+    var mins1 = function (m) { return isFinite(m) && m >= 0 ? String(Math.round(m * 10) / 10) : ""; };
+    var head = ["Call", "Received", "Controller", "How it came in", "Reported by", "Point of interest", "Description",
+      "what3words", "Grid ref", "MPDS protocol", "Category", "Details", "Police involved", "Police / security ref",
+      "Safeguarding concern", "Lost or vulnerable person", "Duplicate of", "Patients", "Ages", "Sexes", "PRF numbers",
+      "Patient outcomes", "Call outcome", "Units", "First unit assigned", "First on scene", "Received to first on scene (min)",
+      "Hospitals", "Blue light / pre-alert", "NHS ambulance requested", "NHS CAD no.", "NHS crew arrived", "NHS wait (min)", "Closed"];
+    var rows = cad.calls.slice().sort(function (a, b) { return a.id - b.id; }).map(function (c) {
+      var list = function (f) { return c.patients.map(f).join("; "); };
+      var first = function (f) {
+        var t = c.units.map(function (a) { return a[f]; }).filter(Boolean).sort();
+        return t[0] || "";
+      };
+      var hospital = c.units.filter(function (a) { return a.dest === "hospital"; });
+      return [pad3(c.id), ukStamp(c.received), c.controller, c.source, c.reportedBy, placeName(cad, c.place), c.locText,
+        c.w3w ? "///" + c.w3w : "", c.grid, c.protocol ? c.protocol + " " + protocolName(c.protocol) : "",
+        c.category || "", c.details, c.flags.police ? "Yes" : "No", c.policeRef, c.flags.safeguarding ? "Yes" : "No",
+        c.flags.vulnerable ? "Yes" : "No", c.duplicateOf ? pad3(c.duplicateOf) : "", c.patients.length,
+        list(function (p) { return p.age; }), list(function (p) { return p.sex; }), list(function (p) { return p.prf; }),
+        list(function (p) { return p.outcome; }), c.outcome,
+        c.units.map(function (a) { return callsignOf(cad, a.unit); }).join("; "),
+        ukStamp(first("assigned")), ukStamp(first("onscene")), mins1((firstOnScene(c) - ms(c.received)) / 60000),
+        hospital.map(function (a) { return a.hospital; }).join("; "), hospital.some(function (a) { return a.blue; }) ? "Yes" : "",
+        ukStamp(c.nhs.requested), c.nhs.cad, ukStamp(c.nhs.arrived), mins1(mins(c.nhs.requested, c.nhs.arrived)),
+        ukStamp(c.closed)];
+    });
+    return [head].concat(rows).map(function (r) { return r.map(csvCell).join(","); }).join("\r\n") + "\r\n";
+  }
+
   global.CAD = {
     KEY: KEY, FORMAT: FORMAT, SETUP_FORMAT: SETUP_FORMAT,
     MPDS: MPDS, CATEGORIES: CATEGORIES, OUTCOMES: OUTCOMES, SOURCES: SOURCES, SEXES: SEXES, UNIT_TYPES: UNIT_TYPES,
-    PLACE_KINDS: PLACE_KINDS, STEPS: STEPS, FLAGS: FLAGS, ATMIST: ATMIST, METHANE: METHANE,
+    PLACE_KINDS: PLACE_KINDS, STEPS: STEPS, FLAGS: FLAGS, ATMIST: ATMIST, METHANE: METHANE, PHRASES: PHRASES,
+    HOSPITAL_STATUS: HOSPITAL_STATUS, TRIAGE: TRIAGE, hospitalWarning: hospitalWarning, csv: csv,
     stamp: stamp, now: now, ms: ms, mins: mins, addMins: addMins, hhmm: hhmm, ukStamp: ukStamp, pad3: pad3, dur: dur,
     w3w: w3w, isW3w: isW3w,
     byTime: byTime, blank: blank, newCall: newCall, newAssignment: newAssignment, clean: clean, setupOf: setupOf,

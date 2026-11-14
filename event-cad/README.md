@@ -12,8 +12,9 @@ exported to a file when you want to keep it or move it.
   point each starts at), the locations (standby points, points of interest and the
   treatment centres) and the hospitals. Units can be loaded from Deployment Maker:
   the deployment open there, a saved plan, or a Deployment Maker file. Alert times,
-  response time targets for each category, an optional what3words key and the
-  event's site map (an image, shown on the CAD tab) are set here too. **Export setup** and **Import
+  response time targets for each category, an optional what3words key, the quick
+  log phrases (one-tap updates on every call) and the event's site map (an image,
+  shown on the CAD tab) are set here too. **Export setup** and **Import
   setup** save and reuse it as a `.json` file. **Paper fallback pack** prints a unit
   status sheet with your callsigns, a call list, a blank call sheet and METHANE form,
   and your locations, hospitals and the MPDS protocols, in case the laptop fails.
@@ -37,7 +38,11 @@ exported to a file when you want to keep it or move it.
     Clear or stood down sends the unit back to the standby point you choose.
   - An NHS ambulance request records when it was asked for, the NHS CAD number and
     category given, when the NHS crew arrived and when the patient was handed over.
-  - Each call has its own timestamped log. A call closes once its units are clear
+  - **Hospitals** on the CAD tab: mark one on divert or under pressure, with a note;
+    crews sent there show a warning, a divert shows in the alerts, and each change
+    goes in the control log.
+  - Each call has its own timestamped log, with the quick phrases as one-tap buttons.
+    A call closes once its units are clear
     and each patient (or the call, when there was no patient) has an outcome.
   - The board's **Break**, **Unavailable** and **Off duty** buttons record a break (a
     length or a finish time, with a countdown and a beep when it is over),
@@ -49,13 +54,16 @@ exported to a file when you want to keep it or move it.
 - **Treatment centre:** the hourly count of patients in each treatment centre, with notes. Add
   as many treatment centres as the event has under Locations; each has its own count and its
   own reminder when an hour has passed since its last count.
-- **Control log:** timestamped entries that are not calls, and **METHANE** messages
-  for a major incident, each saved to the log and printed as its own PDF.
+- **Control log:** timestamped entries that are not calls, **METHANE** messages for
+  a major incident (each saved to the log and printed as its own PDF), and the
+  **major incident casualty count** by triage category (P1, P2, P3, dead), which
+  fills in the "N" of the next METHANE message.
 - **Report:** the **live backup file** (choose a file once, on the laptop or a USB
   stick, and the CAD writes a copy into it after every change; Chrome and Edge only;
   after the browser restarts, press Reconnect), the end-of-event report PDF, a zip
-  with every call log (and METHANE
-  message) as its own PDF, export and import of the whole CAD, and **Start a new
+  with every call log (and METHANE message) as its own PDF, a **spreadsheet** (.csv)
+  with a row per call, **Finalise the event** (locks the CAD and marks the report
+  final; unlocking is logged), export and import of the whole CAD, and **Start a new
   event**, which clears the calls and logs and keeps the setup.
 
 ## The report
@@ -79,6 +87,13 @@ addresses and the nearest place as you type one, to catch misheard words. The ke
 is kept in this browser only, apart from the CAD, so it is never in an export or
 a backup. Suggestions need an internet connection; without one, the address is
 still recorded.
+
+## User guide
+
+[Event-CAD-User-Guide.pdf](Event-CAD-User-Guide.pdf), linked from the CAD's
+footer, is built with screenshots of the real app by
+`node event-cad/docs/build-guide.js` (needs Playwright, and python3 with
+pypdfium2 for the sample PDF pages).
 
 ## Files
 
