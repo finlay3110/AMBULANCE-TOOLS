@@ -16,6 +16,7 @@
     var ok = true;
     try { localStorage.setItem(C.KEY, JSON.stringify(cad)); } catch (e) { ok = false; }
     $("saveWarn").hidden = ok;
+    backupSoon();
     return ok;
   }
   function load() {
@@ -224,6 +225,7 @@
   var EVENT_IDS = [["evName", "name"], ["evVenue", "venue"], ["evStart", "start"], ["evEnd", "end"], ["evLead", "lead"],
     ["evControl", "control"], ["evCrowd", "crowd"]];
   function fillSetup() {
+    C.CATEGORIES.forEach(function (k) { $("target" + k[0]).value = cad.settings.targets[k[0]] || ""; });
     EVENT_IDS.forEach(function (f) { $(f[0]).value = cad.event[f[1]] || ""; });
     $("unassignedMins").value = cad.settings.unassignedMins;
     $("onSceneMins").value = cad.settings.onSceneMins;
@@ -242,6 +244,13 @@
     $(f[0]).addEventListener("input", function () {
       var n = parseInt($(f[0]).value, 10);
       cad.settings[f[0]] = n >= 1 && n <= 600 ? n : f[1];
+      changed();
+    });
+  });
+  C.CATEGORIES.forEach(function (k) {
+    $("target" + k[0]).addEventListener("input", function () {
+      var n = parseInt($("target" + k[0]).value, 10);
+      cad.settings.targets[k[0]] = n >= 1 && n <= 1440 ? n : 0;
       changed();
     });
   });
@@ -427,7 +436,7 @@
     inputs[inputs.length - 1].focus();
   });
   // Names typed into a location show up in the unit and call dropdowns once you leave the box.
-  $("placeList").addEventListener("change", function () { renderUnits(); });
+  $("placeList").addEventListener("change", function () { renderUnits(); renderWalkUps(); });
 
   function renderHospitals() {
     var box = $("hospitalRows");
@@ -468,7 +477,7 @@
   /* ---------------- save and open the setup ---------------- */
   $("setupExport").addEventListener("click", function () {
     var name = "CAD-setup-" + (slug(cad.event.name) || "event") + ".json";
-    download(json(C.setupOf(cad)), name);
+    download(json(Object.assign(C.setupOf(cad), { siteMap: siteMap })), name);
     message("setupResult", "good", "Saved the setup as " + name + ".");
   });
   $("setupImport").addEventListener("click", function () { $("setupFile").click(); });
@@ -485,6 +494,7 @@
       }
       if ((cad.units.length || cad.places.length) && !confirm("Replace this setup with “" + name + "”?")) return;
       var next = C.clean(parsed);
+      takeMap(parsed);
       next.calls = [];
       next.tc = [];
       next.log = [];
@@ -501,7 +511,7 @@
   });
 
   $("paperBtn").addEventListener("click", function () {
-    window.CadPDF.paper(cad).save("Paper-fallback-" + fileBase() + ".pdf");
+    window.CadPDF.paper(cad, siteMap).save("Paper-fallback-" + fileBase() + ".pdf");
   });
 
   /* ================= CAD ================= */
@@ -545,12 +555,17 @@
           "Break for " + u.callsign));
         act.appendChild(btn("Unavailable", "ghost small", function () { unitForm = { unit: u.id, kind: "unavailable" }; renderUnitForm(); },
           "Unavailable: " + u.callsign));
+        act.appendChild(btn("Off duty", "ghost small", function () {
+          u.history.push({ kind: "offduty", start: C.now(), until: "", end: "", reason: "" });
+          changed();
+        }, "Off duty: " + u.callsign));
       } else {
-        act.appendChild(btn(st.code === "unavailable" ? "Available" : "Back from break", "ghost small", function () {
+        var back = { unavailable: "Available", offduty: "On duty" }[st.code] || "Back from break";
+        act.appendChild(btn(back, "ghost small", function () {
           var p = C.openPeriod(u);
           if (p) p.end = C.now();
           changed();
-        }, (st.code === "unavailable" ? "Available: " : "Back from break: ") + u.callsign));
+        }, back + ": " + u.callsign));
       }
       tr.appendChild(act);
       body.appendChild(tr);
@@ -635,10 +650,13 @@
   }
   function renderCalls(list) {
     var q = $("search").value.trim().toLowerCase(), flagged = {};
-    list.forEach(function (a) { if (a.call && (a.kind === "unassigned" || a.kind === "welfare")) flagged[a.call] = true; });
+    list.forEach(function (a) { if (a.call) flagged[a.call] = true; });
     var shown = cad.calls.filter(function (c) { return !q || callText(c).indexOf(q) >= 0; })
       .sort(function (a, b) { return b.id - a.id; });
-    var open = shown.filter(function (c) { return !c.closed; }), closed = shown.filter(function (c) { return c.closed; });
+    var open = shown.filter(function (c) { return !c.closed; }).sort(function (a, b) {
+      return (a.category || 9) - (b.category || 9) || C.ms(a.received) - C.ms(b.received) || a.id - b.id;
+    });
+    var closed = shown.filter(function (c) { return c.closed; });
     $("callList").innerHTML = "";
     $("closedList").innerHTML = "";
     if (!open.length) $("callList").appendChild(el("p", "empty", q ? "No open calls match." : "No open calls."));
@@ -705,14 +723,29 @@
     refresh();
     if (window.innerWidth < 1000) $("callSheet").scrollIntoView();
   }
-  $("newCallBtn").addEventListener("click", function () {
-    var id = cad.calls.reduce(function (n, c) { return Math.max(n, c.id); }, 0) + 1;
-    cad.calls.push(C.newCall(id, C.now(), cad.controller));
+  function addCall(walkUp, centre) {
+    var id = cad.calls.reduce(function (n, c) { return Math.max(n, c.id); }, 0) + 1, c = C.newCall(id, C.now(), cad.controller);
+    if (walkUp) {
+      c.source = "Walk-up";
+      c.place = centre || "";
+      c.patients.push({ age: "", sex: "", prf: "", outcome: "" });
+    }
+    cad.calls.push(c);
     current = id;
     changed();
     renderCall();
-    $("callSheet").querySelector("select").focus();
-  });
+    (walkUp ? $("callSheet").querySelector(".patient-row input") : $("callSheet").querySelector("select")).focus();
+  }
+  $("newCallBtn").addEventListener("click", function () { addCall(false); });
+  /* A walk-up button for each treatment centre, or one when none is set up. */
+  function renderWalkUps() {
+    var box = $("walkUps"), centres = C.tcCentres(cad);
+    box.innerHTML = "";
+    (centres.length ? centres : [null]).forEach(function (p) {
+      box.appendChild(btn("+ Walk-up" + (p ? ": " + p.name : ""), "ghost", function () { addCall(true, p && p.id); },
+        "New walk-up" + (p ? " at " + p.name : "")));
+    });
+  }
 
   function section(box, title) {
     var s = el("div", "call-section");
@@ -808,8 +841,9 @@
     if (!u) return;
     var st = C.unitStatus(cad, u, Date.now()), p = C.openPeriod(u);
     if (st.call && !confirm(u.callsign + " is on call " + C.pad3(st.call) + ". Assign it to this call as well?")) return;
-    if (!st.call && p && !confirm(u.callsign + " is " + (p.kind === "break" ? "on break" : "unavailable") +
-      ". Assign it anyway? That ends its " + (p.kind === "break" ? "break" : "unavailable time") + " now.")) return;
+    var what = { "break": ["on break", "break"], offduty: ["off duty", "time off duty"] }[p && p.kind] ||
+      ["unavailable", "unavailable time"];
+    if (!st.call && p && !confirm(u.callsign + " is " + what[0] + ". Assign it anyway? That ends its " + what[1] + " now.")) return;
     if (!st.call && p) p.end = C.now();
     c.units.push(C.newAssignment(u.id, C.now()));
     changed();
@@ -957,9 +991,17 @@
     what.appendChild(wg);
     var flags = el("div", "flag-row");
     C.FLAGS.forEach(function (f) {
-      flags.appendChild(tick(f[1], c.flags[f[0]], function (v) { c.flags[f[0]] = v; changed(); }));
+      flags.appendChild(tick(f[1], c.flags[f[0]], function (v) {
+        c.flags[f[0]] = v;
+        changed();
+        if (f[0] === "police") renderCall();
+      }));
     });
     what.appendChild(flags);
+    if (c.flags.police) {
+      what.appendChild(field("Police / security reference", textIn(c.policeRef, set("policeRef"), "e.g. police log 0412"),
+        "dup-field"));
+    }
     var others = cad.calls.filter(function (o) { return o.id !== c.id && !o.duplicateOf; });
     var dup = field("Duplicate of", pick([["0", "Not a duplicate"]].concat(others.map(function (o) {
       return [String(o.id), "Call " + C.pad3(o.id) + " (" + C.hhmm(o.received) + ")"];
@@ -1225,6 +1267,186 @@
     });
   }
 
+  /* ================= SITE MAP ================= */
+  // Kept apart from the CAD, so the large image is not rewritten with every change; exports carry it.
+  var MAP_KEY = "event-cad/site-map";
+  var siteMap = null;
+  function cleanMap(m) {
+    return isObj(m) && typeof m.src === "string" && /^data:image\/(jpeg|png);base64,/.test(m.src) && +m.w > 0 && +m.h > 0
+      ? { src: m.src, w: +m.w, h: +m.h } : null;
+  }
+  function loadMap() {
+    try { siteMap = cleanMap(JSON.parse(localStorage.getItem(MAP_KEY))); } catch (e) { siteMap = null; }
+  }
+  function storeMap(m) {
+    try {
+      if (m) localStorage.setItem(MAP_KEY, JSON.stringify(m)); else localStorage.removeItem(MAP_KEY);
+    } catch (e) { return false; }
+    siteMap = m;
+    renderMap();
+    backupSoon();
+    return true;
+  }
+  function takeMap(parsed) { var m = cleanMap(parsed.siteMap); if (m) storeMap(m); }
+  function renderMap() {
+    $("mapPreview").innerHTML = "";
+    $("mapRemove").hidden = !siteMap;
+    $("mapCard").hidden = !siteMap;
+    if (!siteMap) return;
+    var img = el("img");
+    img.src = siteMap.src;
+    img.alt = "Site map";
+    $("mapPreview").appendChild(img);
+    $("mapImg").src = siteMap.src;
+  }
+  $("mapBtn").addEventListener("click", function () { $("mapFile").click(); });
+  $("mapFile").addEventListener("change", function () {
+    var file = this.files[0];
+    this.value = "";
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onerror = function () { message("mapResult", "bad", "That file could not be read."); };
+    reader.onload = function () {
+      var img = new Image();
+      img.onerror = function () { message("mapResult", "bad", "That is not an image this browser can show. Use a JPEG or PNG."); };
+      img.onload = function () {
+        // Shrunk to a JPEG: big enough to read grid squares, small enough for the browser's storage.
+        var scale = Math.min(1, 2400 / Math.max(img.width, img.height));
+        var canvas = el("canvas"), g = canvas.getContext("2d");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, canvas.width, canvas.height);
+        g.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var m = { src: canvas.toDataURL("image/jpeg", 0.85), w: canvas.width, h: canvas.height };
+        if (storeMap(m)) message("mapResult", "good", "Added the site map. It shows on the CAD tab and prints in the paper fallback pack.");
+        else message("mapResult", "bad", "This browser has no room to store that map. Try a smaller image.");
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  $("mapRemove").addEventListener("click", function () {
+    if (confirm("Remove the site map?")) storeMap(null);
+    $("mapResult").hidden = true;
+  });
+  // Click the map to see it full screen; click again, or press Escape, to close.
+  $("mapImg").addEventListener("click", function () { $("mapCard").classList.toggle("zoomed"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("mapCard").classList.remove("zoomed"); });
+
+  /* ================= LIVE BACKUP FILE ================= */
+  // Chrome and Edge can keep writing to one file the user picked: a copy of the CAD after every change.
+  var backup = { handle: null, stored: null, writing: false, again: false, timer: null, last: "", failed: false };
+  var canBackup = typeof window.showSaveFilePicker === "function";
+  function exportData() { return Object.assign({ format: C.FORMAT, version: 1 }, cad, { siteMap: siteMap }); }
+
+  /* The chosen file is remembered in IndexedDB, so a reload only needs a click to carry on. */
+  function handles(mode, work) {
+    return new Promise(function (resolve) {
+      try {
+        var open = indexedDB.open("event-cad", 1);
+        open.onupgradeneeded = function () { open.result.createObjectStore("files"); };
+        open.onerror = function () { resolve(null); };
+        open.onsuccess = function () {
+          try {
+            var tx = open.result.transaction("files", mode), req = work(tx.objectStore("files"));
+            tx.oncomplete = function () { resolve(req ? req.result : null); };
+            tx.onerror = tx.onabort = function () { resolve(null); };
+          } catch (e) { resolve(null); }
+        };
+      } catch (e) { resolve(null); }
+    });
+  }
+  function backupNow() {
+    if (!backup.handle) return;
+    if (backup.writing) { backup.again = true; return; }
+    backup.writing = true;
+    var text = JSON.stringify(exportData(), null, 1);
+    backup.handle.createWritable().then(function (w) {
+      return w.write(text).then(function () { return w.close(); });
+    }).then(function () {
+      backup.last = C.now();
+      backup.failed = false;
+    }, function () {
+      backup.failed = true;
+    }).then(function () {
+      backup.writing = false;
+      showBackup();
+      if (backup.again) { backup.again = false; backupNow(); }
+    });
+  }
+  function backupSoon() {
+    if (!backup.handle) return;
+    clearTimeout(backup.timer);
+    backup.timer = setTimeout(backupNow, 1000);
+  }
+  function useHandle(h) {
+    backup.handle = h;
+    backup.stored = null;
+    showBackup();
+    backupNow();
+  }
+  function startBackup() {
+    if (!canBackup) return showBackup();
+    handles("readonly", function (s) { return s.get("backup"); }).then(function (h) {
+      if (!h || typeof h.queryPermission !== "function") return showBackup();
+      h.queryPermission({ mode: "readwrite" }).then(function (state) {
+        if (state === "granted") useHandle(h);
+        else { backup.stored = h; showBackup(); }
+      }, showBackup);
+    });
+  }
+  function showBackup() {
+    var line = $("backupLine"), status = $("backupStatus");
+    var name = (backup.handle || backup.stored || {}).name || "";
+    $("backupChoose").hidden = !canBackup;
+    $("backupReconnect").hidden = !(backup.stored || (backup.handle && backup.failed));
+    $("backupStop").hidden = !(backup.handle || backup.stored);
+    var text, kind;
+    if (!canBackup) {
+      text = "This browser can't keep a live backup file. Use Chrome or Edge on a laptop, or export the CAD often.";
+      kind = "info";
+    } else if (backup.handle && backup.failed) {
+      text = "The live backup to " + name + " stopped working. Reconnect it, or choose the file again.";
+      kind = "bad";
+    } else if (backup.handle) {
+      text = "Live backup on: " + name + (backup.last ? ", saved " + C.hhmm(backup.last) : "") + ".";
+      kind = "good";
+    } else if (backup.stored) {
+      text = "The live backup to " + name + " is paused until you reconnect it.";
+      kind = "warn";
+    } else {
+      text = "No live backup file yet: everything is only in this browser.";
+      kind = "warn";
+    }
+    status.className = "notice " + kind;
+    status.textContent = text;
+    line.className = "backup-line " + kind;
+    line.textContent = text;
+    line.hidden = !canBackup;
+  }
+  $("backupChoose").addEventListener("click", function () {
+    window.showSaveFilePicker({ suggestedName: "CAD-live-backup-" + (slug(cad.event.name) || "event") + ".json",
+      types: [{ description: "Event CAD backup", accept: { "application/json": [".json"] } }] })
+      .then(function (h) {
+        handles("readwrite", function (s) { return s.put(h, "backup"); });
+        useHandle(h);
+      }, function () { /* the picker was closed */ });
+  });
+  $("backupReconnect").addEventListener("click", function () {
+    var h = backup.stored || backup.handle;
+    h.requestPermission({ mode: "readwrite" }).then(function (state) {
+      if (state === "granted") { backup.failed = false; useHandle(h); }
+    });
+  });
+  $("backupStop").addEventListener("click", function () {
+    if (!confirm("Stop the live backup? The file already saved is kept.")) return;
+    backup.handle = null;
+    backup.stored = null;
+    handles("readwrite", function (s) { return s.delete("backup"); });
+    showBackup();
+  });
+
   /* ================= REPORT ================= */
   function renderReportSummary() {
     var s = C.stats(cad);
@@ -1255,7 +1477,7 @@
 
   $("exportBtn").addEventListener("click", function () {
     var name = "CAD-" + fileBase() + ".json";
-    download(json(Object.assign({ format: C.FORMAT, version: 1 }, cad)), name);
+    download(json(exportData()), name);
     message("saveResult", "good", "Saved the whole CAD as " + name + ".");
   });
   $("importBtn").addEventListener("click", function () { $("importFile").click(); });
@@ -1267,6 +1489,7 @@
       }
       if (!confirm("Replace everything in this CAD with “" + name + "”?")) return;
       cad = C.clean(parsed);
+      takeMap(parsed);
       current = 0;
       save();
       renderAll();
@@ -1292,6 +1515,8 @@
     fillSetup();
     showCompany();
     renderSetup();
+    renderWalkUps();
+    renderMap();
     renderTc();
     renderLog();
     renderMethane();
@@ -1300,6 +1525,8 @@
   }
 
   load();
+  loadMap();
+  startBackup();
   if (!cad.company) cad.company = window.Shared.savedCompany();
   save();
   renderAll();
@@ -1317,8 +1544,9 @@
     if (e.key === "company-profile/v1") showCompany();
     if (e.key && e.key.indexOf("deployment-maker/") === 0) renderDm();
     // The CAD open in another tab of this browser saved: take its version, so neither tab undoes the other.
-    if (e.key === C.KEY) {
+    if (e.key === C.KEY || e.key === MAP_KEY) {
       load();
+      loadMap();
       renderAll();
     }
   });

@@ -83,7 +83,7 @@
       company: null,
       event: { name: "", venue: "", start: "", end: "", lead: "", control: "", crowd: 0 },
       units: [], places: [], hospitals: [],
-      settings: { unassignedMins: 5, onSceneMins: 20 },
+      settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },   // 0: no target
       controller: "",
       calls: [], tc: [], log: [], methane: [],
       seq: 0   // the last number used for a unit or place id
@@ -91,7 +91,7 @@
   }
   function newCall(id, received, controller) {
     var c = { id: id, received: received, controller: controller || "", source: "", reportedBy: "",
-      place: "", locText: "", w3w: "", grid: "", protocol: 0, category: 0, details: "", flags: {},
+      place: "", locText: "", w3w: "", grid: "", protocol: 0, category: 0, details: "", flags: {}, policeRef: "",
       duplicateOf: 0, patients: [], units: [], log: [], outcome: "", closed: "",
       nhs: { requested: "", cad: "", category: 0, arrived: "", handover: "" } };
     FLAGS.forEach(function (f) { c.flags[f[0]] = false; });
@@ -129,7 +129,7 @@
 
   function cleanCall(raw) {
     var c = newCall(int(raw.id, 1, 99999), stamp(raw.received), str(raw.controller));
-    ["reportedBy", "locText", "grid", "details"].forEach(function (f) { c[f] = str(raw[f]); });
+    ["reportedBy", "locText", "grid", "details", "policeRef"].forEach(function (f) { c[f] = str(raw[f]); });
     c.w3w = w3w(str(raw.w3w));
     c.source = oneOf(raw.source, SOURCES);
     c.place = pid(raw.place);
@@ -167,6 +167,7 @@
     var s = isObj(raw.settings) ? raw.settings : {};
     out.settings.unassignedMins = int(s.unassignedMins, 1, 600) || 5;
     out.settings.onSceneMins = int(s.onSceneMins, 1, 600) || 20;
+    CATEGORIES.forEach(function (k) { out.settings.targets[k[0]] = int(isObj(s.targets) ? s.targets[k[0]] : 0, 0, 1440); });
     out.controller = str(raw.controller);
     out.seq = int(raw.seq, 0, 1e9);
     // Ids must be unique: a missing or repeated one gets a new number.
@@ -187,7 +188,7 @@
         reg: str(u.reg), at: pid(u.at),
         staff: arr(u.staff).map(function (p) { return { name: str(p.name), grade: str(p.grade) }; }),
         history: arr(u.history).map(function (h) {
-          return { kind: h.kind === "break" ? "break" : "unavailable", start: stamp(h.start), until: stamp(h.until),
+          return { kind: oneOf(h.kind, ["break", "unavailable", "offduty"]) || "unavailable", start: stamp(h.start), until: stamp(h.until),
             end: stamp(h.end), reason: str(h.reason) };
         }).filter(function (h) { return h.start; }) };
       if (!unit.id) later.push(unit);
@@ -283,6 +284,7 @@
       return { code: over ? "breakover" : "break", label: over ? "Break over" : "On break", since: p.start,
         until: p.until, where: placeName(cad, unit.at) };
     }
+    if (p && p.kind === "offduty") return { code: "offduty", label: "Off duty", since: p.start, where: placeName(cad, unit.at) };
     if (p) return { code: "unavailable", label: "Unavailable", since: p.start, until: p.until, where: p.reason };
     return { code: "available", label: "Available", since: "", where: placeName(cad, unit.at) };
   }
@@ -311,7 +313,11 @@
     var out = [], s = cad.settings;
     cad.calls.forEach(function (c) {
       if (c.closed || c.duplicateOf) return;
-      var waited = (nowMs - ms(c.received)) / 60000;
+      var waited = (nowMs - ms(c.received)) / 60000, target = c.category ? s.targets[c.category] : 0;
+      if (target && !isFinite(firstOnScene(c)) && waited >= target) {
+        out.push({ kind: "target", call: c.id, text: "Call " + pad3(c.id) + " (category " + c.category + ") has passed its " +
+          target + " min target with no unit on scene (" + Math.floor(waited) + " min)." });
+      }
       if (!c.units.length && waited >= s.unassignedMins) {
         out.push({ kind: "unassigned", call: c.id,
           text: "Call " + pad3(c.id) + " has no unit assigned (" + Math.floor(waited) + " min)." });
@@ -388,6 +394,17 @@
     }), [["No category", calls.filter(function (c) { return !c.category; })]]);
 
     var allJobs = flat(cad.calls.map(function (c) { return c.units.map(function (a) { return { call: c, a: a }; }); }));
+    var toScene = function (c) { return (firstOnScene(c) - ms(c.received)) / 60000; };
+    // Calls that reached the scene, against their category's target: how many made it.
+    var targets = function (list) {
+      var timed = list.filter(function (c) { return c.category && cad.settings.targets[c.category] && toScene(c) >= 0; });
+      return timed.length ? { n: timed.length, met: timed.filter(function (c) {
+        return toScene(c) <= cad.settings.targets[c.category];
+      }).length } : null;
+    };
+    var places = {};
+    calls.forEach(function (c) { var n = placeName(cad, c.place) || "No point of interest given"; places[n] = (places[n] || 0) + 1; });
+    var ev = cad.event, dutyEnd = ev.end && ev.end < until ? ev.end : until;
     return {
       calls: calls.length,
       duplicates: cad.calls.length - calls.length,
@@ -397,7 +414,7 @@
       tthr: crowd > 0 ? toHospital / crowd * 1000 : null,
       response: groups.filter(function (g) { return g[1].length; }).map(function (g) {
         return { label: g[0], calls: g[1].length,
-          callToScene: summary(g[1].map(function (c) { return (firstOnScene(c) - ms(c.received)) / 60000; })),
+          callToScene: summary(g[1].map(toScene)), target: targets(g[1]),
           assignToScene: summary(flat(g[1].map(function (c) {
             return c.units.map(function (a) { return mins(a.assigned, a.onscene); });
           }))) };
@@ -413,6 +430,11 @@
         .filter(function (r) { return r[1]; }),
       bySource: counts(SOURCES.concat(["Not recorded"]), calls.map(function (c) { return c.source || "Not recorded"; })),
       flags: FLAGS.map(function (f) { return [f[1], calls.filter(function (c) { return c.flags[f[0]]; }).length]; }),
+      byLocation: Object.keys(places).map(function (n) { return [n, places[n]]; })
+        .sort(function (a, b) { return b[1] - a[1] || (a[0] < b[0] ? -1 : 1); }).slice(0, 15),
+      police: calls.filter(function (c) { return c.flags.police; }).map(function (c) {
+        return { call: c.id, time: c.received, where: callPlace(cad, c), ref: c.policeRef };
+      }),
       outcomes: counts(OUTCOMES.concat(["Not recorded"]), flat(calls.map(function (c) {
         return c.patients.length ? c.patients.map(function (p) { return p.outcome || "Not recorded"; })
           : [c.outcome || "Not recorded"];
@@ -445,7 +467,11 @@
           turnaround: summary(jobs.filter(function (j) { return j.a.dest === "hospital"; })
             .map(function (j) { return mins(j.a.atdest, j.a.clear); })),
           breaks: breaks.length, breakMins: total(breaks),
-          unavailMins: total(u.history.filter(function (h) { return h.kind === "unavailable"; }))
+          unavailMins: total(u.history.filter(function (h) { return h.kind === "unavailable"; })),
+          offDutyMins: total(u.history.filter(function (h) { return h.kind === "offduty"; })),
+          // From the event's start to its end (or now), less any time off duty.
+          onDutyMins: ev.start ? Math.max(0, mins(ev.start, dutyEnd) -
+            total(u.history.filter(function (h) { return h.kind === "offduty"; }))) : null
         };
       })
     };
