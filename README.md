@@ -10,6 +10,7 @@ Everything runs locally in the browser: no server, no upload.
 | [Bag Tracker](bag-tracker/README.md) | `bag-tracker/` | Kit list, checklist and sign in/out log for a medical bag |
 | [Vehicle Check](vehicle-check/README.md) | `vehicle-check/` | Daily ambulance vehicle check: OK / defect / N/A on an editable checklist, defects, fit for service, signed check sheet |
 | [Deployment Maker](deployment-maker/README.md) | `deployment-maker/` | A deployment log: units, callsigns, staff, grades, radios and bags, with sign-in, break and stand-down times; reusable venue plans |
+| [Event CAD](event-cad/README.md) | `event-cad/` | Event control on one laptop: calls, unit status and breaks, pre-alerts, treatment centre counts, control log, METHANE; the event report and a zip of call logs |
 
 `index.html` at the root is a home page that puts the Company Profile first,
 then links to the trackers. Each tool links back to it from its top bar.

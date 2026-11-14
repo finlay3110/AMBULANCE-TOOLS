@@ -36,6 +36,9 @@ jobs:
       - name: Vehicle Check
         if: ${{ !cancelled() }}
         run: node vehicle-check/test/smoke.js
+      - name: Event CAD
+        if: ${{ !cancelled() }}
+        run: node event-cad/test/smoke.js
       - name: Site (home page, backup, offline)
         if: ${{ !cancelled() }}
         run: node test/site.js
