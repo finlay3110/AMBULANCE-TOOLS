@@ -116,3 +116,21 @@ table.board, table.simple { width: 100%; border-collapse: collapse; font-size: 1
   .clock { font-size: 24px; }
   .cad-bar .btn.big { flex: 1; }
 }
+
+/* Targets, walk-ups, the live backup line and the site map. */
+.targets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.targets .field > span { font-weight: 500; }
+.walk-ups { display: flex; gap: 8px; flex-wrap: wrap; }
+.cad-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.cad-actions .methane { margin-left: auto; }
+.board-actions .btn { padding: 5px 9px; font-size: 12px; }
+.backup-line { margin: -4px 0 12px; font-size: 13px; font-weight: 600; }
+.backup-line.good { color: var(--good-ink); }
+.backup-line.warn { color: var(--warn-ink); }
+.backup-line.bad { color: var(--danger); }
+.map-preview img { max-width: 100%; max-height: 260px; border: 1px solid var(--line); border-radius: 8px; display: block; }
+.site-map summary { cursor: pointer; font-weight: 700; font-size: 16px; }
+.site-map img { width: 100%; margin-top: 12px; border-radius: 8px; cursor: zoom-in; display: block; }
+.site-map.zoomed img { position: fixed; inset: 0; z-index: 50; width: 100vw; height: 100vh; margin: 0; border-radius: 0;
+  object-fit: contain; background: rgba(0, 0, 0, .88); cursor: zoom-out; }
+@media (max-width: 700px) { .targets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -233,7 +233,8 @@
     y = strip(doc, y, [["Location", v(c && C.placeName(cad, c.place))], ["Description", v(c && c.locText)],
       ["what3words", v(c && (c.w3w ? "///" + c.w3w : ""))], ["Site map grid ref", v(c && c.grid)]]);
     y = textBox(doc, y + 2, "Details", v(c && c.details), 3);
-    y = strip(doc, y + 2, C.FLAGS.map(function (f) { return [f[1], blank ? "Yes  /  No" : c.flags[f[0]] ? "YES" : "No"]; }));
+    y = strip(doc, y + 2, C.FLAGS.map(function (f) { return [f[1], blank ? "Yes  /  No" : c.flags[f[0]] ? "YES" : "No"]; })
+      .concat([["Police / security ref.", v(c && c.policeRef)]]));
 
     y = table(doc, y, { title: "Patients", widths: [10, 24, 30, 46, 76], header: ["#", "Age", "Sex", "PRF number", "Outcome"],
       rows: blank ? [] : c.patients.map(function (p, i) { return [String(i + 1), p.age, p.sex, p.prf, p.outcome]; }),
@@ -360,12 +361,17 @@
     colour(doc, INK);
     y += 6;
 
-    y = table(doc, y, { title: "Response times", widths: [28, 14, 24, 24, 24, 24, 24, 24],
+    y = table(doc, y, { title: "Response times", widths: [24, 12, 21, 19, 19, 21, 19, 19, 32],
       header: ["", "Calls", "Received to first on scene: average", "median", "longest",
-        "Unit assigned to on scene: average", "median", "longest"],
+        "Unit assigned to on scene: average", "median", "longest", "Within target"],
       rows: s.response.map(function (r) {
-        return [{ text: r.label, bold: true }, String(r.calls)].concat(trio(r.callToScene), trio(r.assignToScene));
+        var t = r.target ? r.target.met + " of " + r.target.n + " (" + Math.round(r.target.met / r.target.n * 100) + "%)" : "\u2014";
+        return [{ text: r.label, bold: true }, String(r.calls)].concat(trio(r.callToScene), trio(r.assignToScene), [t]);
       }), empty: "No calls." });
+    var targets = C.CATEGORIES.filter(function (k) { return cad.settings.targets[k[0]]; }).map(function (k) {
+      return "category " + k[0] + " " + cad.settings.targets[k[0]] + " min";
+    });
+    if (targets.length) y = note(doc, y + 1, "Targets, from the call to the first unit on scene: " + targets.join(", ") + ".");
 
     y = table(doc, y, { title: "Calls per hour", widths: [40, 20], header: ["Hour", "Calls"],
       rows: s.perHour.map(function (r) { return [r[0], String(r[1])]; }), empty: "No calls." });
@@ -376,7 +382,12 @@
     list("Calls by MPDS protocol", s.byProtocol);
     list("Calls by category", s.byCategory);
     list("How calls came in", s.bySource);
+    list("Busiest locations", s.byLocation);
     list("Police, safeguarding and vulnerable people", s.flags);
+    y = table(doc, y, { title: "Calls with police involved", widths: [14, 32, 90, 50],
+      header: ["Call", "Received", "Location", "Police / security ref."],
+      rows: s.police.map(function (r) { return [C.pad3(r.call), C.ukStamp(r.time), r.where, r.ref]; }),
+      empty: "No calls with police involved." });
     list("Outcomes (per patient, or per call when there was no patient)", s.outcomes);
 
     y = table(doc, y, { title: "Conveyances to hospital", widths: [14, 26, 40, 22, 32, 30, 22],
@@ -394,13 +405,18 @@
           C.ukStamp(r.arrived), r.arrived ? C.dur(r.wait) : "", C.ukStamp(r.handover)];
       }), empty: "No NHS ambulances requested." });
 
-    y = table(doc, y, { title: "Unit workload", widths: [30, 28, 14, 26, 34, 30, 24],
-      header: ["Unit", "Type", "Calls", "Time on calls", "Hospital turnaround (average)", "Breaks", "Unavailable"],
+    y = table(doc, y, { title: "Unit workload", widths: [24, 22, 12, 20, 24, 22, 20, 20, 22], size: 8,
+      header: ["Unit", "Type", "Calls", "Time on calls", "Hospital turnaround (average)", "Breaks", "Unavailable",
+        "Off duty", "On duty"],
       rows: s.units.map(function (u) {
         return [{ text: u.callsign, bold: true }, u.type, String(u.calls), C.dur(u.committed),
           u.turnaround ? C.dur(u.turnaround.avg) : "—",
-          u.breaks ? u.breaks + " (" + C.dur(u.breakMins) + ")" : "None", u.unavailMins ? C.dur(u.unavailMins) : "None"];
+          u.breaks ? u.breaks + " (" + C.dur(u.breakMins) + ")" : "None", u.unavailMins ? C.dur(u.unavailMins) : "None",
+          u.offDutyMins ? C.dur(u.offDutyMins) : "None", u.onDutyMins === null ? "—" : C.dur(u.onDutyMins)];
       }), empty: "No units." });
+    if (s.units.length && s.units[0].onDutyMins !== null) {
+      y = note(doc, y + 1, "On duty: from the event's start to its end (or the time of this report), less any time off duty.");
+    }
 
     y = table(doc, y, { title: "Treatment centres: patients in each centre, every hour", widths: [30, 40, 20, 66, 30],
       header: ["Time", "Centre", "Patients", "Notes", "By"],
@@ -418,7 +434,7 @@
   }
 
   /* ---------------- the paper fallback pack ---------------- */
-  function paper(cad) {
+  function paper(cad, siteMap) {
     var doc = newDoc("Paper fallback pack (continued)  ·  " + txt(cad.event.name));
     var y = masthead(doc, cad, "UNIT STATUS SHEET", "DATE", ukDate(cad.event.start));
     y = note(doc, y, "Write each change of status with its time: e.g. \"En route 14:05\", \"On scene 14:12 call 7\", " +
@@ -441,6 +457,16 @@
     callSheet(doc, cad, null);
     doc.addPage();
     methaneSheet(doc, cad, null);
+
+    if (siteMap) {
+      doc.addPage();
+      y = masthead(doc, cad, "SITE MAP", "DATE", ukDate(cad.event.start));
+      var maxH = pageH(doc) - PAGE.mb - y, scale = Math.min(W / siteMap.w, maxH / siteMap.h);
+      try {
+        doc.addImage(siteMap.src, siteMap.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", PAGE.ml + (W - siteMap.w * scale) / 2, y,
+          siteMap.w * scale, siteMap.h * scale);
+      } catch (e) { /* an unreadable map must never stop the pack */ }
+    }
 
     doc.addPage();
     y = masthead(doc, cad, "REFERENCE", "DATE", ukDate(cad.event.start));

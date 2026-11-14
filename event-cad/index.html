@@ -109,12 +109,23 @@
     </div>
 
     <div class="card">
-      <h2>Alerts and what3words</h2>
+      <h2>Alerts, targets and what3words</h2>
+      <p class="hint">A call that passes its category&rsquo;s target with no unit on scene turns amber, and the report
+        shows how many calls met their target.</p>
       <div class="grid">
         <label class="field"><span>Alert when a call has no unit after (minutes)</span>
           <input type="number" id="unassignedMins" min="1" max="600" inputmode="numeric"></label>
         <label class="field"><span>Welfare check when a unit on scene has no update for (minutes)</span>
           <input type="number" id="onSceneMins" min="1" max="600" inputmode="numeric"></label>
+        <div class="field span2"><span>Response time targets: minutes from the call to the first unit on scene (blank for none)</span>
+          <div class="targets">
+            <label class="field"><span>Category 1</span><input type="number" id="target1" min="1" max="1440" inputmode="numeric" placeholder="e.g. 8"></label>
+            <label class="field"><span>Category 2</span><input type="number" id="target2" min="1" max="1440" inputmode="numeric"></label>
+            <label class="field"><span>Category 3</span><input type="number" id="target3" min="1" max="1440" inputmode="numeric"></label>
+            <label class="field"><span>Category 4</span><input type="number" id="target4" min="1" max="1440" inputmode="numeric"></label>
+            <label class="field"><span>Category 5</span><input type="number" id="target5" min="1" max="1440" inputmode="numeric"></label>
+          </div>
+        </div>
         <label class="field span2"><span>what3words API key (optional)</span>
           <input type="password" id="w3wKey" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
       </div>
@@ -122,6 +133,19 @@
         misheard words. A free key from <a href="https://developer.what3words.com/public-api" target="_blank"
         rel="noopener">what3words&rsquo; developer site</a> is enough. The key stays on this device: it is not in any
         export or backup. Without a key, addresses are still recorded, with a link to see them on the map.</p>
+    </div>
+
+    <div class="card">
+      <h2>Site map</h2>
+      <p class="hint">A picture of the event&rsquo;s site map (JPEG or PNG). It shows on the CAD tab, to read grid
+        references and locations, and prints in the paper fallback pack.</p>
+      <div class="map-preview" id="mapPreview"></div>
+      <div class="actions">
+        <button type="button" class="btn ghost small" id="mapBtn">Add or change the site map</button>
+        <button type="button" class="btn ghost small" id="mapRemove" hidden>Remove the site map</button>
+        <input type="file" id="mapFile" accept="image/png,image/jpeg" hidden>
+      </div>
+      <p class="notice" id="mapResult" hidden></p>
     </div>
 
     <div class="card">
@@ -157,9 +181,13 @@
         <input type="text" id="controller" placeholder="Your name"></label>
       <label class="field search"><span>Search calls</span>
         <input type="search" id="search" placeholder="Call number, callsign, place&hellip;"></label>
-      <button type="button" class="btn methane" id="methaneBtn">METHANE</button>
-      <button type="button" class="btn primary big" id="newCallBtn">+ New call</button>
     </div>
+    <div class="cad-actions">
+      <button type="button" class="btn primary big" id="newCallBtn">+ New call</button>
+      <span class="walk-ups" id="walkUps"></span>
+      <button type="button" class="btn methane" id="methaneBtn">METHANE</button>
+    </div>
+    <p class="backup-line" id="backupLine" hidden></p>
     <div class="alerts" id="alerts" aria-live="polite"></div>
 
     <div class="cad-layout">
@@ -182,6 +210,10 @@
             <div class="call-list" id="closedList"></div>
           </details>
         </div>
+        <details class="card site-map" id="mapCard" hidden>
+          <summary>Site map</summary>
+          <img id="mapImg" alt="Site map: click to see it full screen">
+        </details>
       </div>
       <div>
         <div class="card" id="callEmpty">
@@ -278,6 +310,19 @@
         <button type="button" class="btn ghost big" id="zipBtn">Download call logs (.zip)</button>
       </div>
       <p class="notice" id="reportResult" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Live backup file</h2>
+      <p class="hint">Choose a file once, on this laptop or a USB stick, and the CAD saves a copy of everything into it
+        after every change. If this browser&rsquo;s data is lost, open the file with <strong>Import CAD</strong> on
+        any laptop to carry on. After the browser restarts, press <strong>Reconnect</strong> to start it again.</p>
+      <p class="notice" id="backupStatus"></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="backupChoose">Choose live backup file</button>
+        <button type="button" class="btn ghost" id="backupReconnect" hidden>Reconnect</button>
+        <button type="button" class="btn ghost" id="backupStop" hidden>Stop live backup</button>
+      </div>
     </div>
 
     <div class="card">

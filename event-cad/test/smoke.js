@@ -10,6 +10,7 @@ const zlib = require("zlib");
 
 const PAGE = "file://" + path.join(__dirname, "..", "index.html");
 const eq = (a, b, m) => assert.strictEqual(a, b, m);
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 /* The files in a zip, each checked against the CRC the zip gives it. */
 function unzip(buf) {
@@ -39,6 +40,19 @@ function unzip(buf) {
       units: [{ callsign: "Alpha 1", ambulance: true, reg: "AB12 CDE", location: "Main stage",
         staff: [{ name: "Jo Bloggs", grade: "Paramedic" }] },
       { callsign: "Foot 1", ambulance: false, roaming: true, location: "", staff: [{ name: "Ali Khan", grade: "EMT" }] }] }));
+  });
+  // A stand-in for the file Chrome lets the live backup write to: it keeps each version written.
+  await ctx.addInitScript(() => {
+    window.__backups = [];
+    window.showSaveFilePicker = async (opts) => ({
+      name: opts.suggestedName,
+      createWritable: async () => {
+        let text = "";
+        return { write: async (t) => { text += t; }, close: async () => { window.__backups.push(text); } };
+      },
+      queryPermission: async () => "granted",
+      requestPermission: async () => "granted"
+    });
   });
   // what3words, answered here: the test never goes out to the internet.
   const asked = [];
@@ -82,20 +96,32 @@ function unzip(buf) {
   await page.click("#addHospital");
   await page.getByLabel("Hospital name").fill("Royal Infirmary");
   await page.fill("#w3wKey", "TESTKEY");
+  await page.fill("#target1", "3");
+  await page.fill("#target2", "15");
+  await page.setInputFiles("#mapFile", { name: "map.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
+  await page.waitForSelector("#mapPreview img");
 
   const [setupFile] = await Promise.all([page.waitForEvent("download"), page.click("#setupExport")]);
   const setup = JSON.parse(fs.readFileSync(await setupFile.path(), "utf8"));
   eq(setup.format, "event-cad/setup");
   eq(setup.units.length, 2);
   eq(setup.event.crowd, 20000);
+  eq(setup.settings.targets[1], 3);
+  assert.match(setup.siteMap.src, /^data:image\/jpeg;base64,/, "the site map goes with the setup");
   assert.ok(!JSON.stringify(setup).includes("TESTKEY"), "the what3words key is never exported");
 
   const [paper] = await Promise.all([page.waitForEvent("download"), page.click("#paperBtn")]);
   const paperText = await pdfText(paper);
   for (const s of ["UNIT STATUS SHEET", "Alpha 1", "Jo Bloggs, Paramedic", "CALL LIST", "CALL SHEET", "METHANE MESSAGE",
-    "Royal Infirmary", "Gate B", "Falls", "Pre-alert \\(ATMIST\\)"]) {
+    "Royal Infirmary", "Gate B", "Falls", "Pre-alert \\(ATMIST\\)", "SITE MAP", "POLICE / SECURITY REF"]) {
     assert.ok(paperText.includes(s), "paper fallback pack missing " + s);
   }
+
+  /* ---- the live backup file ---- */
+  await page.click(".tab[data-tab=report]");
+  await page.click("#backupChoose");
+  await page.waitForFunction(() => window.__backups.length > 0);
+  assert.match(await page.textContent("#backupStatus"), /Live backup on: CAD-live-backup-Riverside-Festival\.json, saved 12:00/);
 
   /* ---- a call from start to finish ---- */
   await page.click(".tab[data-tab=cad]");
@@ -115,6 +141,7 @@ function unzip(buf) {
   await sheet.getByLabel("MPDS protocol").selectOption("17");
   await sheet.getByLabel("Category", { exact: true }).selectOption("2");
   await sheet.getByLabel("Police involved").check();
+  await sheet.getByLabel("Police / security reference").fill("POL-0412");
   await sheet.getByRole("button", { name: "+ Add patient" }).click();
   await sheet.locator(".patient-row").getByLabel("Age").fill("34");
   await sheet.locator(".patient-row").getByLabel("Sex").selectOption("Female");
@@ -184,7 +211,9 @@ function unzip(buf) {
   await sheet.getByLabel("Unit to assign").selectOption({ label: "Foot 1: available" });
   await sheet.getByRole("button", { name: "Assign", exact: true }).click();
   await later("03:00");
+  assert.match(await page.textContent("#alerts"), /Call 003 \(category 1\) has passed its 3 min target with no unit on scene \(4 min\)/);
   await sheet.getByRole("button", { name: "On scene: Foot 1" }).click();
+  assert.doesNotMatch(await page.textContent("#alerts"), /target/, "a unit on scene ends the target alert");
   await sheet.getByRole("button", { name: "NHS ambulance requested" }).click();
   await sheet.getByLabel("NHS CAD number").fill("NHS-999");
   await sheet.getByLabel("Category given").selectOption("2");
@@ -216,6 +245,11 @@ function unzip(buf) {
   assert.match(await footRow.textContent(), /Restocking/);
   await later("05:00");
   await page.getByRole("button", { name: "Available: Foot 1" }).click();
+  eq(await footRow.locator(".badge").textContent(), "Available");
+  await page.getByRole("button", { name: "Off duty: Foot 1" }).click();
+  eq(await footRow.locator(".badge").textContent(), "Off duty");
+  await later("10:00");
+  await page.getByRole("button", { name: "On duty: Foot 1" }).click();
   eq(await footRow.locator(".badge").textContent(), "Available");
 
   /* ---- treatment centre, control log and METHANE ---- */
@@ -275,6 +309,10 @@ function unzip(buf) {
   const alpha = stats.units.find((u) => u.callsign === "Alpha 1");
   assert.deepStrictEqual([alpha.calls, alpha.committed, alpha.turnaround.avg, alpha.breaks, alpha.breakMins], [1, 69, 25, 1, 16]);
   eq(stats.units.find((u) => u.callsign === "Foot 1").unavailMins, 5);
+  eq(stats.units.find((u) => u.callsign === "Foot 1").offDutyMins, 10);
+  assert.deepStrictEqual(all.target, { n: 2, met: 1 }, "call 1 within its 15 min, call 3 over its 3 min");
+  assert.deepStrictEqual(stats.byLocation, [["Gate B", 1], ["No point of interest given", 1]]);
+  eq(stats.police[0].ref, "POL-0412");
 
   await page.click(".tab[data-tab=report]");
   assert.match(await page.textContent("#reportSummary"), /2 calls, 2 patients, 2 to hospital, 1 duplicate\. 0 still open/);
@@ -283,7 +321,8 @@ function unzip(buf) {
   const reportText = await pdfText(report);
   for (const s of ["EVENT REPORT", "Test Medical Ltd", "Riverside Festival", "20,000", "0.10", "12 min", "4.5 min",
     "17  Falls", "Category 1", "Radio", "Police involved", "Conveyed to hospital", "Royal Infirmary", "NHS-123", "NHS-999",
-    "average wait 30 min", "1 h 09 min", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
+    "average wait 30 min", "1 h 09 min", "1 of 2 \\(50%\\)", "category 1 3 min, category 2 15 min", "Busiest locations",
+    "POL-0412", "Off duty", "25 min", "1 \\(16 min\\)", "Busy after the headliner", "North TC", "Gates open",
     "North field, by the big wheel"]) {
     assert.ok(reportText.includes(s), "report missing " + s);
   }
@@ -295,14 +334,31 @@ function unzip(buf) {
   const call1 = files["Call-001.pdf"].toString("latin1");
   for (const s of ["CALL 001", "Steward at gate B", "///filled.count.soap", "17 Falls", "PRF-1001", "Conveyed to hospital",
     "Royal Infirmary", "Fall from stage", "ED nurse in charge", "NHS ambulance", "NHS-123", "Welfare check: Alpha 1 OK",
-    "12:06", "12:12", "13:15"]) {
+    "12:06", "12:12", "13:15", "POL-0412"]) {
     assert.ok(call1.includes(s), "call 001's log missing " + s);
   }
   assert.ok(files["Call-002.pdf"].toString("latin1").includes("Duplicate call"));
 
-  /* ---- a call logged after the report still counts ---- */
+  /* ---- a walk-up, open calls most urgent first, the site map, and the backup keeping up ---- */
   await page.click(".tab[data-tab=cad]");
+  await page.getByRole("button", { name: "New walk-up at North TC" }).click();
+  eq(await sheet.getByLabel("How it came in").inputValue(), "Walk-up");
+  eq(await sheet.getByLabel("Point of interest").locator("option:checked").textContent(), "North TC (treatment centre)");
+  eq(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "Age", "ready for the patient's details");
   await page.click("#newCallBtn");
+  await sheet.getByLabel("Category", { exact: true }).selectOption("1");
+  assert.deepStrictEqual(await page.locator("#callList .call-item strong").allTextContents(), ["005", "004"],
+    "the category 1 call is above the older walk-up");
+  await page.locator("#mapCard summary").click();
+  await page.click("#mapImg");
+  assert.match(await page.getAttribute("#mapCard", "class"), /zoomed/, "the map opens full screen");
+  await page.keyboard.press("Escape");
+  assert.doesNotMatch(await page.getAttribute("#mapCard", "class"), /zoomed/);
+  await later("00:02");
+  const lastBackup = JSON.parse(await page.evaluate(() => window.__backups[window.__backups.length - 1]));
+  eq(lastBackup.format, "event-cad/cad");
+  eq(lastBackup.calls.length, 5, "the live backup keeps up with each change");
+  assert.ok(lastBackup.siteMap.src.startsWith("data:image/jpeg"), "and holds the site map");
 
   /* ---- export, import and a new event ---- */
   await page.click(".tab[data-tab=report]");
@@ -314,7 +370,8 @@ function unzip(buf) {
   await fresh.click(".tab[data-tab=report]");
   await fresh.setInputFiles("#importFile", await whole.path());
   await fresh.waitForSelector("#saveResult:not([hidden])");   // files are read in the background
-  assert.match(await fresh.textContent("#saveResult"), /4 calls/);
+  assert.match(await fresh.textContent("#saveResult"), /5 calls/);
+  assert.ok(await fresh.evaluate(() => !!localStorage.getItem("event-cad/site-map")), "the site map comes back with the CAD");
   await fresh.click(".tab[data-tab=setup]");
   await fresh.setInputFiles("#setupFile", await setupFile.path());
   await fresh.waitForSelector("#setupResult:not([hidden])");

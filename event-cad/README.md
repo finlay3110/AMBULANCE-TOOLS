@@ -10,18 +10,22 @@ exported to a file when you want to keep it or move it.
   and end, event lead, control contact, crowd size), the staffing (units with their
   callsign, type, registration for ambulances, staff and grades, and the standby
   point each starts at), the locations (standby points, points of interest and the
-  treatment centre) and the hospitals. Units can be loaded from Deployment Maker:
-  the deployment open there, a saved plan, or a Deployment Maker file. Alert times
-  and an optional what3words key are set here too. **Export setup** and **Import
+  treatment centres) and the hospitals. Units can be loaded from Deployment Maker:
+  the deployment open there, a saved plan, or a Deployment Maker file. Alert times,
+  response time targets for each category, an optional what3words key and the
+  event's site map (an image, shown on the CAD tab) are set here too. **Export setup** and **Import
   setup** save and reuse it as a `.json` file. **Paper fallback pack** prints a unit
   status sheet with your callsigns, a call list, a blank call sheet and METHANE form,
   and your locations, hospitals and the MPDS protocols, in case the laptop fails.
-- **CAD:** the clock, the controller on duty, the unit status board, the open and
-  closed calls with a search, alerts, and the call sheet.
+- **CAD:** the clock, the controller on duty, the unit status board, the open calls
+  (category 1 first, then oldest) and closed calls with a search, alerts, the site
+  map (click it for full screen), and the call sheet. **+ Walk-up** buttons, one per
+  treatment centre, start a walk-in call with the centre and a patient ready.
   - A call records when it came in, how (radio, phone, walk-up, steward/security)
     and who reported it; where (point of interest, description, what3words and
     site map grid reference); the MPDS protocol (1 to 37) and category (1 to 5);
-    details; police, safeguarding and lost or vulnerable person flags; whether it
+    details; police (with a police or security reference), safeguarding and lost or
+    vulnerable person flags; whether it
     is a duplicate of another call; and each patient's age, sex, PRF number and
     outcome.
   - Units are assigned to a call and move through **Assigned, En route, On scene,
@@ -35,18 +39,22 @@ exported to a file when you want to keep it or move it.
     category given, when the NHS crew arrived and when the patient was handed over.
   - Each call has its own timestamped log. A call closes once its units are clear
     and each patient (or the call, when there was no patient) has an outcome.
-  - The board's **Break** and **Unavailable** buttons record a break (a length or a
-    finish time, with a countdown and a beep when it is over) or unavailable time
-    with a reason.
-  - Alerts: a call with no unit after a set time, a unit on scene with no update for
-    a set time (welfare check), a break that has run over, and the hourly treatment
-    centre count when it is due.
+  - The board's **Break**, **Unavailable** and **Off duty** buttons record a break (a
+    length or a finish time, with a countdown and a beep when it is over),
+    unavailable time with a reason, or time off duty (not started yet, or finished).
+  - Alerts: a call with no unit after a set time, a call past its category's
+    response target with no unit on scene, a unit on scene with no update for a set
+    time (welfare check), a break that has run over, and the hourly treatment centre
+    count when it is due.
 - **Treatment centre:** the hourly count of patients in each treatment centre, with notes. Add
   as many treatment centres as the event has under Locations; each has its own count and its
   own reminder when an hour has passed since its last count.
 - **Control log:** timestamped entries that are not calls, and **METHANE** messages
   for a major incident, each saved to the log and printed as its own PDF.
-- **Report:** the end-of-event report PDF, a zip with every call log (and METHANE
+- **Report:** the **live backup file** (choose a file once, on the laptop or a USB
+  stick, and the CAD writes a copy into it after every change; Chrome and Edge only;
+  after the browser restarts, press Reconnect), the end-of-event report PDF, a zip
+  with every call log (and METHANE
   message) as its own PDF, export and import of the whole CAD, and **Start a new
   event**, which clears the calls and logs and keeps the setup.
 
@@ -57,9 +65,10 @@ attendees when the crowd size is set; response times (call received to first uni
 on scene, and unit assigned to on scene: average, median and longest, overall and
 by category); calls per hour, by MPDS protocol, by category and by how they came
 in; the police, safeguarding and vulnerable person counts; outcomes; conveyances
-to hospital with pre-alerts and NHS CAD numbers; NHS ambulance requests and their
-waits; each unit's calls, time on calls, hospital turnaround, breaks and
-unavailable time; the treatment centre counts, centre by centre; the control log; and METHANE
+to hospital with pre-alerts and NHS CAD numbers; the busiest locations; calls with
+police involved and their references; how many calls met their category's target;
+NHS ambulance requests and their waits; each unit's calls, time on calls, hospital
+turnaround, breaks, unavailable time, time off duty and time on duty; the treatment centre counts, centre by centre; the control log; and METHANE
 messages. Duplicate calls are kept in the call logs but left out of the figures.
 
 ## what3words
