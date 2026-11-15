@@ -191,8 +191,16 @@ function unzip(buf) {
   const alphaRow = page.locator("#boardBody tr", { hasText: "Alpha 1" });
   eq(await alphaRow.locator(".badge").textContent(), "On scene");
   assert.match(await alphaRow.textContent(), /Call 001: Gate B/);
+  // The five-second refresh leaves an unchanged board alone, and a redraw keeps the keyboard on the same button.
+  await page.getByRole("button", { name: "Crew change: Alpha 1" }).focus();
+  await page.evaluate(() => { window.__crewBtn = document.activeElement; });
+  await later("00:05");
+  assert.ok(await page.evaluate(() => window.__crewBtn.isConnected), "an unchanged board is not rebuilt");
+  await later("01:00");
+  assert.ok(!(await page.evaluate(() => window.__crewBtn.isConnected)), "the minutes on scene changed: rebuilt");
+  eq(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "Crew change: Alpha 1", "focus kept");
 
-  await later("21:00");
+  await later("19:55");   // 21 minutes on scene, with the 1:05 above
   assert.match(await page.textContent("#alerts"), /Alpha 1 on scene at call 001 with no update for 21 min/);
   eq(await page.evaluate(() => window.__beeps), 1, "a missed welfare check beeps");
   await page.getByRole("button", { name: "Welfare check done: Alpha 1 OK" }).click();
@@ -475,9 +483,23 @@ function unzip(buf) {
     .map((d) => [d.day, d.calls, d.patients]));
   assert.deepStrictEqual(days, [["2026-07-04", 1, 1], ["2026-07-05", 1, 0]]);
 
+  /* ---- a radio check: OK or no reply for each unit on duty, logged ---- */
+  await page.click(".tab[data-tab=cad]");
+  await page.click("#radioCheckBtn");
+  await page.getByRole("button", { name: "Log the radio check" }).click();
+  assert.match(await page.textContent("#unitPanel"), /Mark at least one unit/);
+  await page.getByRole("button", { name: "OK: Alpha 1" }).click();
+  await page.getByRole("button", { name: "No reply: Foot 1" }).click();
+  eq(await page.getAttribute("button[aria-label='No reply: Foot 1']", "aria-pressed"), "true");
+  await page.getByRole("button", { name: "Log the radio check" }).click();
+  assert.ok(await page.isHidden("#unitPanel"), "the radio check closes once logged");
+  assert.match(await page.textContent("#controlLog"), /Radio check: 1 of 2 OK\. No reply: Foot 1\./);
+
   /* ---- a walk-up, open calls most urgent first, the site map, and the backup keeping up ---- */
   await page.click(".tab[data-tab=cad]");
+  await page.getByRole("button", { name: "New walk-up: choose the treatment centre" }).click();
   await page.getByRole("button", { name: "New walk-up at North TC" }).click();
+  assert.ok(await page.locator(".walkup-menu").isHidden(), "the choice of centre closes");
   eq(await sheet.getByLabel("How it came in").inputValue(), "Walk-up");
   eq(await sheet.getByLabel("Point of interest").locator("option:checked").textContent(), "North TC (treatment centre)");
   eq(await sheet.getByLabel("Site map grid ref").inputValue(), "F2", "a walk-up takes the centre's grid ref");
@@ -486,6 +508,16 @@ function unzip(buf) {
   await sheet.getByLabel("Category", { exact: true }).selectOption("1");
   assert.deepStrictEqual(await page.locator("#callList .call-item strong").allTextContents(), ["005", "004"],
     "the category 1 call is above the older walk-up");
+  // Upright on an iPad: the board or the call sheet, with a switch between them.
+  await page.setViewportSize({ width: 834, height: 1100 });
+  assert.ok(await page.isVisible("#callSheet") && await page.isHidden("#boardBody"), "a new call shows the call sheet");
+  eq(await page.textContent("#viewCall"), "Call 005");
+  await page.click("#viewBoard");
+  assert.ok(await page.isVisible("#boardBody") && await page.isHidden("#callSheet"), "Board shows the board");
+  await page.locator("#callList .call-item", { hasText: "004" }).click();
+  assert.ok(await page.isVisible("#callSheet"), "picking a call shows it");
+  eq(await page.textContent("#viewCall"), "Call 004");
+  await page.setViewportSize({ width: 1400, height: 1000 });
   await page.locator("#mapCard summary").click();
   await page.click("#mapImg");
   assert.match(await page.getAttribute("#mapCard", "class"), /zoomed/, "the map opens full screen");
@@ -503,12 +535,21 @@ function unzip(buf) {
   const fresh = await (await browser.newContext({ acceptDownloads: true })).newPage();
   fresh.on("pageerror", (e) => errors.push("fresh: " + e.message));
   fresh.on("dialog", (d) => d.accept());
+  await fresh.clock.install({ time: new Date(2026, 6, 5, 12, 0, 0) });   // the next day
   await fresh.goto(PAGE);
   await fresh.click(".tab[data-tab=report]");
   await fresh.setInputFiles("#importFile", await whole.path());
   await fresh.waitForSelector("#saveResult:not([hidden])");   // files are read in the background
   assert.match(await fresh.textContent("#saveResult"), /5 calls/);
   assert.ok(await fresh.evaluate(() => !!localStorage.getItem("event-cad/site-map")), "the site map comes back with the CAD");
+  // No live backup here: the CAD tab says when it was last exported, and reminds after 30 minutes.
+  await fresh.click(".tab[data-tab=cad]");
+  assert.ok(await fresh.isVisible("#backupLine"));
+  assert.match(await fresh.textContent("#backupLine"), /Last exported \d\d:\d\d\./);
+  assert.match(await fresh.textContent("#alerts"), /Last exported \d\d:\d\d \(\d+ min ago\): export the CAD/);
+  await Promise.all([fresh.waitForEvent("download"), fresh.getByRole("button", { name: "Export now" }).click()]);
+  assert.doesNotMatch(await fresh.textContent("#alerts"), /export the CAD/, "exporting clears the reminder");
+  assert.match(await fresh.textContent("#backupLine"), /Last exported 12:0\d\./);
   await fresh.click(".tab[data-tab=setup]");
   await fresh.setInputFiles("#setupFile", await setupFile.path());
   await fresh.waitForSelector("#setupResult:not([hidden])");
@@ -519,6 +560,7 @@ function unzip(buf) {
   eq(after.calls.length, 0);
   eq(after.units.length, 2, "a new event keeps the staffing");
   eq(after.units[0].history.length, 0);
+  eq(after.exportedAt, "", "a new event has not been exported yet");
 
   assert.deepStrictEqual(errors, []);
   await browser.close();

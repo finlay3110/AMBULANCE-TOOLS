@@ -102,6 +102,7 @@
       compare: null,    // another event's figures, for the report
       hospitalStatus: {},          // by hospital name: { status, note, since }
       finalised: "", finalisedBy: "",   // set once the event is locked
+      exportedAt: "",   // when the CAD was last exported to a file
       seq: 0   // the last number used for a unit or place id
     };
   }
@@ -193,6 +194,7 @@
     out.settings.mapGrid = { cols: int(g.cols, 0, 26), rows: int(g.rows, 0, 99) };
     out.finalised = stamp(raw.finalised);
     out.finalisedBy = str(raw.finalisedBy);
+    out.exportedAt = stamp(raw.exportedAt);
     if (isObj(raw.hospitalStatus)) {
       Object.keys(raw.hospitalStatus).forEach(function (name) {
         var h = raw.hospitalStatus[name];

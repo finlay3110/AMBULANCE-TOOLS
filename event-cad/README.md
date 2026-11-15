@@ -1,6 +1,6 @@
 # Event CAD
 
-A computer-aided dispatch log for event medical control, run on one laptop in the
+A computer-aided dispatch log for event medical control, run on one laptop or iPad in the
 browser. Nothing is uploaded: everything is kept in this browser's storage, and
 exported to a file when you want to keep it or move it.
 
@@ -25,8 +25,11 @@ exported to a file when you want to keep it or move it.
   available), **SITREP** (a situation report to copy or log), the unit status board
   (with **Crew** for staff changes mid-event), the open calls
   (category 1 first, then oldest) and closed calls with a search, alerts, the site
-  map (click it for full screen), and the call sheet. **+ Walk-up** buttons, one per
-  treatment centre, start a walk-in call with the centre and a patient ready.
+  map (click it for full screen), and the call sheet. **+ Walk-up** starts a walk-in call
+  with the centre and a patient ready; with more than one treatment centre, it asks which.
+  The buttons stay at the top as the page scrolls. On a narrow screen, such as an iPad held
+  upright, **Board** and **Call** switch between the board and the call sheet; side by side,
+  the call sheet keeps its place while the board scrolls.
   - A call records when it came in, how (radio, phone, walk-up, steward/security)
     and who reported it; where (point of interest, description, what3words and
     site map grid reference); the MPDS protocol (1 to 37) and category (1 to 5);
@@ -53,10 +56,13 @@ exported to a file when you want to keep it or move it.
   - The board's **Break**, **Unavailable** and **Off duty** buttons record a break (a
     length or a finish time, with a countdown and a beep when it is over),
     unavailable time with a reason, or time off duty (not started yet, or finished).
+    **Radio check** under the board lists each unit on duty to mark OK or no reply, and
+    logs the result as one control log entry.
   - Alerts: a call with no unit after a set time, a call past its category's
     response target with no unit on scene, a unit on scene with no update for a set
-    time (welfare check), a break that has run over, and the hourly treatment centre
-    count when it is due.
+    time (welfare check), a break that has run over, the hourly treatment centre
+    count when it is due, and, with no live backup file working, a reminder to export once
+    30 minutes' work is only in this browser (with **Export now**).
 - **Treatment centre:** the hourly count of patients in each treatment centre, with notes. Add
   as many treatment centres as the event has under Locations; each has its own count and its
   own reminder when an hour has passed since its last count.
@@ -87,6 +93,15 @@ police involved and their references; how many calls met their category's target
 NHS ambulance requests and their waits; each unit's calls, time on calls, hospital
 turnaround, breaks, unavailable time, time off duty and time on duty; the treatment centre counts, centre by centre; the control log; and METHANE
 messages. Duplicate calls are kept in the call logs but left out of the figures.
+
+## On an iPad
+
+On a touch screen the buttons and ticks are bigger, and text boxes use 16px text so Safari
+doesn't zoom in on each one. The live backup file needs Chrome or Edge, so on an iPad export
+the CAD often: the line under the CAD buttons says when it was last exported. Added to the
+home screen from the CAD page, it opens straight on the CAD (it has its own
+`manifest.webmanifest`); open it from there, as Safari can clear a website's data after 7
+days unused.
 
 ## what3words
 
