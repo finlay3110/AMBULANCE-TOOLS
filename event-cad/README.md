@@ -56,6 +56,8 @@ exported to a file when you want to keep it or move it.
   - The board's **Break**, **Unavailable** and **Off duty** buttons record a break (a
     length or a finish time, with a countdown and a beep when it is over),
     unavailable time with a reason, or time off duty (not started yet, or finished).
+    **Radio check** under the board lists each unit on duty to mark OK or no reply, and
+    logs the result as one control log entry.
   - Alerts: a call with no unit after a set time, a call past its category's
     response target with no unit on scene, a unit on scene with no update for a set
     time (welfare check), a break that has run over, the hourly treatment centre

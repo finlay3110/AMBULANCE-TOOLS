@@ -8,7 +8,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var cad = C.blank();
   var current = 0;       // the call in the call sheet
-  var unitForm = null;   // { unit, kind }: the break or unavailable form that is open
+  var unitForm = null;   // { unit, kind }: the break or unavailable form that is open; { kind: "radio", results } a radio check
   var beeped = {};       // breaks already announced with a beep
 
   /* ---------------- storage ---------------- */
@@ -711,6 +711,7 @@
     var box = $("unitPanel"), u = unitForm && C.unitById(cad, unitForm.unit);
     box.innerHTML = "";
     box.hidden = !u;
+    if (unitForm && unitForm.kind === "radio") { box.hidden = false; return renderRadioCheck(box); }
     if (!u) return;
     if (unitForm.kind === "crew") return renderCrewForm(box, u);
     var isBreak = unitForm.kind === "break";
@@ -754,6 +755,51 @@
     box.appendChild(err);
     (isBreak ? len : reason).focus();
   }
+
+  /* A radio check of every unit on duty: OK or no reply for each, logged as one control log entry. */
+  function renderRadioCheck(box) {
+    var res = unitForm.results, nowMs = Date.now();
+    var units = cad.units.filter(function (u) { return C.unitStatus(cad, u, nowMs).code !== "offduty"; });
+    box.appendChild(el("h3", "", "Radio check"));
+    if (!units.length) box.appendChild(el("p", "empty", "No units on duty."));
+    units.forEach(function (u) {
+      var row = el("div", "radio-row"), pair = [];
+      row.appendChild(el("strong", "", u.callsign || "Unnamed unit"));
+      [["ok", "OK"], ["none", "No reply"]].forEach(function (o) {
+        var b = btn(o[1], "ghost small", function () {
+          res[u.id] = res[u.id] === o[0] ? "" : o[0];   // a second press clears it
+          pair.forEach(function (p) { p[1].setAttribute("aria-pressed", String(res[u.id] === p[0])); });
+        }, o[1] + ": " + (u.callsign || "Unnamed unit"));
+        b.setAttribute("aria-pressed", String(res[u.id] === o[0]));
+        pair.push([o[0], b]);
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    });
+    var err = el("p", "error");
+    err.hidden = true;
+    var row = el("div", "actions");
+    row.appendChild(btn("Log the radio check", "primary small", function () {
+      var names = function (k) {
+        return units.filter(function (u) { return (res[u.id] || "") === k; }).map(function (u) { return u.callsign || "Unnamed unit"; });
+      };
+      var ok = names("ok"), none = names("none"), not = names("");
+      if (!ok.length && !none.length) { err.textContent = "Mark at least one unit OK or no reply."; err.hidden = false; return; }
+      cad.log.push({ time: C.now(), by: cad.controller, text: ok.length === units.length ? "Radio check: all " + ok.length +
+        (ok.length === 1 ? " unit" : " units") + " OK." : "Radio check: " + ok.length + " of " + units.length + " OK." +
+        (none.length ? " No reply: " + none.join(", ") + "." : "") + (not.length ? " Not checked: " + not.join(", ") + "." : "") });
+      unitForm = null;
+      changed();
+      renderLog();
+      renderUnitForm();
+    }));
+    row.appendChild(btn("Cancel", "ghost small", function () { unitForm = null; renderUnitForm(); }));
+    box.appendChild(row);
+    box.appendChild(err);
+    var first = box.querySelector(".radio-row button");
+    if (first) first.focus();
+  }
+  $("radioCheckBtn").addEventListener("click", function () { unitForm = { kind: "radio", results: {} }; renderUnitForm(); });
 
   /* ---------------- call list, search and alerts ---------------- */
   function callText(c) {

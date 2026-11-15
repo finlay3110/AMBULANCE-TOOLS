@@ -483,6 +483,18 @@ function unzip(buf) {
     .map((d) => [d.day, d.calls, d.patients]));
   assert.deepStrictEqual(days, [["2026-07-04", 1, 1], ["2026-07-05", 1, 0]]);
 
+  /* ---- a radio check: OK or no reply for each unit on duty, logged ---- */
+  await page.click(".tab[data-tab=cad]");
+  await page.click("#radioCheckBtn");
+  await page.getByRole("button", { name: "Log the radio check" }).click();
+  assert.match(await page.textContent("#unitPanel"), /Mark at least one unit/);
+  await page.getByRole("button", { name: "OK: Alpha 1" }).click();
+  await page.getByRole("button", { name: "No reply: Foot 1" }).click();
+  eq(await page.getAttribute("button[aria-label='No reply: Foot 1']", "aria-pressed"), "true");
+  await page.getByRole("button", { name: "Log the radio check" }).click();
+  assert.ok(await page.isHidden("#unitPanel"), "the radio check closes once logged");
+  assert.match(await page.textContent("#controlLog"), /Radio check: 1 of 2 OK\. No reply: Foot 1\./);
+
   /* ---- a walk-up, open calls most urgent first, the site map, and the backup keeping up ---- */
   await page.click(".tab[data-tab=cad]");
   await page.getByRole("button", { name: "New walk-up: choose the treatment centre" }).click();
