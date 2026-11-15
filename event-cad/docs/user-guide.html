@@ -93,7 +93,7 @@
   <p class="sub">Calls, units and the event report for event medical control</p>
   <dl>
     <dt>Guide for</dt><dd>Controllers running event medical control, and event leads setting it up</dd>
-    <dt>Runs on</dt><dd>One laptop in a web browser. Chrome or Edge for the live backup file.</dd>
+    <dt>Runs on</dt><dd>One laptop or iPad in a web browser. Chrome or Edge on a laptop for the live backup file.</dd>
     <dt>Licence</dt><dd>MIT &mdash; provided as is, with no warranty</dd>
   </dl>
   <div class="callout stop" style="margin-top:10mm">
@@ -201,12 +201,16 @@
     <ul>
       <li><b>Controller on duty</b>: type your name at the start of your shift. It goes on every call and log entry,
         and the change is logged. At a handover, the CAD asks for a handover note for the log.</li>
+      <li><b>The buttons</b> stay at the top as you scroll. On an iPad held upright, or a narrow window, <b>Board</b>
+        and <b>Call</b> switch between the board and the call sheet. Side by side, the call sheet stays in view while
+        the board scrolls.</li>
       <li><b>The summary strip</b> under the buttons: calls, open calls, patients, conveyed to hospital, average response
         and units available, kept up to date.</li>
       <li><b>SITREP</b> writes a short situation report for the last hour or the whole event, to copy into a message,
         read over the radio, or add to the control log.</li>
       <li><b>Alerts</b> (amber): a call with no unit, a call past its target with no unit on scene, a welfare check,
-        a break that has run over, a hospital on divert, a missing person, and the hourly treatment centre count. A
+        a break that has run over, a hospital on divert, a missing person, the hourly treatment centre count, and a
+        reminder to export when there is no live backup file. A
         category 1 call with no unit and a missed welfare check also beep.</li>
       <li><b>Open calls</b> are listed category 1 first, then oldest. Closed calls are underneath. <b>Search</b>
         finds a call by number, callsign, place, PRF, NHS CAD number or any text.</li>
@@ -225,7 +229,7 @@
     <h2>4. A call from start to finish</h2>
     <ol class="steps">
       <li><strong>+ New call</strong> starts a call, numbered and timed. For someone who walks into a treatment
-        centre, use that centre&rsquo;s <strong>+ Walk-up</strong> button instead.</li>
+        centre, use <strong>+ Walk-up</strong> instead; with more than one treatment centre, it asks which.</li>
       <li><strong>Who and where</strong>: how it came in, who reported it, the point of interest, a description,
         the what3words address (with a link to the map) and the site map grid reference.</li>
       <li><strong>What</strong>: the MPDS protocol, the category, the details, and the police, safeguarding and lost
@@ -387,7 +391,11 @@
         the laptop or a USB stick &mdash; and the CAD writes a copy into it after every change. The line under the
         CAD buttons says when it last saved. After the browser restarts, press <b>Reconnect</b>.</li>
       <li><b>Export CAD</b> at any time saves a copy you choose. <b>Import CAD</b> on any laptop carries on from it,
-        live backup files included.</li>
+        live backup files included. With no live backup file (on an iPad, or before you choose one), the line under
+        the CAD buttons says when you last exported, and after 30 minutes an alert reminds you, with <b>Export now</b>.</li>
+      <li><b>On an iPad</b>, add the CAD to the home screen (Share, then Add to Home Screen) and always open it from
+        there: Safari can clear a website&rsquo;s data after 7 days unused, but not a home-screen app&rsquo;s. The
+        home-screen CAD keeps its own data, apart from Safari&rsquo;s.</li>
       <li>Use one browser tab for the CAD. Do not use a private window: it forgets everything when closed.</li>
       <li>Keep the <b>paper fallback pack</b> printed in control.</li>
     </ul>
@@ -403,8 +411,8 @@
       <tr><td>&ldquo;This browser could not save the last change&rdquo;</td><td>Storage is full or this is a private
         window. Export the CAD at once, then carry on in a normal Chrome or Edge window and import it there.</td></tr>
       <tr><td>The live backup has stopped</td><td>Press <b>Reconnect</b> on the Report tab, or choose the file again.</td></tr>
-      <tr><td>No live backup button</td><td>The browser cannot write to files. Use Chrome or Edge on a laptop, or
-        export the CAD often.</td></tr>
+      <tr><td>No live backup button</td><td>The browser cannot write to files (an iPad, for one). Use Chrome or Edge
+        on a laptop, or export the CAD often: it reminds you every 30 minutes.</td></tr>
       <tr><td>what3words suggestions do not appear</td><td>They need the key in Setup and an internet connection.
         Without them the address is still recorded, with a link to the map.</td></tr>
       <tr><td>No beep when a break ends</td><td>Browsers only play sound once the page has been clicked. The amber

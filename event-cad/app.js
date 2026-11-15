@@ -565,6 +565,7 @@
       next.hospitalStatus = {};
       next.finalised = "";
       next.finalisedBy = "";
+      next.exportedAt = "";
       next.units.forEach(function (u) { u.history = []; u.crewLog = []; });
       next.controller = cad.controller;
       if (!next.company) next.company = cad.company;
@@ -588,20 +589,35 @@
     var m = Math.floor((nowMs - C.ms(since)) / 60000);
     return C.hhmm(since) + (m >= 0 ? " (" + m + " min)" : "");
   }
+  /* Put a rebuilt live list in place only when it has changed, so the five-second refresh doesn't
+     replace a button as it is tapped or take the keyboard focus away. The focus stays on the same button. */
+  function swap(box, fresh) {
+    if (box.innerHTML === fresh.innerHTML) return;
+    var nameOf = function (b) { return b.getAttribute("aria-label") || b.textContent; };
+    var a = document.activeElement, key = a && a !== box && box.contains(a) ? nameOf(a) : "";
+    box.innerHTML = "";
+    while (fresh.firstChild) box.appendChild(fresh.firstChild);
+    var same = key && [].filter.call(box.querySelectorAll("button"), function (b) { return nameOf(b) === key; })[0];
+    if (same) same.focus({ preventScroll: true });
+  }
   function renderBoard() {
-    var body = $("boardBody"), nowMs = Date.now();
-    body.innerHTML = "";
+    var body = document.createElement("tbody"), nowMs = Date.now();
     if (!cad.units.length) {
       var tr = el("tr"), td = el("td", "empty", "No units yet: add them on the Setup tab.");
-      td.colSpan = 4;
+      td.colSpan = 3;
       tr.appendChild(td);
       body.appendChild(tr);
     }
     cad.units.forEach(function (u) {
-      var st = C.unitStatus(cad, u, nowMs), tr = el("tr", "st-" + st.code);
+      // The buttons find the unit by its id when pressed: a list left in place by swap() may outlive this cad.
+      var st = C.unitStatus(cad, u, nowMs), tr = el("tr", "st-" + st.code), uid = u.id;
+      var unit = function () { return C.unitById(cad, uid); };
+      tr.dataset.unit = uid;
       var name = el("td");
       name.appendChild(el("strong", "", u.callsign || "Unnamed unit"));
       name.appendChild(el("small", "", u.type + (u.reg ? " · " + u.reg : "")));
+      var where = (st.call ? "Call " + C.pad3(st.call) + (st.where ? ": " : "") : "") + (st.where || "");
+      if (where) name.appendChild(el("small", "where", where));
       tr.appendChild(name);
       var status = el("td");
       status.appendChild(el("span", "badge", st.label));
@@ -612,7 +628,6 @@
           : (st.code === "unavailable" ? "expected back " : "due back ") + C.hhmm(st.until)));
       }
       tr.appendChild(status);
-      tr.appendChild(el("td", "", (st.call ? "Call " + C.pad3(st.call) + (st.where ? ": " : "") : "") + (st.where || "")));
       var act = el("td", "board-actions");
       if (st.call) {
         act.appendChild(btn("Open call", "ghost small", function () { openCall(st.call); }, "Open call " + st.call + " for " + u.callsign));
@@ -622,13 +637,14 @@
         act.appendChild(btn("Unavailable", "ghost small", function () { unitForm = { unit: u.id, kind: "unavailable" }; renderUnitForm(); },
           "Unavailable: " + u.callsign));
         act.appendChild(btn("Off duty", "ghost small", function () {
-          u.history.push({ kind: "offduty", start: C.now(), until: "", end: "", reason: "" });
+          var v = unit();
+          if (v) v.history.push({ kind: "offduty", start: C.now(), until: "", end: "", reason: "" });
           changed();
         }, "Off duty: " + u.callsign));
       } else {
         var back = { unavailable: "Available", offduty: "On duty" }[st.code] || "Back from break";
         act.appendChild(btn(back, "ghost small", function () {
-          var p = C.openPeriod(u);
+          var p = unit() && C.openPeriod(unit());
           if (p) p.end = C.now();
           changed();
         }, back + ": " + u.callsign));
@@ -638,6 +654,7 @@
       tr.appendChild(act);
       body.appendChild(tr);
     });
+    swap($("boardBody"), body);
   }
 
   /* Staff going off a unit and joining it, mid-event: the unit's staff change and the change is kept. */
@@ -775,11 +792,12 @@
       return (a.category || 9) - (b.category || 9) || C.ms(a.received) - C.ms(b.received) || a.id - b.id;
     });
     var closed = shown.filter(function (c) { return c.closed; });
-    $("callList").innerHTML = "";
-    $("closedList").innerHTML = "";
-    if (!open.length) $("callList").appendChild(el("p", "empty", q ? "No open calls match." : "No open calls."));
-    open.forEach(function (c) { $("callList").appendChild(callItem(c, flagged)); });
-    closed.forEach(function (c) { $("closedList").appendChild(callItem(c, flagged)); });
+    var openBox = el("div"), closedBox = el("div");
+    if (!open.length) openBox.appendChild(el("p", "empty", q ? "No open calls match." : "No open calls."));
+    open.forEach(function (c) { openBox.appendChild(callItem(c, flagged)); });
+    closed.forEach(function (c) { closedBox.appendChild(callItem(c, flagged)); });
+    swap($("callList"), openBox);
+    swap($("closedList"), closedBox);
     $("closedCount").textContent = closed.length;
     // A search that only matches closed calls opens that list.
     if (q && closed.length && !open.length) $("closedList").parentNode.open = true;
@@ -794,10 +812,10 @@
     if (current === id) renderCall();
   }
   function renderAlerts(list) {
-    var box = $("alerts");
-    box.innerHTML = "";
+    var box = el("div");
     list.forEach(function (a) {
       var row = el("div", "notice warn alert");
+      if (a.unit) row.dataset.unit = a.unit;   // so swap() never keeps a button meant for another unit
       row.appendChild(el("span", "", a.text));
       if (a.call) row.appendChild(btn("Open call", "ghost small", function () { openCall(a.call); }));
       if (a.kind === "welfare") {
@@ -815,15 +833,32 @@
       }
       if (a.kind === "tc") row.appendChild(btn("Record count", "ghost small", function () { showTab("tc"); }));
       if (a.kind === "person") row.appendChild(btn("Missing persons", "ghost small", function () { showTab("log"); $("personsCard").scrollIntoView(); }));
+      if (a.kind === "backup") row.appendChild(btn("Export now", "ghost small", exportCad));
       // A category 1 call with no unit, and a missed welfare check, beep once each.
       if (a.loud && !beeped[a.key]) { beeped[a.key] = true; beep(); }
       box.appendChild(row);
     });
+    swap($("alerts"), box);
+  }
+
+  /* With no live backup file working, a reminder to export once half an hour's work is only in this browser. */
+  var BACKUP_MINS = 30;
+  function backupDue(nowMs) {
+    if (backup.handle && !backup.failed) return null;
+    var times = cad.calls.map(function (c) { return C.ms(c.received); })
+      .concat(cad.log.map(function (e) { return C.ms(e.time); })).filter(isFinite);
+    if (!times.length) return null;
+    var since = Math.max(C.ms(cad.exportedAt) || 0, C.ms(backup.last) || 0) || Math.min.apply(null, times);
+    var mins = Math.floor((nowMs - since) / 60000);
+    if (mins < BACKUP_MINS) return null;
+    return { kind: "backup", text: (cad.exportedAt ? "Last exported " + C.hhmm(cad.exportedAt) + " (" + mins + " min ago)"
+      : "Not exported yet") + ": export the CAD so there is a copy outside this browser." };
   }
 
   /* The live views: units, calls, alerts and the open-call count. */
   function refresh() {
-    var list = C.alerts(cad, Date.now());
+    var list = C.alerts(cad, Date.now()), due = backupDue(Date.now());
+    if (due) list.push(due);
     renderBoard();
     renderCalls(list);
     renderAlerts(list);
@@ -839,14 +874,14 @@
       ["Patients", s.patients], ["To hospital", s.toHospital],
       ["Average response", all && all.callToScene ? C.dur(all.callToScene.avg) : "\u2014"],
       ["Units available", free + " of " + cad.units.length]];
-    var box = $("summaryStrip");
-    box.innerHTML = "";
+    var box = el("div");
     tiles.forEach(function (t) {
       var tile = el("div", "tile");
       tile.appendChild(el("b", "", String(t[1])));
       tile.appendChild(el("span", "", t[0]));
       box.appendChild(tile);
     });
+    swap($("summaryStrip"), box);
   }
   function showTcDue() {
     var due = C.tcDue(cad, Date.now());
@@ -860,8 +895,20 @@
     if (!$("panel-cad").classList.contains("active")) showTab("cad");
     renderCall();
     refresh();
-    if (window.innerWidth < 1000) $("callSheet").scrollIntoView();
+    showView(true);
   }
+  /* Upright on an iPad (or any narrow screen) the CAD shows the board or the call sheet, with a switch
+     between them. Side by side, the call sheet keeps its own scroll: a new call starts at its top. */
+  var narrow = window.matchMedia("(max-width: 999px)");
+  function showView(call) {
+    $("cadLayout").classList.toggle("show-call", call);
+    $("viewBoard").setAttribute("aria-pressed", String(!call));
+    $("viewCall").setAttribute("aria-pressed", String(call));
+    if (call) $("callCol").scrollTop = 0;
+    if (narrow.matches && $("cadLayout").getBoundingClientRect().top < 0) $("cadLayout").scrollIntoView();
+  }
+  $("viewBoard").addEventListener("click", function () { showView(false); });
+  $("viewCall").addEventListener("click", function () { showView(true); });
   function addCall(walkUp, centre) {
     var id = cad.calls.reduce(function (n, c) { return Math.max(n, c.id); }, 0) + 1, c = C.newCall(id, C.now(), cad.controller);
     if (walkUp) {
@@ -875,18 +922,43 @@
     current = id;
     changed();
     renderCall();
+    showView(true);   // before the focus: a hidden call sheet can't take it
     (walkUp ? $("callSheet").querySelector(".patient-row input") : $("callSheet").querySelector("select")).focus();
   }
   $("newCallBtn").addEventListener("click", function () { addCall(false); });
-  /* A walk-up button for each treatment centre, or one when none is set up. */
+  /* One walk-up button: straight to the walk-up with one treatment centre (or none), a choice of centre with more. */
   function renderWalkUps() {
     var box = $("walkUps"), centres = C.tcCentres(cad);
     box.innerHTML = "";
-    (centres.length ? centres : [null]).forEach(function (p) {
-      box.appendChild(btn("+ Walk-up" + (p ? ": " + p.name : ""), "ghost", function () { addCall(true, p && p.id); },
-        "New walk-up" + (p ? " at " + p.name : "")));
+    if (centres.length < 2) {
+      var only = centres[0];
+      box.appendChild(btn("+ Walk-up", "ghost", function () { addCall(true, only && only.id); },
+        "New walk-up" + (only ? " at " + only.name : "")));
+      return;
+    }
+    var menu = el("div", "walkup-menu");
+    menu.hidden = true;
+    var open = btn("+ Walk-up ▾", "ghost", function () {
+      menu.hidden = !menu.hidden;
+      open.setAttribute("aria-expanded", String(!menu.hidden));
+      if (!menu.hidden) menu.querySelector("button").focus();
+    }, "New walk-up: choose the treatment centre");
+    open.setAttribute("aria-expanded", "false");
+    centres.forEach(function (p) {
+      menu.appendChild(btn(p.name, "ghost", function () { closeWalkUps(); addCall(true, p.id); }, "New walk-up at " + p.name));
     });
+    box.appendChild(open);
+    box.appendChild(menu);
   }
+  function closeWalkUps(focus) {
+    var menu = $("walkUps").querySelector(".walkup-menu"), open = $("walkUps").querySelector("button");
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    open.setAttribute("aria-expanded", "false");
+    if (focus) open.focus();
+  }
+  document.addEventListener("click", function (e) { if (!$("walkUps").contains(e.target)) closeWalkUps(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeWalkUps(true); });
 
   function section(box, title) {
     var s = el("div", "call-section");
@@ -1114,6 +1186,7 @@
     box.innerHTML = "";
     $("callEmpty").hidden = !!c;
     box.hidden = !c;
+    $("viewCall").textContent = c ? "Call " + C.pad3(c.id) : "Call";
     if (!c) return;
     var set = function (f) { return function (v) { c[f] = v; changed(); }; };
 
@@ -1657,11 +1730,12 @@
       text = "No live backup file yet: everything is only in this browser.";
       kind = "warn";
     }
+    if (!backup.handle || backup.failed) text += cad.exportedAt ? " Last exported " + C.hhmm(cad.exportedAt) + "." : " Not exported yet.";
     status.className = "notice " + kind;
     status.textContent = text;
     line.className = "backup-line " + kind;
     line.textContent = text;
-    line.hidden = !canBackup;
+    line.hidden = false;
   }
   $("backupChoose").addEventListener("click", function () {
     window.showSaveFilePicker({ suggestedName: "CAD-live-backup-" + (slug(cad.event.name) || "event") + ".json",
@@ -1813,6 +1887,7 @@
       ". The CAD is locked: the report and call logs are final. Unlock on the Report tab to change anything." : "";
     $("finaliseBtn").hidden = locked;
     $("unlockBtn").hidden = !locked;
+    if (locked) showView(false);   // the switch is locked too: never leave it on the call sheet
     $("finalStatus").className = "notice " + (locked ? "good" : "info");
     $("finalStatus").textContent = locked ? "Finalised " + C.ukStamp(cad.finalised) + (cad.finalisedBy ? " by " + cad.finalisedBy : "") + "."
       : "Not finalised: the report is a draft.";
@@ -1899,10 +1974,17 @@
     message("reportResult", "good", "Downloaded " + name + " with " + files.length + (files.length === 1 ? " PDF." : " PDFs."));
   });
 
-  $("exportBtn").addEventListener("click", function () {
+  /* The whole CAD to a file. The time is kept, for the backup reminder and the backup line. */
+  function exportCad() {
+    cad.exportedAt = C.now();
     var name = "CAD-" + fileBase() + ".json";
     download(json(exportData()), name);
-    message("saveResult", "good", "Saved the whole CAD as " + name + ".");
+    changed();
+    showBackup();
+    return name;
+  }
+  $("exportBtn").addEventListener("click", function () {
+    message("saveResult", "good", "Saved the whole CAD as " + exportCad() + ".");
   });
   $("importBtn").addEventListener("click", function () { $("importFile").click(); });
   $("importFile").addEventListener("change", function () {
@@ -1933,6 +2015,7 @@
     cad.hospitalStatus = {};
     cad.finalised = "";
     cad.finalisedBy = "";
+    cad.exportedAt = "";
     cad.units.forEach(function (u) { u.history = []; u.crewLog = []; });
     current = 0;
     save();
@@ -1957,6 +2040,7 @@
     renderMethane();
     renderCall();
     refresh();
+    showBackup();
   }
 
   load();
@@ -1968,11 +2052,13 @@
   if (cad.units.length) showTab("cad");   // set up already: straight to the CAD
 
   // The clock every second; the board, timers and alerts every five.
-  var ticks = 0;
+  // A tap or click under way holds the refresh back a second, so the button under the finger stays put.
+  var ticks = 0, pressed = 0;
+  document.addEventListener("pointerdown", function () { pressed = Date.now(); }, true);
   setInterval(function () {
     var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
     $("clock").textContent = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
-    if (++ticks % 5 === 0) refresh();
+    if (++ticks % 5 === 0) { if (Date.now() - pressed < 1000) ticks--; else refresh(); }
   }, 1000);
 
   window.addEventListener("storage", function (e) {

@@ -189,3 +189,37 @@ fieldset.lockable:disabled .btn { opacity: .6; cursor: not-allowed; }
   .place-line.with-refs { grid-template-columns: 1fr 1fr; }
   .conditions-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* The actions bar stays on screen as the page scrolls: + New call, the walk-up, SITREP, METHANE. */
+.cad-actions { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 8px 0; margin-bottom: 6px; }
+.walk-ups { position: relative; }
+.walkup-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 21; display: flex; flex-direction: column; gap: 6px;
+  min-width: 260px; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .2); }
+.walkup-menu[hidden] { display: none; }
+.walkup-menu .btn { text-align: left; }
+.board .where { color: var(--ink); }
+
+/* Board or call sheet: the switch shows on narrow screens; side by side, the call sheet stays in view. */
+.view-switch { display: inline-flex; }
+.view-switch .btn:first-child { border-radius: 8px 0 0 8px; }
+.view-switch .btn:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.view-switch .btn[aria-pressed="true"] { background: var(--btn-bg); color: var(--btn-ink); border-color: var(--btn-bg); }
+.cad-layout { scroll-margin-top: 76px; }
+@media (min-width: 1000px) {
+  .view-switch { display: none; }
+  .call-col { position: sticky; top: 76px; max-height: calc(100vh - 88px); overflow-y: auto; }
+}
+@media (max-width: 999px) {
+  .cad-layout:not(.show-call) .call-col, .cad-layout.show-call .board-col { display: none; }
+}
+
+/* Touch screens (an iPad): text boxes at 16px so Safari doesn't zoom in on every tap; bigger buttons and ticks. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+  .btn { min-height: 44px; }
+  .board-actions { white-space: normal; }
+  .board-actions .btn { padding: 8px 12px; font-size: 14px; margin: 0 4px 4px 0; }
+  .board-actions .btn + .btn { margin-left: 0; }
+  input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
+}

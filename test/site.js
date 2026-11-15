@@ -61,12 +61,15 @@ function checkOfflineList() {
 
 /* ---- the manifest's icons are the sizes it says ---- */
 function checkIcons() {
-  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8"));
-  eq(manifest.start_url, "./");
-  manifest.icons.forEach((icon) => {
-    const png = fs.readFileSync(path.join(ROOT, icon.src));
-    const size = png.readUInt32BE(16) + "x" + png.readUInt32BE(20);   // the PNG header's width and height
-    eq(size, icon.sizes, icon.src + " size");
+  // The site's manifest, and the CAD's own, so the CAD added to a home screen opens on the CAD.
+  ["manifest.webmanifest", "event-cad/manifest.webmanifest"].forEach((file) => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, file), "utf8"));
+    eq(manifest.start_url, "./");
+    manifest.icons.forEach((icon) => {
+      const png = fs.readFileSync(path.join(ROOT, path.dirname(file), icon.src));
+      const size = png.readUInt32BE(16) + "x" + png.readUInt32BE(20);   // the PNG header's width and height
+      eq(size, icon.sizes, file + ": " + icon.src + " size");
+    });
   });
   console.log("  ok   manifest icons");
 }

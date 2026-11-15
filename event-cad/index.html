@@ -6,8 +6,9 @@
 <meta name="color-scheme" content="light dark">
 <title>Event CAD</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b6b3a'/%3E%3Cpath d='M14 6h4v8h8v4h-8v8h-4v-8H6v-4h8z' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="manifest" href="../manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Event CAD">
 <meta name="theme-color" content="#12212f">
 <script>
   /* Offline use: see sw.js. Fails quietly where it cannot run, such as a page opened as a file. */
@@ -206,6 +207,10 @@
       <span class="walk-ups" id="walkUps"></span>
       <button type="button" class="btn ghost" id="sitrepBtn">SITREP</button>
       <button type="button" class="btn methane" id="methaneBtn">METHANE</button>
+      <span class="view-switch" role="group" aria-label="Show">
+        <button type="button" class="btn ghost" id="viewBoard" aria-pressed="true">Board</button>
+        <button type="button" class="btn ghost" id="viewCall" aria-pressed="false">Call</button>
+      </span>
     </div>
     <div class="summary-strip" id="summaryStrip" aria-live="polite"></div>
     <p class="backup-line" id="backupLine" hidden></p>
@@ -224,13 +229,13 @@
       <textarea id="sitrepText" rows="9" readonly aria-label="Situation report"></textarea>
       <p class="notice" id="sitrepResult" hidden></p>
     </div>
-    <div class="cad-layout">
-      <div>
+    <div class="cad-layout" id="cadLayout">
+      <div class="board-col">
         <div class="card">
           <h2>Units</h2>
           <div class="table-wrap">
             <table class="board">
-              <thead><tr><th>Unit</th><th>Status</th><th>Where</th><th></th></tr></thead>
+              <thead><tr><th>Unit and where</th><th>Status</th><th></th></tr></thead>
               <tbody id="boardBody"></tbody>
             </table>
           </div>
@@ -255,7 +260,7 @@
           <img id="mapImg" alt="Site map: click to see it full screen">
         </details>
       </div>
-      <div>
+      <div class="call-col" id="callCol">
         <div class="card" id="callEmpty">
           <h2>Call sheet</h2>
           <p class="hint">Press <strong>+ New call</strong>, or pick a call from the list.</p>

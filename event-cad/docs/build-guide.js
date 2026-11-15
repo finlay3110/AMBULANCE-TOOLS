@@ -125,6 +125,8 @@ async function capture(browser) {
     localStorage.setItem("event-cad/site-map", JSON.stringify({ src: c.toDataURL("image/jpeg", 0.85), w: 1200, h: 750 }));
   }, EXAMPLE);
   await page.reload();
+  // Whole-page figures: the bar that stays on screen and the call sheet's own scrolling would cut them short.
+  await page.addStyleTag({ content: ".cad-actions, .call-col { position: static !important; max-height: none !important; overflow: visible !important; }" });
   await page.clock.runFor(5000);
   const blur = () => page.evaluate(() => document.activeElement && document.activeElement.blur());
 
