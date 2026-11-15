@@ -106,6 +106,7 @@ function unzip(buf) {
   }
   await page.getByLabel("Grid ref of Gate B").fill("C4");
   await page.getByLabel("what3words of Gate B").fill("///index.home.raft");
+  await page.getByLabel("Grid ref of North TC").fill("F2");
   await page.click("#addHospital");
   await page.getByLabel("Hospital name").fill("Royal Infirmary");
   await page.fill("#w3wKey", "TESTKEY");
@@ -479,6 +480,7 @@ function unzip(buf) {
   await page.getByRole("button", { name: "New walk-up at North TC" }).click();
   eq(await sheet.getByLabel("How it came in").inputValue(), "Walk-up");
   eq(await sheet.getByLabel("Point of interest").locator("option:checked").textContent(), "North TC (treatment centre)");
+  eq(await sheet.getByLabel("Site map grid ref").inputValue(), "F2", "a walk-up takes the centre's grid ref");
   eq(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "Age", "ready for the patient's details");
   await page.click("#newCallBtn");
   await sheet.getByLabel("Category", { exact: true }).selectOption("1");

@@ -423,17 +423,21 @@
     if (!cad.places.length) box.appendChild(el("p", "empty", "No locations yet."));
     cad.places.forEach(function (p, i) {
       var line = el("div", "place-line with-refs");
-      var name = textIn(p.name, function (v) { p.name = v; changed(); }, "e.g. Main stage, Gate B, Treatment centre");
+      var grid = textIn(p.grid, function (v) { p.grid = v.trim(); changed(); }, "Grid");
+      var words = textIn(p.w3w ? "///" + p.w3w : "", function (v) { p.w3w = C.w3w(v); changed(); }, "///what3words");
+      // The boxes beside a location are named after it, as it is typed.
+      var label = function () {
+        grid.setAttribute("aria-label", "Grid ref of " + (p.name || "this location"));
+        words.setAttribute("aria-label", "what3words of " + (p.name || "this location"));
+      };
+      var name = textIn(p.name, function (v) { p.name = v; changed(); label(); }, "e.g. Main stage, Gate B, Treatment centre");
       name.setAttribute("aria-label", "Location name");
       line.appendChild(name);
       var kind = pick(C.PLACE_KINDS, p.kind, function (v) { p.kind = v; changed(); });
       kind.setAttribute("aria-label", "Kind of location");
       line.appendChild(kind);
-      var grid = textIn(p.grid, function (v) { p.grid = v.trim(); changed(); }, "Grid");
-      grid.setAttribute("aria-label", "Grid ref of " + (p.name || "this location"));
+      label();
       line.appendChild(grid);
-      var words = textIn(p.w3w ? "///" + p.w3w : "", function (v) { p.w3w = C.w3w(v); changed(); }, "///what3words");
-      words.setAttribute("aria-label", "what3words of " + (p.name || "this location"));
       line.appendChild(words);
       line.appendChild(btn("Remove", "ghost small", function () {
         if (placeUsed(p.id)) {
@@ -863,6 +867,8 @@
     if (walkUp) {
       c.source = "Walk-up";
       c.place = centre || "";
+      var p = C.placeById(cad, c.place);   // the centre's own grid ref and what3words, as picking it on a call does
+      if (p) { c.grid = p.grid; c.w3w = p.w3w; }
       c.patients.push({ age: "", sex: "", prf: "", outcome: "" });
     }
     cad.calls.push(c);
