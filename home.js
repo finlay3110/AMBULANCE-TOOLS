@@ -11,7 +11,7 @@
     ["bag-tracker/", "Bag Tracker"],
     ["deployment-maker/", "Deployment Maker"],
     ["vehicle-check/", "Vehicle Check"],
-    ["event-cad/", "Event CAD"]
+    ["event-cad/", "Event CAD", "unlisted"]   // not on the home page, but its saved work is still backed up
   ];
   var $ = function (id) { return document.getElementById(id); };
 
@@ -169,7 +169,7 @@
     var box = $("savedList"), opened = read("ambulance-tools/opened") || {};
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
     box.innerHTML = "";
-    TOOLS.forEach(function (t) {
+    TOOLS.filter(function (t) { return !t[2]; }).forEach(function (t) {
       var li = document.createElement("li"), when = Date.parse(opened[t[0].replace("/", "")]), d = new Date(when);
       var what = SUMMARY[t[0]]() || "Nothing saved yet";
       [["strong", t[1]], ["span", what, "what"], ["span", isNaN(when) ? "Not opened yet" : "Opened " + p(d.getDate()) + "/" +

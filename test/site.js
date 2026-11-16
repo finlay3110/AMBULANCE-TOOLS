@@ -91,8 +91,9 @@ function checkIcons() {
   await home.goto(site.url);
   const links = await home.locator("main a.btn").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   assert.deepStrictEqual(links, ["company-profile/index.html", "drug-bag-tracker/index.html",
-    "bag-tracker/index.html", "deployment-maker/index.html", "vehicle-check/index.html", "event-cad/index.html"],
-    "the company profile comes first, then the tools");
+    "bag-tracker/index.html", "deployment-maker/index.html", "vehicle-check/index.html"],
+    "the company profile comes first, then the tools; the CAD is left off");
+  assert.doesNotMatch(await home.textContent("main"), /Event CAD|the CAD/, "the CAD isn't named on the home page");
   eq(await home.locator("a[href='disclaimer.html']").count(), 1, "the home page links the disclaimer");
   await home.click("a[href='disclaimer.html']");
   eq(await home.textContent("h1"), "Disclaimer");
