@@ -13,9 +13,11 @@ exported to a file when you want to keep it or move it.
   treatment centres) and the hospitals. Units can be loaded from Deployment Maker:
   the deployment open there, a saved plan, or a Deployment Maker file. Alert times,
   response time targets for each category, an optional what3words key, the quick
-  log phrases (one-tap updates on every call) and the event's site map (an image,
-  shown on the CAD tab, with its grid squares so a click on it sets a call's grid
-  reference) are set here too. Each location can carry its grid reference and
+  log phrases (one-tap updates on every call) and the site maps are set here too: a
+  picture of the site map, or one for each level or area of a venue, each named, with
+  its grid squares drawn over it (unless the map has its own grid printed on it), so a
+  click on it sets a call's grid reference. Each location can carry its grid reference (and, with
+  more than one map, which map it is on) and
   what3words address, which fill in when a call is at that location. **Export setup** and **Import
   setup** save and reuse it as a `.json` file. **Paper fallback pack** prints a unit
   status sheet with your callsigns, a call list, a blank call sheet and METHANE form,
@@ -25,7 +27,7 @@ exported to a file when you want to keep it or move it.
   available), **SITREP** (a situation report to copy or log), the unit status board
   (with **Crew** for staff changes mid-event), the open calls
   (category 1 first, then oldest) and closed calls with a search, alerts, the site
-  map (click it for full screen), and the call sheet. **+ Walk-up** starts a walk-in call
+  maps (a button for each map or level; click it for full screen), and the call sheet. **+ Walk-up** starts a walk-in call
   with the centre and a patient ready; with more than one treatment centre, it asks which.
   The buttons stay at the top as the page scrolls. On a narrow screen, such as an iPad held
   upright, **Board** and **Call** switch between the board and the call sheet; side by side,

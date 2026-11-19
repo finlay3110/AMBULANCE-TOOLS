@@ -148,21 +148,17 @@
     </div>
 
     <div class="card">
-      <h2>Site map</h2>
-      <p class="hint">A picture of the event&rsquo;s site map (JPEG or PNG). It shows on the CAD tab, to read grid
-        references and locations, and prints in the paper fallback pack.</p>
-      <div class="map-preview" id="mapPreview"></div>
-      <div class="grid map-grid">
-        <label class="field"><span>Grid squares across (A, B, C&hellip;)</span>
-          <input type="number" id="gridCols" min="0" max="26" inputmode="numeric" placeholder="e.g. 8"></label>
-        <label class="field"><span>Grid squares down (1, 2, 3&hellip;)</span>
-          <input type="number" id="gridRows" min="0" max="99" inputmode="numeric" placeholder="e.g. 5"></label>
-      </div>
-      <p class="hint grid-hint">With the grid set, you can click the map to fill in a call&rsquo;s grid reference, and
-        the report shows the calls on the map. Letters run across from the left, numbers down from the top.</p>
+      <h2>Site maps</h2>
+      <p class="hint">A picture of the event&rsquo;s site map (JPEG or PNG), or one for each level or area of the venue,
+        each with its own name. They show on the CAD tab, to read grid references and locations, and print in the paper
+        fallback pack.</p>
+      <div id="mapList"></div>
+      <p class="hint grid-hint">The CAD draws each map&rsquo;s grid over its picture, with each square&rsquo;s name in its
+        corner: letters across from the left, numbers down from the top. Untick <b>Draw the grid</b> for a map that has
+        its grid printed on it already. With a grid set, you can click the map to fill in a call&rsquo;s grid reference,
+        and the report shows the calls on each map.</p>
       <div class="actions">
-        <button type="button" class="btn ghost small" id="mapBtn">Add or change the site map</button>
-        <button type="button" class="btn ghost small" id="mapRemove" hidden>Remove the site map</button>
+        <button type="button" class="btn ghost small" id="mapAdd">+ Add a map</button>
         <input type="file" id="mapFile" accept="image/png,image/jpeg" hidden>
       </div>
       <p class="notice" id="mapResult" hidden></p>
@@ -258,7 +254,8 @@
         </div>
         <details class="card site-map" id="mapCard" hidden>
           <summary>Site map</summary>
-          <img id="mapImg" alt="Site map: click to see it full screen">
+          <div class="map-levels" id="mapLevels" hidden></div>
+          <div id="mapView"></div>
         </details>
       </div>
       <div class="call-col" id="callCol">
@@ -272,8 +269,9 @@
     <datalist id="hospitalList"></datalist>
     <div class="map-pick" id="mapPick" hidden>
       <div class="map-pick-bar"><span>Click the square the call is in.</span>
+        <span class="map-levels" id="mapPickLevels" hidden></span>
         <button type="button" class="btn ghost small" id="mapPickClose">Close</button></div>
-      <img id="mapPickImg" alt="Site map: click a square">
+      <div id="mapPickView"></div>
     </div>
   </section>
 
