@@ -189,14 +189,22 @@ async function capture(browser) {
     fs.writeFileSync(file, Buffer.from(uri.split(",")[1], "base64"));
     return file;
   };
+  // The maps with their pictures, as the CAD hands them to its PDFs.
+  await page.evaluate(() => {
+    window.guideMaps = () => {
+      const c = CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1")));
+      const raw = JSON.parse(localStorage.getItem("event-cad/site-map")), imgs = raw.images || { m1: raw };
+      return c.settings.maps.filter((m) => imgs[m.id]).map((m) => Object.assign({}, m, imgs[m.id]));
+    };
+  });
   const files = {
     report: await save(() => CadPDF.report(CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))),
-      JSON.parse(localStorage.getItem("event-cad/site-map"))).output("datauristring"),
+      guideMaps()).output("datauristring"),
       "sample-report.pdf"),
     call: await save(() => { const c = CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1")));
       return CadPDF.call(c, CAD.callById(c, 2)).output("datauristring"); }, "sample-call.pdf"),
     paper: await save(() => CadPDF.paper(CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))),
-      JSON.parse(localStorage.getItem("event-cad/site-map"))).output("datauristring"), "sample-paper.pdf")
+      guideMaps()).output("datauristring"), "sample-paper.pdf")
   };
   await page.close();
   return { files, calls: cad.calls.length };

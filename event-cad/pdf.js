@@ -231,7 +231,7 @@
       ["Status", v(c && (c.closed ? "Closed " + timeOn(c.closed, day) : "Open"))],
       ["Duplicate of call", v(c && (c.duplicateOf ? C.pad3(c.duplicateOf) : "No"))]]);
     y = strip(doc, y, [["Location", v(c && C.placeName(cad, c.place))], ["Description", v(c && c.locText)],
-      ["what3words", v(c && (c.w3w ? "///" + c.w3w : ""))], ["Site map grid ref", v(c && c.grid)]]);
+      ["what3words", v(c && (c.w3w ? "///" + c.w3w : ""))], ["Site map grid ref", v(c && C.gridText(cad, c))]]);
     y = textBox(doc, y + 2, "Details", v(c && c.details), 3);
     y = strip(doc, y + 2, C.FLAGS.map(function (f) { return [f[1], blank ? "Yes  /  No" : c.flags[f[0]] ? "YES" : "No"]; })
       .concat([["Police / security ref.", v(c && c.policeRef)]]));
@@ -343,7 +343,28 @@
   function rate(n) { return n === null ? "No crowd size" : n.toFixed(2); }
   function trio(s) { return s ? [C.dur(s.avg), C.dur(s.median), C.dur(s.max)] : ["—", "—", "—"]; }
 
-  function report(cad, siteMap) {
+  /* A map's picture at x, y, w by h mm, with its grid drawn over it when the map asks for that. */
+  function mapImage(doc, m, x, y, w, h) {
+    try { doc.addImage(m.src, m.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", x, y, w, h); } catch (e) { return; }
+    if (!m.draw || !m.cols || !m.rows) return;
+    var cw = w / m.cols, ch = h / m.rows, i, j;
+    doc.setDrawColor(20, 20, 20);
+    doc.setLineWidth(0.25);
+    for (i = 1; i < m.cols; i++) doc.line(x + i * cw, y, x + i * cw, y + h);
+    for (j = 1; j < m.rows; j++) doc.line(x, y + j * ch, x + w, y + j * ch);
+    var size = Math.max(4.5, Math.min(8, Math.min(cw, ch) * 0.9)), th = size * 0.3528;   // points, and their height in mm
+    setFont(doc, size, "bold");
+    for (i = 0; i < m.cols; i++) for (j = 0; j < m.rows; j++) {
+      var label = String.fromCharCode(65 + i) + (j + 1), tw = doc.getTextWidth(label);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(x + i * cw + 0.5, y + j * ch + 0.5, tw + 1.2, th + 0.9, "F");
+      doc.setTextColor(20, 20, 20);
+      doc.text(label, x + i * cw + 1.1, y + j * ch + 0.7 + th);
+    }
+    colour(doc, INK);
+  }
+
+  function report(cad, maps) {
     var s = C.stats(cad), ev = cad.event;
     var doc = newDoc("Event report (continued)  ·  " + txt(ev.name));
     var dates = ukDate(ev.start) && ukDate(ev.end) && ukDate(ev.start) !== ukDate(ev.end)
@@ -488,19 +509,21 @@
         }) });
     }
 
-    // Where the calls were: a dot on each grid square of the site map, sized by the number of calls.
-    var g = cad.settings.mapGrid, keys = Object.keys(s.squares);
-    if (siteMap && g.cols && g.rows && keys.length) {
+    // Where the calls were: a dot on each grid square of each map, sized by the number of calls.
+    (maps || []).forEach(function (m) {
+      var on = s.squares[m.id] || {}, keys = Object.keys(on);
+      if (!m.cols || !m.rows || !keys.length) return;
       doc.addPage();
-      y = masthead(doc, cad, "CALLS ON THE SITE MAP", "CALLS PLACED", String(keys.reduce(function (n, k) { return n + s.squares[k]; }, 0)));
-      var maxH = pageH(doc) - PAGE.mb - y - 10, scale = Math.min(W / siteMap.w, maxH / siteMap.h);
-      var mw = siteMap.w * scale, mh = siteMap.h * scale, mx = PAGE.ml + (W - mw) / 2;
-      try { doc.addImage(siteMap.src, siteMap.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", mx, y, mw, mh); } catch (e) { /* skip */ }
-      var most = Math.max.apply(null, keys.map(function (k) { return s.squares[k]; }));
+      y = masthead(doc, cad, maps.length > 1 ? "CALLS ON " + txt(m.name).toUpperCase() : "CALLS ON THE SITE MAP", "CALLS PLACED",
+        String(keys.reduce(function (n, k) { return n + on[k]; }, 0)));
+      var maxH = pageH(doc) - PAGE.mb - y - 10, scale = Math.min(W / m.w, maxH / m.h);
+      var mw = m.w * scale, mh = m.h * scale, mx = PAGE.ml + (W - mw) / 2;
+      mapImage(doc, m, mx, y, mw, mh);
+      var most = Math.max.apply(null, keys.map(function (k) { return on[k]; }));
       keys.forEach(function (k) {
-        var sq = C.gridSquare(cad, k), n = s.squares[k];
-        var cx = mx + (sq.col + 0.5) * mw / g.cols, cy = y + (sq.row + 0.5) * mh / g.rows;
-        var r = Math.max(2.5, Math.min(mw / g.cols, mh / g.rows) * 0.42 * Math.sqrt(n / most));
+        var sq = C.gridSquare(m, k), n = on[k];
+        var cx = mx + (sq.col + 0.5) * mw / m.cols, cy = y + (sq.row + 0.5) * mh / m.rows;
+        var r = Math.max(2.5, Math.min(mw / m.cols, mh / m.rows) * 0.42 * Math.sqrt(n / most));
         doc.setFillColor(180, 35, 24);
         doc.setDrawColor(255, 255, 255);
         doc.setLineWidth(0.4);
@@ -512,13 +535,13 @@
       colour(doc, INK);
       note(doc, y + mh + 2, "Each dot is a grid square with calls in it; the number is how many. Calls with no grid ref, or one outside " +
         "the map's grid, are not shown. Duplicate calls are left out.");
-    }
+    });
 
     return footers(doc, ["Event report", txt(ev.name)].filter(Boolean).join("  ·  "));
   }
 
   /* ---------------- the paper fallback pack ---------------- */
-  function paper(cad, siteMap) {
+  function paper(cad, maps) {
     var doc = newDoc("Paper fallback pack (continued)  ·  " + txt(cad.event.name));
     var y = masthead(doc, cad, "UNIT STATUS SHEET", "DATE", ukDate(cad.event.start));
     y = note(doc, y, "Write each change of status with its time: e.g. \"En route 14:05\", \"On scene 14:12 call 7\", " +
@@ -542,15 +565,13 @@
     doc.addPage();
     methaneSheet(doc, cad, null);
 
-    if (siteMap) {
+    // Each map on its own page; an unreadable picture is left out, never stopping the pack.
+    (maps || []).forEach(function (m) {
       doc.addPage();
-      y = masthead(doc, cad, "SITE MAP", "DATE", ukDate(cad.event.start));
-      var maxH = pageH(doc) - PAGE.mb - y, scale = Math.min(W / siteMap.w, maxH / siteMap.h);
-      try {
-        doc.addImage(siteMap.src, siteMap.src.indexOf("image/png") >= 0 ? "PNG" : "JPEG", PAGE.ml + (W - siteMap.w * scale) / 2, y,
-          siteMap.w * scale, siteMap.h * scale);
-      } catch (e) { /* an unreadable map must never stop the pack */ }
-    }
+      y = masthead(doc, cad, maps.length > 1 ? "SITE MAP: " + txt(m.name).toUpperCase() : "SITE MAP", "DATE", ukDate(cad.event.start));
+      var maxH = pageH(doc) - PAGE.mb - y, scale = Math.min(W / m.w, maxH / m.h);
+      mapImage(doc, m, PAGE.ml + (W - m.w * scale) / 2, y, m.w * scale, m.h * scale);
+    });
 
     doc.addPage();
     y = masthead(doc, cad, "REFERENCE", "DATE", ukDate(cad.event.start));

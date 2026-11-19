@@ -94,7 +94,10 @@
       event: { name: "", venue: "", start: "", end: "", lead: "", control: "", crowd: 0 },
       units: [], places: [], hospitals: [],
       settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },   // 0: no target
-        phrases: PHRASES.slice(), mapGrid: { cols: 0, rows: 0 } },   // the site map's squares: letters across, numbers down
+        phrases: PHRASES.slice(),
+        // The site maps, one for each area or level: { id, name, cols, rows, draw }. Each map's grid has its
+        // letters across and numbers down; draw puts the grid over the picture. The pictures are kept apart.
+        maps: [] },
       controller: "",
       calls: [], tc: [], log: [], methane: [], casualties: [],
       conditions: [],   // hourly attendance and weather
@@ -108,7 +111,7 @@
   }
   function newCall(id, received, controller) {
     var c = { id: id, received: received, controller: controller || "", source: "", reportedBy: "",
-      place: "", locText: "", w3w: "", grid: "", protocol: 0, category: 0, details: "", flags: {}, policeRef: "",
+      place: "", locText: "", w3w: "", grid: "", map: "", protocol: 0, category: 0, details: "", flags: {}, policeRef: "",
       duplicateOf: 0, patients: [], units: [], log: [], outcome: "", closed: "",
       nhs: { requested: "", cad: "", category: 0, arrived: "", handover: "" } };
     FLAGS.forEach(function (f) { c.flags[f[0]] = false; });
@@ -146,7 +149,7 @@
 
   function cleanCall(raw) {
     var c = newCall(int(raw.id, 1, 99999), stamp(raw.received), str(raw.controller));
-    ["reportedBy", "locText", "grid", "details", "policeRef"].forEach(function (f) { c[f] = str(raw[f]); });
+    ["reportedBy", "locText", "grid", "map", "details", "policeRef"].forEach(function (f) { c[f] = str(raw[f]); });
     c.w3w = w3w(str(raw.w3w));
     c.source = oneOf(raw.source, SOURCES);
     c.place = pid(raw.place);
@@ -190,8 +193,14 @@
       out.settings.phrases = s.phrases.filter(function (p) { return typeof p === "string" && p.trim(); })
         .map(function (p) { return p.trim(); }).slice(0, 20);
     }
-    var g = isObj(s.mapGrid) ? s.mapGrid : {};
-    out.settings.mapGrid = { cols: int(g.cols, 0, 26), rows: int(g.rows, 0, 99) };
+    // Before there could be several maps, one grid was kept here: it becomes the map "Site map", as it was drawn.
+    var g = isObj(s.mapGrid) ? s.mapGrid : {}, oldGrid = int(g.cols, 0, 26) || int(g.rows, 0, 99);
+    var mapIds = {};
+    out.settings.maps = (Array.isArray(s.maps) ? arr(s.maps) : oldGrid ? [{ id: "m1", name: "Site map", cols: g.cols, rows: g.rows,
+      draw: false }] : []).map(function (m) {
+      return { id: typeof m.id === "string" && /^m\d{1,9}$/.test(m.id) ? m.id : "", name: str(m.name).trim() || "Site map",
+        cols: int(m.cols, 0, 26), rows: int(m.rows, 0, 99), draw: m.draw !== false };
+    }).filter(function (m) { return m.id && !mapIds[m.id] && (mapIds[m.id] = true); }).slice(0, 20);
     out.finalised = stamp(raw.finalised);
     out.finalisedBy = str(raw.finalisedBy);
     out.exportedAt = stamp(raw.exportedAt);
@@ -205,6 +214,7 @@
     }
     out.controller = str(raw.controller);
     out.seq = int(raw.seq, 0, 1e9);
+    out.settings.maps.forEach(function (m) { out.seq = Math.max(out.seq, Number(m.id.slice(1))); });
     // Ids must be unique: a missing or repeated one gets a new number.
     var seen = {};
     function fresh(id, prefix) {
@@ -215,7 +225,7 @@
     var later = [];
     out.places = arr(raw.places).map(function (p) {
       var place = { id: fresh(pid(p.id)), name: str(p.name), kind: oneOf(p.kind, ["standby", "poi", "tc"]) || "poi",
-        grid: str(p.grid), w3w: w3w(str(p.w3w)) };
+        grid: str(p.grid), map: str(p.map), w3w: w3w(str(p.w3w)) };
       if (!place.id) later.push(place);
       return place;
     });
@@ -288,8 +298,18 @@
   function protocolName(n) { return n ? (MPDS[n - 1] || [0, ""])[1] : ""; }
   function callsignOf(cad, id) { var u = unitById(cad, id); return u ? u.callsign || "Unnamed unit" : "Removed unit"; }
 
+  /* The map a call or location is on: its own, or the first map when it names none (one map, or an older file). */
+  function mapOf(cad, id) {
+    var maps = cad.settings.maps;
+    return id ? find(maps, id) : maps[0] || null;
+  }
+  /* "C4", or "C4 (Level 2)" when there is more than one map. */
+  function gridText(cad, x) {
+    var m = x.grid && cad.settings.maps.length > 1 && mapOf(cad, x.map);
+    return x.grid ? x.grid + (m ? " (" + m.name + ")" : "") : "";
+  }
   function callPlace(cad, c) {
-    return [placeName(cad, c.place), c.locText, c.grid ? "Grid " + c.grid : "", c.w3w ? "///" + c.w3w : ""]
+    return [placeName(cad, c.place), c.locText, c.grid ? "Grid " + gridText(cad, c) : "", c.w3w ? "///" + c.w3w : ""]
       .filter(Boolean).join("  ·  ");
   }
   function destName(cad, a) {
@@ -368,10 +388,10 @@
     return { name: cad.event.name, start: cad.event.start, crowd: cad.event.crowd, figures: figures(cad) };
   }
 
-  /* A site map grid reference, such as "C4": letters across, numbers down. Null if it isn't one on this map. */
-  function gridSquare(cad, ref) {
-    var g = cad.settings.mapGrid, m = /^\s*([A-Za-z])\s*-?\s*(\d{1,2})\s*$/.exec(ref || "");
-    if (!m || !g.cols || !g.rows) return null;
+  /* A grid reference, such as "C4", on a map's grid (letters across, numbers down). Null if it isn't one on that map. */
+  function gridSquare(g, ref) {
+    var m = /^\s*([A-Za-z])\s*-?\s*(\d{1,2})\s*$/.exec(ref || "");
+    if (!m || !g || !g.cols || !g.rows) return null;
     var col = m[1].toUpperCase().charCodeAt(0) - 65, row = +m[2] - 1;
     return col < g.cols && row >= 0 && row < g.rows ? { col: col, row: row, key: String.fromCharCode(65 + col) + (row + 1) } : null;
   }
@@ -548,8 +568,11 @@
     calls.forEach(function (c) { var n = placeName(cad, c.place) || "No point of interest given"; places[n] = (places[n] || 0) + 1; });
     var ev = cad.event, dutyEnd = ev.end && ev.end < until ? ev.end : until;
     var days = Object.keys(calls.reduce(function (o, c) { o[c.received.slice(0, 10)] = true; return o; }, {})).sort();
-    var squares = {};
-    calls.forEach(function (c) { var sq = gridSquare(cad, c.grid); if (sq) squares[sq.key] = (squares[sq.key] || 0) + 1; });
+    var squares = {};   // by map id, then by grid square: how many calls
+    calls.forEach(function (c) {
+      var m = mapOf(cad, c.map), sq = gridSquare(m, c.grid);
+      if (sq) { var on = squares[m.id] = squares[m.id] || {}; on[sq.key] = (on[sq.key] || 0) + 1; }
+    });
     var ageOf = function (p) { var n = parseInt(p.age, 10); return isFinite(n) ? n : -1; };
     return {
       calls: calls.length,
@@ -667,7 +690,7 @@
       };
       var hospital = c.units.filter(function (a) { return a.dest === "hospital"; });
       return [pad3(c.id), ukStamp(c.received), c.controller, c.source, c.reportedBy, placeName(cad, c.place), c.locText,
-        c.w3w ? "///" + c.w3w : "", c.grid, c.protocol ? c.protocol + " " + protocolName(c.protocol) : "",
+        c.w3w ? "///" + c.w3w : "", gridText(cad, c), c.protocol ? c.protocol + " " + protocolName(c.protocol) : "",
         c.category || "", c.details, c.flags.police ? "Yes" : "No", c.policeRef, c.flags.safeguarding ? "Yes" : "No",
         c.flags.vulnerable ? "Yes" : "No", c.duplicateOf ? pad3(c.duplicateOf) : "", c.patients.length,
         list(function (p) { return p.age; }), list(function (p) { return p.sex; }), list(function (p) { return p.prf; }),
@@ -686,7 +709,7 @@
     KEY: KEY, FORMAT: FORMAT, SETUP_FORMAT: SETUP_FORMAT,
     MPDS: MPDS, CATEGORIES: CATEGORIES, OUTCOMES: OUTCOMES, SOURCES: SOURCES, SEXES: SEXES, UNIT_TYPES: UNIT_TYPES,
     PLACE_KINDS: PLACE_KINDS, STEPS: STEPS, FLAGS: FLAGS, ATMIST: ATMIST, METHANE: METHANE, PHRASES: PHRASES,
-    PRESENTATIONS: PRESENTATIONS, COMPARE: COMPARE, compareFrom: compareFrom, gridSquare: gridSquare, sitrep: sitrep,
+    PRESENTATIONS: PRESENTATIONS, COMPARE: COMPARE, compareFrom: compareFrom, gridSquare: gridSquare, mapOf: mapOf, gridText: gridText, sitrep: sitrep,
     HOSPITAL_STATUS: HOSPITAL_STATUS, TRIAGE: TRIAGE, hospitalWarning: hospitalWarning, csv: csv,
     stamp: stamp, now: now, ms: ms, mins: mins, addMins: addMins, hhmm: hhmm, ukStamp: ukStamp, pad3: pad3, dur: dur,
     w3w: w3w, isW3w: isW3w,

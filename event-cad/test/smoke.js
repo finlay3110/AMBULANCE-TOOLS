@@ -121,9 +121,15 @@ function unzip(buf) {
     return c.toDataURL("image/png").split(",")[1];
   });
   await page.setInputFiles("#mapFile", { name: "map.png", mimeType: "image/png", buffer: Buffer.from(mapPng, "base64") });
-  await page.fill("#gridCols", "8");
-  await page.fill("#gridRows", "5");
-  await page.waitForSelector("#mapPreview img");
+  await page.waitForSelector("#mapList .map-figure img");
+  // A new map gets a grid of 8 across and square squares, drawn over the picture with each square's name.
+  eq(await page.getByLabel("Grid squares across: Site map").inputValue(), "8");
+  eq(await page.getByLabel("Grid squares down: Site map").inputValue(), "5");
+  eq(await page.locator("#mapList .map-figure svg text").count(), 40, "a name in each of the 8 by 5 squares");
+  await page.getByLabel("Draw the grid: Site map").uncheck();
+  eq(await page.locator("#mapList .map-figure svg").count(), 0, "a map with its own grid printed on it can go without");
+  await page.getByLabel("Draw the grid: Site map").check();
+  await page.getByLabel("Grid squares down: Site map").fill("5");
 
   const [setupFile] = await Promise.all([page.waitForEvent("download"), page.click("#setupExport")]);
   const setup = JSON.parse(fs.readFileSync(await setupFile.path(), "utf8"));
@@ -131,7 +137,8 @@ function unzip(buf) {
   eq(setup.units.length, 2);
   eq(setup.event.crowd, 20000);
   eq(setup.settings.targets[1], 3);
-  assert.match(setup.siteMap.src, /^data:image\/jpeg;base64,/, "the site map goes with the setup");
+  assert.match(setup.siteMap.images[setup.settings.maps[0].id].src, /^data:image\/jpeg;base64,/, "the site map goes with the setup");
+  assert.deepStrictEqual(setup.settings.maps.map((m) => [m.name, m.cols, m.rows, m.draw]), [["Site map", 8, 5, true]]);
   assert.ok(!JSON.stringify(setup).includes("TESTKEY"), "the what3words key is never exported");
 
   const [paper] = await Promise.all([page.waitForEvent("download"), page.click("#paperBtn")]);
@@ -273,7 +280,7 @@ function unzip(buf) {
   assert.match(await page.textContent("#alerts"), /Call 003 \(category 1\) has passed its 3 min target with no unit on scene \(4 min\)/);
   await sheet.getByRole("button", { name: "On scene: Foot 1" }).click();
   await sheet.getByRole("button", { name: "Pick the grid ref on the site map" }).click();
-  const mapBox = await page.locator("#mapPickImg").boundingBox();
+  const mapBox = await page.locator("#mapPickView img").boundingBox();
   await page.mouse.click(mapBox.x + mapBox.width * 2.5 / 8, mapBox.y + mapBox.height * 3.5 / 5);
   eq(await sheet.getByLabel("Site map grid ref").inputValue(), "C4", "a click on the map sets the grid ref");
   assert.doesNotMatch(await page.textContent("#alerts"), /target/, "a unit on scene ends the target alert");
@@ -519,7 +526,7 @@ function unzip(buf) {
   eq(await page.textContent("#viewCall"), "Call 004");
   await page.setViewportSize({ width: 1400, height: 1000 });
   await page.locator("#mapCard summary").click();
-  await page.click("#mapImg");
+  await page.click("#mapView img");
   assert.match(await page.getAttribute("#mapCard", "class"), /zoomed/, "the map opens full screen");
   await page.keyboard.press("Escape");
   assert.doesNotMatch(await page.getAttribute("#mapCard", "class"), /zoomed/);
@@ -527,7 +534,32 @@ function unzip(buf) {
   const lastBackup = JSON.parse(await page.evaluate(() => window.__backups[window.__backups.length - 1]));
   eq(lastBackup.format, "event-cad/cad");
   eq(lastBackup.calls.length, 5, "the live backup keeps up with each change");
-  assert.ok(lastBackup.siteMap.src.startsWith("data:image/jpeg"), "and holds the site map");
+  assert.ok(Object.values(lastBackup.siteMap.images)[0].src.startsWith("data:image/jpeg"), "and holds the site map");
+
+  /* ---- a second map, for another level, with its own name and grid ---- */
+  await page.click(".tab[data-tab=setup]");
+  await page.setInputFiles("#mapFile", { name: "level2.png", mimeType: "image/png", buffer: Buffer.from(mapPng, "base64") });
+  await page.waitForSelector("#mapList .map-edit:nth-child(2) .map-figure img");
+  await page.getByLabel("Map name 2").fill("Level 2");
+  await page.getByLabel("Grid squares across: Level 2").fill("4");
+  await page.getByLabel("Grid squares down: Level 2").fill("4");
+  eq(await page.locator("#mapList .map-edit:nth-child(2) svg text").count(), 16);
+  await page.click(".tab[data-tab=cad]");
+  await page.locator("#mapLevels").getByRole("button", { name: "Level 2" }).click();
+  eq(await page.getAttribute("#mapView img", "alt"), "Level 2: click to see it full screen", "the CAD tab switches maps");
+  await sheet.getByRole("button", { name: "Pick the grid ref on the site map" }).click();
+  await page.locator("#mapPickLevels").getByRole("button", { name: "Level 2" }).click();
+  const level2 = await page.locator("#mapPickView img").boundingBox();
+  await page.mouse.click(level2.x + level2.width * 1.5 / 4, level2.y + level2.height * 2.5 / 4);
+  eq(await sheet.getByLabel("Site map grid ref").inputValue(), "B3", "a square on the level's own grid");
+  eq(await sheet.getByLabel("Map", { exact: true }).locator("option:checked").textContent(), "Level 2");
+  assert.match(await page.textContent("#callList"), /Grid B3 \(Level 2\)/, "the call shows the level with the grid ref");
+  await page.click(".tab[data-tab=setup]");   // the paper pack is made on the Setup tab
+  const [paper2] = await Promise.all([page.waitForEvent("download"), page.click("#paperBtn")]);
+  assert.ok((await pdfText(paper2)).includes("SITE MAP: LEVEL 2"), "each map prints, with its name");
+  await page.click(".tab[data-tab=report]");
+  const [report2] = await Promise.all([page.waitForEvent("download"), page.click("#reportBtn")]);
+  assert.ok((await pdfText(report2)).includes("CALLS ON LEVEL 2"), "the report shows the calls on each map");
 
   /* ---- export, import and a new event ---- */
   await page.click(".tab[data-tab=report]");
@@ -542,6 +574,8 @@ function unzip(buf) {
   await fresh.waitForSelector("#saveResult:not([hidden])");   // files are read in the background
   assert.match(await fresh.textContent("#saveResult"), /5 calls/);
   assert.ok(await fresh.evaluate(() => !!localStorage.getItem("event-cad/site-map")), "the site map comes back with the CAD");
+  eq(await fresh.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("event-cad/site-map")).images).length), 2,
+    "both maps' pictures come back");
   // No live backup here: the CAD tab says when it was last exported, and reminds after 30 minutes.
   await fresh.click(".tab[data-tab=cad]");
   assert.ok(await fresh.isVisible("#backupLine"));
@@ -561,6 +595,21 @@ function unzip(buf) {
   eq(after.units.length, 2, "a new event keeps the staffing");
   eq(after.units[0].history.length, 0);
   eq(after.exportedAt, "", "a new event has not been exported yet");
+  eq(after.settings.maps.length, 2, "a new event keeps the maps");
+
+  /* ---- a CAD from before there could be several maps: its one map, as it was ---- */
+  const old = await (await browser.newContext()).newPage();
+  old.on("pageerror", (e) => errors.push("old: " + e.message));
+  await old.goto(PAGE);
+  await old.evaluate((png) => {
+    localStorage.setItem("event-cad/v1", JSON.stringify({ settings: { mapGrid: { cols: 8, rows: 5 } }, calls: [] }));
+    localStorage.setItem("event-cad/site-map", JSON.stringify({ src: "data:image/png;base64," + png, w: 800, h: 500 }));
+  }, mapPng);
+  await old.reload();
+  assert.deepStrictEqual(await old.evaluate(() => CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))).settings.maps),
+    [{ id: "m1", name: "Site map", cols: 8, rows: 5, draw: false }], "the old grid, not drawn: it may be printed on the map");
+  eq(await old.locator("#mapList .map-figure img").count(), 1, "its picture is that map's");
+  eq(await old.locator("#mapList .map-figure svg").count(), 0, "with no second grid drawn over it");
 
   assert.deepStrictEqual(errors, []);
   await browser.close();

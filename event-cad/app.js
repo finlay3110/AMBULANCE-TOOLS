@@ -225,8 +225,6 @@
   var EVENT_IDS = [["evName", "name"], ["evVenue", "venue"], ["evStart", "start"], ["evEnd", "end"], ["evLead", "lead"],
     ["evControl", "control"], ["evCrowd", "crowd"]];
   function fillSetup() {
-    $("gridCols").value = cad.settings.mapGrid.cols || "";
-    $("gridRows").value = cad.settings.mapGrid.rows || "";
     $("phrases").value = cad.settings.phrases.join("\n");
     C.CATEGORIES.forEach(function (k) { $("target" + k[0]).value = cad.settings.targets[k[0]] || ""; });
     EVENT_IDS.forEach(function (f) { $(f[0]).value = cad.event[f[1]] || ""; });
@@ -254,13 +252,6 @@
     $("target" + k[0]).addEventListener("input", function () {
       var n = parseInt($("target" + k[0]).value, 10);
       cad.settings.targets[k[0]] = n >= 1 && n <= 1440 ? n : 0;
-      changed();
-    });
-  });
-  [["gridCols", "cols", 26], ["gridRows", "rows", 99]].forEach(function (f) {
-    $(f[0]).addEventListener("input", function () {
-      var n = parseInt($(f[0]).value, 10);
-      cad.settings.mapGrid[f[1]] = n >= 1 && n <= f[2] ? n : 0;
       changed();
     });
   });
@@ -425,10 +416,12 @@
       var line = el("div", "place-line with-refs");
       var grid = textIn(p.grid, function (v) { p.grid = v.trim(); changed(); }, "Grid");
       var words = textIn(p.w3w ? "///" + p.w3w : "", function (v) { p.w3w = C.w3w(v); changed(); }, "///what3words");
+      var onMap = cad.settings.maps.length > 1 && mapChoice(p);
       // The boxes beside a location are named after it, as it is typed.
       var label = function () {
         grid.setAttribute("aria-label", "Grid ref of " + (p.name || "this location"));
         words.setAttribute("aria-label", "what3words of " + (p.name || "this location"));
+        if (onMap) onMap.setAttribute("aria-label", "Map of " + (p.name || "this location"));
       };
       var name = textIn(p.name, function (v) { p.name = v; changed(); label(); }, "e.g. Main stage, Gate B, Treatment centre");
       name.setAttribute("aria-label", "Location name");
@@ -437,6 +430,7 @@
       kind.setAttribute("aria-label", "Kind of location");
       line.appendChild(kind);
       label();
+      if (onMap) { line.classList.add("with-maps"); line.appendChild(onMap); }
       line.appendChild(grid);
       line.appendChild(words);
       line.appendChild(btn("Remove", "ghost small", function () {
@@ -537,7 +531,7 @@
   /* ---------------- save and open the setup ---------------- */
   $("setupExport").addEventListener("click", function () {
     var name = "CAD-setup-" + (slug(cad.event.name) || "event") + ".json";
-    download(json(Object.assign(C.setupOf(cad), { siteMap: siteMap })), name);
+    download(json(Object.assign(C.setupOf(cad), { siteMap: { images: mapImages } })), name);
     message("setupResult", "good", "Saved the setup as " + name + ".");
   });
   $("setupImport").addEventListener("click", function () { $("setupFile").click(); });
@@ -554,7 +548,7 @@
       }
       if ((cad.units.length || cad.places.length) && !confirm("Replace this setup with “" + name + "”?")) return;
       var next = C.clean(parsed);
-      takeMap(parsed);
+      if (!takeMap(parsed) && !next.settings.maps.length) next.settings.maps = cad.settings.maps;
       next.calls = [];
       next.tc = [];
       next.log = [];
@@ -578,7 +572,7 @@
   });
 
   $("paperBtn").addEventListener("click", function () {
-    window.CadPDF.paper(cad, siteMap).save("Paper-fallback-" + fileBase() + ".pdf");
+    window.CadPDF.paper(cad, forPdf()).save("Paper-fallback-" + fileBase() + ".pdf");
   });
 
   /* ================= CAD ================= */
@@ -961,7 +955,7 @@
       c.source = "Walk-up";
       c.place = centre || "";
       var p = C.placeById(cad, c.place);   // the centre's own grid ref and what3words, as picking it on a call does
-      if (p) { c.grid = p.grid; c.w3w = p.w3w; }
+      if (p) { c.grid = p.grid; c.map = p.map || ""; c.w3w = p.w3w; }
       c.patients.push({ age: "", sex: "", prf: "", outcome: "" });
     }
     cad.calls.push(c);
@@ -1086,19 +1080,27 @@
     return wrap;
   }
 
-  /* The site map, full screen: the square clicked becomes the call's grid ref. */
+  /* A map, full screen: the square clicked becomes the call's grid ref, on that map. */
   function pickOnMap(c) {
-    $("mapPickImg").src = siteMap.src;
+    var maps = pickable(), on = C.mapOf(cad, c.map);
+    function show(m) {
+      levelButtons($("mapPickLevels"), maps, m.id, function (id) { show(C.mapOf(cad, id)); });
+      var fig = mapFigure(m, m.name + ": click a square");
+      $("mapPickView").innerHTML = "";
+      $("mapPickView").appendChild(fig);
+      fig.querySelector("img").onclick = function (e) {
+        var r = e.currentTarget.getBoundingClientRect();
+        var col = Math.min(m.cols - 1, Math.floor((e.clientX - r.left) / r.width * m.cols));
+        var row = Math.min(m.rows - 1, Math.floor((e.clientY - r.top) / r.height * m.rows));
+        c.grid = String.fromCharCode(65 + Math.max(0, col)) + (Math.max(0, row) + 1);
+        c.map = m.id;
+        $("mapPick").hidden = true;
+        changed();
+        renderCall();
+      };
+    }
+    show(maps.indexOf(on) >= 0 ? on : maps[0]);
     $("mapPick").hidden = false;
-    $("mapPickImg").onclick = function (e) {
-      var r = $("mapPickImg").getBoundingClientRect(), g = cad.settings.mapGrid;
-      var col = Math.min(g.cols - 1, Math.floor((e.clientX - r.left) / r.width * g.cols));
-      var row = Math.min(g.rows - 1, Math.floor((e.clientY - r.top) / r.height * g.rows));
-      c.grid = String.fromCharCode(65 + Math.max(0, col)) + (Math.max(0, row) + 1);
-      $("mapPick").hidden = true;
-      changed();
-      renderCall();
-    };
   }
   $("mapPickClose").addEventListener("click", function () { $("mapPick").hidden = true; });
 
@@ -1258,7 +1260,7 @@
       // The location's own grid ref and what3words fill in, unless the call already has its own.
       var p = C.placeById(cad, v);
       c.place = v;
-      if (p && p.grid && !c.grid) c.grid = p.grid;
+      if (p && p.grid && !c.grid) { c.grid = p.grid; c.map = p.map || ""; }
       if (p && p.w3w && !c.w3w) c.w3w = p.w3w;
       changed();
       renderCall();
@@ -1267,10 +1269,11 @@
     lg.appendChild(w3wField(c));
     var gridBox = el("div", "grid-ref");
     gridBox.appendChild(field("Site map grid ref", textIn(c.grid, set("grid"), "e.g. C4")));
-    if (siteMap && cad.settings.mapGrid.cols && cad.settings.mapGrid.rows) {
+    if (pickable().length) {
       gridBox.appendChild(btn("Pick on map", "ghost small", function () { pickOnMap(c); }, "Pick the grid ref on the site map"));
     }
     lg.appendChild(gridBox);
+    if (cad.settings.maps.length > 1) lg.appendChild(field("Map", mapChoice(c)));
     loc.appendChild(lg);
 
     var what = section(box, "What"), wg = el("div", "grid");
@@ -1624,42 +1627,207 @@
     });
   }
 
-  /* ================= SITE MAP ================= */
-  // Kept apart from the CAD, so the large image is not rewritten with every change; exports carry it.
+  /* ================= SITE MAPS ================= */
+  // One map for the site, or one for each level or area. Their names and grids are in the CAD's settings; the
+  // pictures are kept apart, so a large image is not rewritten with every change. Exports carry both.
   var MAP_KEY = "event-cad/site-map";
-  var siteMap = null;
-  function cleanMap(m) {
+  var mapImages = {};   // each map's picture, by the map's id: { src, w, h }
+  function cleanImage(m) {
     return isObj(m) && typeof m.src === "string" && /^data:image\/(jpeg|png);base64,/.test(m.src) && +m.w > 0 && +m.h > 0
       ? { src: m.src, w: +m.w, h: +m.h } : null;
   }
-  function loadMap() {
-    try { siteMap = cleanMap(JSON.parse(localStorage.getItem(MAP_KEY))); } catch (e) { siteMap = null; }
+  /* { images: { m1: picture, ... } }; or the one picture kept before there could be several maps, which is map m1. */
+  function cleanImages(raw) {
+    var out = {}, one = isObj(raw) && raw.src && cleanImage(raw);
+    if (one) out.m1 = one;
+    if (isObj(raw) && isObj(raw.images)) {
+      Object.keys(raw.images).forEach(function (id) {
+        var m = /^m\d{1,9}$/.test(id) && cleanImage(raw.images[id]);
+        if (m) out[id] = m;
+      });
+    }
+    return out;
   }
-  function storeMap(m) {
+  function loadMap() {
+    try { mapImages = cleanImages(JSON.parse(localStorage.getItem(MAP_KEY))); } catch (e) { mapImages = {}; }
+  }
+  function storeImages(next) {
     try {
-      if (m) localStorage.setItem(MAP_KEY, JSON.stringify(m)); else localStorage.removeItem(MAP_KEY);
+      if (Object.keys(next).length) localStorage.setItem(MAP_KEY, JSON.stringify({ images: next }));
+      else localStorage.removeItem(MAP_KEY);
     } catch (e) { return false; }
-    siteMap = m;
-    renderMap();
+    mapImages = next;
     backupSoon();
     return true;
   }
-  function takeMap(parsed) { var m = cleanMap(parsed.siteMap); if (m) storeMap(m); }
-  function renderMap() {
-    $("mapPreview").innerHTML = "";
-    $("mapRemove").hidden = !siteMap;
-    $("mapCard").hidden = !siteMap;
-    if (!siteMap) return;
-    var img = el("img");
-    img.src = siteMap.src;
-    img.alt = "Site map";
-    $("mapPreview").appendChild(img);
-    $("mapImg").src = siteMap.src;
+  /* An opened file's pictures replace these, when it has any. Says whether it had. */
+  function takeMap(parsed) {
+    var m = cleanImages(parsed.siteMap);
+    if (!Object.keys(m).length) return false;
+    storeImages(m);
+    return true;
   }
-  $("mapBtn").addEventListener("click", function () { $("mapFile").click(); });
+  /* Every picture has its map: the one from an older CAD becomes "Site map", shown as it was, with no grid drawn. */
+  function adoptImages() {
+    var added = false;
+    Object.keys(mapImages).sort().reverse().forEach(function (id) {
+      if (C.mapOf(cad, id)) return;
+      cad.settings.maps.unshift({ id: id, name: "Site map", cols: 0, rows: 0, draw: false });
+      added = true;
+    });
+    return added;
+  }
+  function newMapId() {
+    var id;
+    do { id = nextId("m"); } while (C.mapOf(cad, id) || mapImages[id]);
+    return id;
+  }
+  function withPictures() { return cad.settings.maps.filter(function (m) { return mapImages[m.id]; }); }
+  function pickable() { return withPictures().filter(function (m) { return m.cols && m.rows; }); }
+  function forPdf() { return withPictures().map(function (m) { return Object.assign({}, m, mapImages[m.id]); }); }
+  /* Which map a call's or a location's grid ref is on. */
+  function mapChoice(x) {
+    return pick(cad.settings.maps.map(function (m) { return [m.id, m.name]; }), (C.mapOf(cad, x.map) || {}).id || "",
+      function (v) { x.map = v; changed(); });
+  }
+
+  /* A map's picture, with its grid drawn over it when the grid is set: the lines, and each square's name in its corner. */
+  function mapFigure(m, alt) {
+    var pic = mapImages[m.id], box = el("div", "map-figure"), img = el("img");
+    img.src = pic.src;
+    img.alt = alt || m.name;
+    box.appendChild(img);
+    if (m.draw && m.cols && m.rows) box.appendChild(gridSvg(m, pic.w, pic.h));
+    return box;
+  }
+  function gridSvg(m, w, h) {
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), cw = w / m.cols, ch = h / m.rows;
+    var add = function (tag, attrs, text) {
+      var e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+      if (text) e.textContent = text;
+      svg.appendChild(e);
+    };
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");   // sits on the picture as object-fit: contain does
+    svg.setAttribute("aria-hidden", "true");
+    // Sizes follow the picture's own pixels, so the grid reads the same at any size it is shown.
+    var u = Math.max(w, h) / 1000, d = "", i, j;
+    for (i = 1; i < m.cols; i++) d += "M" + i * cw + " 0V" + h;
+    for (j = 1; j < m.rows; j++) d += "M0 " + j * ch + "H" + w;
+    add("path", { d: d, fill: "none", stroke: "#fff", "stroke-width": 3.2 * u, "stroke-opacity": 0.8 });
+    add("path", { d: d, fill: "none", stroke: "#111", "stroke-width": 1.3 * u });
+    var size = Math.max(7 * u, Math.min(18 * u, Math.min(cw, ch) * 0.16));
+    for (i = 0; i < m.cols; i++) {
+      for (j = 0; j < m.rows; j++) {
+        add("text", { x: i * cw + size * 0.35, y: j * ch + size * 1.1, "font-size": size, "font-weight": 700,
+          "font-family": "system-ui, sans-serif", fill: "#111", stroke: "#fff", "stroke-width": size * 0.24,
+          "paint-order": "stroke" }, String.fromCharCode(65 + i) + (j + 1));
+      }
+    }
+    return svg;
+  }
+  /* A button for each map, when there is more than one; the one shown is pressed. */
+  function levelButtons(box, maps, id, choose) {
+    box.innerHTML = "";
+    box.hidden = maps.length < 2;
+    maps.forEach(function (m) {
+      var b = btn(m.name, "ghost small", function () { choose(m.id); });
+      b.setAttribute("aria-pressed", String(m.id === id));
+      box.appendChild(b);
+    });
+  }
+
+  /* The CAD tab: the map chosen, with a button for each map. Click it for full screen. */
+  var shownMap = "";
+  function renderMapCard() {
+    var maps = withPictures(), m = maps.filter(function (x) { return x.id === shownMap; })[0] || maps[0];
+    $("mapCard").hidden = !m;
+    if (!m) { $("mapCard").classList.remove("zoomed"); return; }
+    shownMap = m.id;
+    $("mapCard").querySelector("summary").textContent = maps.length > 1 ? "Site maps" : "Site map";
+    levelButtons($("mapLevels"), maps, m.id, function (id) { shownMap = id; renderMapCard(); });
+    $("mapView").innerHTML = "";
+    $("mapView").appendChild(mapFigure(m, m.name + ": click to see it full screen"));
+  }
+  function renderMap() { renderMapList(); renderMapCard(); }
+
+  /* Setup: each map with its name, grid and picture. */
+  var mapFor = null;   // the map whose picture is being chosen; null for a new map
+  function renderMapList() {
+    var box = $("mapList");
+    box.innerHTML = "";
+    if (!cad.settings.maps.length) box.appendChild(el("p", "empty", "No site maps yet."));
+    cad.settings.maps.forEach(function (m, i) {
+      var row = el("div", "map-edit"), figure = el("div");
+      var redraw = function () {   // only the picture and the CAD tab: the boxes keep their focus
+        figure.innerHTML = "";
+        figure.appendChild(mapImages[m.id] ? mapFigure(m) : el("p", "empty", "No picture yet."));
+        renderMapCard();
+      };
+      redraw();
+      row.appendChild(figure);
+      var g = el("div", "grid map-fields");
+      var name = textIn(m.name, function (v) { m.name = v.trim() || "Site map"; changed(); label(); renderMapCard(); },
+        "e.g. Ground floor, Level 2, North field");
+      // Other lists show the new name once you leave the box.
+      name.addEventListener("change", function () { renderPlaces(); renderCall(); });
+      var count = function (f, max) {
+        var n = el("input");
+        n.type = "number";
+        n.min = "0";
+        n.max = String(max);
+        n.inputMode = "numeric";
+        n.value = m[f] || "";
+        n.addEventListener("input", function () {
+          var v = parseInt(n.value, 10);
+          m[f] = v >= 1 && v <= max ? v : 0;
+          changed();
+          redraw();
+        });
+        return n;
+      };
+      var cols = count("cols", 26), rows = count("rows", 99);
+      var draw = tick("Draw the grid on the picture", m.draw, function (on) { m.draw = on; changed(); redraw(); });
+      var label = function () {
+        var of = ": " + (m.name || "map " + (i + 1));
+        name.setAttribute("aria-label", "Map name" + (i ? " " + (i + 1) : ""));
+        cols.setAttribute("aria-label", "Grid squares across" + of);
+        rows.setAttribute("aria-label", "Grid squares down" + of);
+        draw.querySelector("input").setAttribute("aria-label", "Draw the grid" + of);
+      };
+      label();
+      g.appendChild(field("Name", name));
+      g.appendChild(field("Grid squares across (A, B, C…)", cols));
+      g.appendChild(field("Grid squares down (1, 2, 3…)", rows));
+      row.appendChild(g);
+      var acts = el("div", "actions");
+      acts.appendChild(draw);
+      acts.appendChild(btn(mapImages[m.id] ? "Change picture" : "Add a picture", "ghost small", function () {
+        mapFor = m.id;
+        $("mapFile").click();
+      }, (mapImages[m.id] ? "Change the picture of " : "Add a picture to ") + m.name));
+      acts.appendChild(btn("Remove map", "ghost small del", function () {
+        if (!confirm("Remove the map “" + m.name + "”? Grid refs already on calls are kept.")) return;
+        var next = Object.assign({}, mapImages);
+        delete next[m.id];
+        storeImages(next);
+        cad.settings.maps.splice(cad.settings.maps.indexOf(m), 1);
+        changed();
+        renderMap();
+        renderPlaces();
+        renderCall();
+        $("mapResult").hidden = true;
+      }, "Remove the map " + m.name));
+      row.appendChild(acts);
+      box.appendChild(row);
+    });
+  }
+  $("mapAdd").addEventListener("click", function () { mapFor = null; $("mapFile").click(); });
   $("mapFile").addEventListener("change", function () {
-    var file = this.files[0];
+    var file = this.files[0], target = mapFor && C.mapOf(cad, mapFor);
     this.value = "";
+    mapFor = null;
     if (!file) return;
     var reader = new FileReader();
     reader.onerror = function () { message("mapResult", "bad", "That file could not be read."); };
@@ -1675,27 +1843,39 @@
         g.fillStyle = "#fff";
         g.fillRect(0, 0, canvas.width, canvas.height);
         g.drawImage(img, 0, 0, canvas.width, canvas.height);
-        var m = { src: canvas.toDataURL("image/jpeg", 0.85), w: canvas.width, h: canvas.height };
-        if (storeMap(m)) message("mapResult", "good", "Added the site map. It shows on the CAD tab and prints in the paper fallback pack.");
-        else message("mapResult", "bad", "This browser has no room to store that map. Try a smaller image.");
+        var id = target ? target.id : newMapId(), next = Object.assign({}, mapImages);
+        next[id] = { src: canvas.toDataURL("image/jpeg", 0.85), w: canvas.width, h: canvas.height };
+        if (!storeImages(next)) {
+          message("mapResult", "bad", "This browser has no room to store that map. Try a smaller image, or remove a map you don't need.");
+          return;
+        }
+        if (!target) {
+          // A new map starts with a grid of 8 squares across and square squares, drawn over it: change either below.
+          var n = cad.settings.maps.length;
+          cad.settings.maps.push({ id: id, name: n ? "Map " + (n + 1) : "Site map", cols: 8,
+            rows: Math.max(1, Math.min(99, Math.round(8 * canvas.height / canvas.width))), draw: true });
+        }
+        changed();
+        renderMap();
+        renderPlaces();
+        renderCall();
+        message("mapResult", "good", target ? "Changed the picture of " + target.name + "." : "Added the map, with a grid drawn " +
+          "over it. Give it a name, such as Level 2, and set its grid squares. It shows on the CAD tab and prints in the " +
+          "paper fallback pack.");
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
-  $("mapRemove").addEventListener("click", function () {
-    if (confirm("Remove the site map?")) storeMap(null);
-    $("mapResult").hidden = true;
-  });
   // Click the map to see it full screen; click again, or press Escape, to close.
-  $("mapImg").addEventListener("click", function () { $("mapCard").classList.toggle("zoomed"); });
+  $("mapView").addEventListener("click", function () { $("mapCard").classList.toggle("zoomed"); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("mapCard").classList.remove("zoomed"); });
 
   /* ================= LIVE BACKUP FILE ================= */
   // Chrome and Edge can keep writing to one file the user picked: a copy of the CAD after every change.
   var backup = { handle: null, stored: null, writing: false, again: false, timer: null, last: "", failed: false };
   var canBackup = typeof window.showSaveFilePicker === "function";
-  function exportData() { return Object.assign({ format: C.FORMAT, version: 1 }, cad, { siteMap: siteMap }); }
+  function exportData() { return Object.assign({ format: C.FORMAT, version: 1 }, cad, { siteMap: { images: mapImages } }); }
 
   /* The chosen file is remembered in IndexedDB, so a reload only needs a click to carry on. */
   function handles(mode, work) {
@@ -1985,7 +2165,7 @@
 
   $("shareReportBtn").hidden = !window.Shared.canSharePdf();
   $("shareReportBtn").addEventListener("click", function () {
-    window.Shared.sharePdf(window.CadPDF.report(cad, siteMap), "Event-report-" + fileBase() + ".pdf");
+    window.Shared.sharePdf(window.CadPDF.report(cad, forPdf()), "Event-report-" + fileBase() + ".pdf");
   });
 
   $("csvBtn").addEventListener("click", function () {
@@ -2002,7 +2182,7 @@
   }
   $("reportBtn").addEventListener("click", function () {
     var name = "Event-report-" + fileBase() + ".pdf";
-    window.CadPDF.report(cad, siteMap).save(name);
+    window.CadPDF.report(cad, forPdf()).save(name);
     message("reportResult", "good", "Downloaded " + name + ".");
   });
   $("zipBtn").addEventListener("click", function () {
@@ -2040,8 +2220,9 @@
         return;
       }
       if (!confirm("Replace everything in this CAD with “" + name + "”?")) return;
+      var maps = cad.settings.maps;
       cad = C.clean(parsed);
-      takeMap(parsed);
+      if (!takeMap(parsed) && !cad.settings.maps.length) cad.settings.maps = maps;
       current = 0;
       save();
       renderAll();
@@ -2071,6 +2252,7 @@
 
   /* ---------------- start ---------------- */
   function renderAll() {
+    if (adoptImages()) save();
     fillSetup();
     showCompany();
     renderSetup();
