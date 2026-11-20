@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
-const { chromium } = require("playwright");
+const { chromium, devices } = require("playwright");
 
 const ROOT = path.join(__dirname, "..");
 const BUILD = path.join(__dirname, "build");
@@ -22,13 +22,13 @@ const OUT = path.join(ROOT, "Event-CAD-User-Guide.pdf");
 const RENDER = path.join(ROOT, "..", "bag-tracker", "docs", "render-pages.py");
 
 // A made-up event: every name here is invented.
-const d = (t) => "2027-07-17T" + t;
+const d = (t) => "2026-07-18T" + t;
 const EXAMPLE = {
-  company: { companyName: "Northern Event Medical Ltd", companyPhone: "01234 567890", cqcRegistered: true, cqcNumber: "1-234567890" },
+  company: { companyName: "Example Event Medical Ltd", companyPhone: "01234 567890", cqcRegistered: true, cqcNumber: "1-234567890" },
   event: { name: "Riverside Summer Festival", venue: "Riverside Park", start: d("11:00"), end: d("23:00"),
     lead: "J. Smith, medical manager", control: "01234 567891, radio channel 2", crowd: 25000 },
-  settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 8, 2: 15, 3: 30 }, mapGrid: { cols: 8, rows: 5 } },
-  controller: "Chris Lee", seq: 8,
+  settings: { unassignedMins: 5, onSceneMins: 20, targets: { 1: 8, 2: 15, 3: 30 }, maps: [{ id: "m1", name: "Main arena", cols: 8, rows: 5, draw: true }] },
+  controller: "Chris Lee", seq: 8, exportedAt: d("16:30"),
   units: [
     { id: "u1", callsign: "Alpha 1", type: "Ambulance", reg: "AB12 CDE", at: "p1",
       staff: [{ name: "Sam Patel", grade: "Paramedic" }, { name: "Jo Bloggs", grade: "EMT" }] },
@@ -43,8 +43,8 @@ const EXAMPLE = {
   places: [{ id: "p1", name: "Main stage", kind: "standby", grid: "D2", w3w: "filled.count.soap" }, { id: "p2", name: "North gate", kind: "standby" },
     { id: "p3", name: "Main treatment centre", kind: "tc" }, { id: "p4", name: "Campsite C", kind: "standby" },
     { id: "p5", name: "Gate B", kind: "poi" }, { id: "p6", name: "Bar 2", kind: "poi" }, { id: "p7", name: "North TC", kind: "tc" }],
-  hospitals: ["Royal Infirmary", "St Mary's Hospital"],
-  hospitalStatus: { "St Mary's Hospital": { status: "pressure", note: "Long handover delays", since: d("15:40") } },
+  hospitals: ["City General Hospital", "Northfield Hospital"],
+  hospitalStatus: { "Northfield Hospital": { status: "pressure", note: "Long handover delays", since: d("15:40") } },
   calls: [
     { id: 1, received: d("12:04"), controller: "Chris Lee", source: "Radio", reportedBy: "Steward at gate B", place: "p5",
       locText: "By the info tent", grid: "B2", protocol: 17, category: 3, details: "Female tripped on a tent peg, painful left ankle.",
@@ -55,7 +55,7 @@ const EXAMPLE = {
       details: "Male 58, central chest pain radiating to the left arm, sweaty.",
       patients: [{ age: "58", sex: "Male", prf: "PRF-1002", outcome: "Conveyed to hospital", type: "Cardiac / chest pain" }],
       units: [{ unit: "u1", assigned: d("14:03"), enroute: d("14:03"), onscene: d("14:09"), moving: d("14:30"), dest: "hospital",
-        hospital: "Royal Infirmary", blue: true, atmist: { a: "58", t: "Onset 13:50", m: "Chest pain at rest", i: "Nil",
+        hospital: "City General Hospital", blue: true, atmist: { a: "58", t: "Onset 13:50", m: "Chest pain at rest", i: "Nil",
           s: "HR 110, BP 150/90, SpO2 95%, ECG ST elevation V2-V4", tx: "Aspirin 300 mg, GTN" },
         eta: "15:00", passedTo: "ED nurse in charge", via: "nhs", nhsCad: "NHS-24871", atdest: d("14:52"), clear: d("15:20") }],
       log: [{ time: d("14:12"), text: "12-lead shows STEMI, pre-alert to follow", by: "Chris Lee" }], closed: d("15:20") },
@@ -64,7 +64,7 @@ const EXAMPLE = {
       patients: [{ age: "24", sex: "Male", prf: "PRF-1003", type: "Intoxication", alcohol: true }],
       units: [{ unit: "u6", assigned: d("16:06"), onscene: d("16:09"), clear: d("16:35") },
         { unit: "u2", assigned: d("16:06"), enroute: d("16:06"), onscene: d("16:11"), moving: d("16:30"), dest: "hospital",
-          hospital: "Royal Infirmary", blue: true, atmist: { a: "24", t: "Found 16:00", m: "Suspected overdose", i: "Nil obvious",
+          hospital: "City General Hospital", blue: true, atmist: { a: "24", t: "Found 16:00", m: "Suspected overdose", i: "Nil obvious",
             s: "GCS 8, RR 8, SpO2 88% on air", tx: "Naloxone, airway adjunct, oxygen" }, eta: "16:55",
           passedTo: "Resus coordinator", via: "hospital" }],
       nhs: { requested: d("16:08"), cad: "NHS-25110", category: 1 },
@@ -84,7 +84,7 @@ const EXAMPLE = {
     reportedBy: "Mother, at the info tent", by: "Chris Lee" }],
   log: [{ time: d("11:00"), text: "Controller on duty: Chris Lee", by: "Chris Lee" },
     { time: d("11:30"), text: "Gates open", by: "Chris Lee" },
-    { time: d("15:40"), text: "Hospital status: St Mary's Hospital under pressure (Long handover delays)", by: "Chris Lee" }]
+    { time: d("15:40"), text: "Hospital status: Northfield Hospital under pressure (Long handover delays)", by: "Chris Lee" }]
 };
 
 async function shot(target, name) {
@@ -101,30 +101,36 @@ async function topShot(page, target, name, maxH) {
   console.log("  " + name + ".png");
 }
 
-async function capture(browser) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2, locale: "en-GB" });
+/* Plain pictures of the site, drawn here so every name in them is made up. The CAD draws the grid over them. */
+function drawMap(spots, ground) {
+  const c = document.createElement("canvas"), g = c.getContext("2d");
+  c.width = 1200; c.height = 750;
+  g.fillStyle = ground; g.fillRect(0, 0, 1200, 750);
+  g.font = "bold 22px sans-serif";
+  spots.forEach(([t, x, y, col, w, h]) => {
+    g.fillStyle = col; g.fillRect(x, y, w || 220, h || 120); g.fillStyle = "#fff"; g.fillText(t, x + 20, y + (h || 120) / 2 + 8);
+  });
+  return { src: c.toDataURL("image/jpeg", 0.85), w: 1200, h: 750 };
+}
+
+/* The example event, with its map, in a fresh page. */
+async function seed(page) {
   page.on("dialog", (dlg) => dlg.accept());
-  await page.clock.install({ time: new Date("2027-07-17T16:40:00") });
+  await page.clock.install({ time: new Date("2026-07-18T16:40:00") });
   await page.goto(APP);
-  // A simple drawn site map, so the guide can show where the map appears.
-  await page.evaluate((data) => {
+  await page.evaluate(([data, draw]) => {
     localStorage.clear();
     localStorage.setItem("event-cad/v1", JSON.stringify(data));
-    const c = document.createElement("canvas"), g = c.getContext("2d");
-    c.width = 1200; c.height = 750;
-    g.fillStyle = "#dcecd6"; g.fillRect(0, 0, 1200, 750);
-    g.strokeStyle = "#7f927f"; g.font = "22px sans-serif"; g.fillStyle = "#3c3c3c";
-    for (let i = 0; i < 8; i++) for (let j = 0; j < 5; j++) {
-      g.strokeRect(i * 150, j * 150, 150, 150);
-      g.fillText("ABCDEFGH"[i] + (j + 1), i * 150 + 8, j * 150 + 26);
-    }
-    [["MAIN STAGE", 450, 150, "#5a5a8c"], ["MAIN TC", 120, 480, "#c83c3c"], ["NORTH TC", 930, 90, "#c83c3c"],
-      ["CAMPSITE C", 830, 470, "#d9b44a"]].forEach(([t, x, y, col]) => {
-      g.fillStyle = col; g.fillRect(x, y, 220, 120); g.fillStyle = "#fff"; g.fillText(t, x + 20, y + 68);
-    });
-    localStorage.setItem("event-cad/site-map", JSON.stringify({ src: c.toDataURL("image/jpeg", 0.85), w: 1200, h: 750 }));
-  }, EXAMPLE);
+    const drawMap = new Function("return " + draw)();
+    localStorage.setItem("event-cad/site-map", JSON.stringify({ images: { m1: drawMap([["MAIN STAGE", 450, 150, "#5a5a8c"],
+      ["MAIN TC", 120, 480, "#c83c3c"], ["NORTH TC", 930, 90, "#c83c3c"], ["CAMPSITE C", 830, 470, "#d9b44a"]], "#dcecd6") } }));
+  }, [EXAMPLE, drawMap.toString()]);
   await page.reload();
+}
+
+async function capture(browser) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2, locale: "en-GB" });
+  await seed(page);
   // Whole-page figures: the bar that stays on screen and the call sheet's own scrolling would cut them short.
   await page.addStyleTag({ content: ".cad-actions, .call-col { position: static !important; max-height: none !important; overflow: visible !important; }" });
   await page.clock.runFor(5000);
@@ -156,6 +162,12 @@ async function capture(browser) {
   await page.locator("#unitPanel").getByLabel("Coming on: name 1").fill("Kim Lowe");
   await page.locator("#unitPanel").getByLabel("Clinical grade 1").fill("EMT");
   await shot(page.locator("#unitPanel"), "crew-form");
+  await page.locator("#unitPanel").getByRole("button", { name: "Cancel" }).click();
+  await page.click("#radioCheckBtn");
+  for (const u of ["Alpha 1", "Alpha 2", "Romeo 1", "Foot 2"]) await page.click(`button[aria-label='OK: ${u}']`);
+  await page.click("button[aria-label='No reply: Cycle 1']");
+  await blur();
+  await shot(page.locator("#unitPanel"), "radio-check");
   await page.locator("#unitPanel").getByRole("button", { name: "Cancel" }).click();
   await page.click("#sitrepBtn");
   await shot(page.locator("#sitrepPanel"), "sitrep");
@@ -206,7 +218,34 @@ async function capture(browser) {
     paper: await save(() => CadPDF.paper(CAD.clean(JSON.parse(localStorage.getItem("event-cad/v1"))),
       guideMaps()).output("datauristring"), "sample-paper.pdf")
   };
+  // Last, after the sample PDFs: a second map, for the setup and the CAD tab's buttons for each map.
+  const campsite = await page.evaluate((draw) => new Function("return " + draw)()([["CAMPSITE A", 80, 80, "#d9b44a", 420, 260],
+    ["CAMPSITE B", 600, 80, "#d9b44a", 520, 260], ["WELFARE", 80, 470, "#3c8c5a"], ["TOILETS", 450, 470, "#6b7a8c"],
+    ["CAMPSITE TC", 820, 470, "#c83c3c", 300]], "#e4efd9").src.split(",")[1], drawMap.toString());
+  await page.click('[data-tab="setup"]');
+  await page.setInputFiles("#mapFile", { name: "campsite.jpg", mimeType: "image/jpeg", buffer: Buffer.from(campsite, "base64") });
+  await page.waitForSelector("#mapList .map-edit:nth-child(2) svg");
+  await page.getByLabel("Map name 2").fill("Campsite");
+  await page.getByLabel("Map name 2").press("Tab");
+  await page.locator("#mapResult").evaluate((e) => { e.hidden = true; });
+  await blur();
+  await shot(page.locator("#panel-setup .card", { has: page.locator("h2", { hasText: "Site maps" }) }), "setup-maps");
+  await page.click('[data-tab="cad"]');
+  await page.locator("#mapCard summary").click();
+  await page.locator("#mapLevels").getByRole("button", { name: "Campsite" }).click();
+  await blur();
+  await shot(page.locator("#mapCard"), "cad-maps");
   await page.close();
+
+  // An iPad held upright: the board, with the Board and Call switch.
+  const ctx = await browser.newContext(Object.assign({}, devices["iPad Pro 11"], { locale: "en-GB" }));
+  const ipad = await ctx.newPage();
+  await seed(ipad);
+  await ipad.click("#viewBoard");
+  await ipad.clock.runFor(2000);
+  await ipad.screenshot({ path: path.join(SHOTS, "ipad.png") });
+  console.log("  ipad.png");
+  await ctx.close();
   return { files, calls: cad.calls.length };
 }
 
